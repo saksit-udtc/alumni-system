@@ -86,7 +86,7 @@ services:
     ports:
       - "127.0.0.1:3001:3000"
     command: >
-      /bin/sh -c "npx prisma migrate deploy && node server.js"
+      /bin/sh -c "npx prisma migrate deploy && npm run start"
 
   cron:
     build:
