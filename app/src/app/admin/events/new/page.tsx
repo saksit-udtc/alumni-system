@@ -14,8 +14,28 @@ export default function NewEventPage() {
   const [pricePerSeat, setPricePerSeat] = useState(0);
   const [useZones, setUseZones] = useState(false);
   const [tableCount, setTableCount] = useState(10);
+  const [zones, setZones] = useState([
+    { name: "โซน A", tableCount: 10, color: "#2563eb" },
+  ]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const ZONE_COLORS = ["#2563eb", "#f97316", "#16a34a", "#dc2626", "#9333ea", "#0891b2", "#ca8a04", "#db2777"];
+
+  function addZone() {
+    setZones((prev) => [
+      ...prev,
+      { name: `โซน ${String.fromCharCode(65 + prev.length)}`, tableCount: 5, color: ZONE_COLORS[prev.length % ZONE_COLORS.length] },
+    ]);
+  }
+
+  function updateZone(index: number, part: Partial<{ name: string; tableCount: number; color: string }>) {
+    setZones((prev) => prev.map((z, i) => (i === index ? { ...z, ...part } : z)));
+  }
+
+  function removeZone(index: number) {
+    setZones((prev) => prev.filter((_, i) => i !== index));
+  }
 
   function updateDatePart(part: Partial<DateParts>) {
     setDateParts((prev) => ({ ...prev, ...part }));
@@ -54,10 +74,25 @@ export default function NewEventPage() {
       // Pre-populate the event with its tables right away — using the same
       // bulk-add endpoint the "จัดการโต๊ะ & โซน" page uses — so the admin
       // doesn't land on an empty floor plan after creating the event.
-      // Zone name/color assignment for individual tables still happens
-      // afterwards on that management page; this checkbox is just a heads
-      // up that zones exist as a concept for this event.
-      if (tableCount > 0) {
+      // When zones are enabled, one POST per zone (sequential, not
+      // Promise.all — the API numbers tables off the current max, so
+      // concurrent calls would race and could duplicate table numbers).
+      if (useZones) {
+        for (const z of zones) {
+          if (z.tableCount > 0) {
+            await fetch(`/api/admin/events/${event.id}/tables`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                count: z.tableCount,
+                capacity: seatsPerTable,
+                zone: z.name || undefined,
+                zoneColor: z.color || undefined,
+              }),
+            });
+          }
+        }
+      } else if (tableCount > 0) {
         await fetch(`/api/admin/events/${event.id}/tables`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -129,19 +164,73 @@ export default function NewEventPage() {
             <input type="checkbox" checked={useZones} onChange={(e) => setUseZones(e.target.checked)} className="rounded border-slate-300" />
             แบ่งโต๊ะเป็นโซน (เช่น VIP, ใกล้เวที, โซนตามรุ่น)
           </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-600">จำนวนโต๊ะ</span>
-            <input
-              type="number"
-              value={tableCount}
-              onChange={(e) => setTableCount(Number(e.target.value))}
-              className="border rounded px-3 py-2 max-w-[160px]"
-            />
-          </label>
+          {!useZones && (
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-slate-600">จำนวนโต๊ะ</span>
+              <input
+                type="number"
+                value={tableCount}
+                onChange={(e) => setTableCount(Number(e.target.value))}
+                className="border rounded px-3 py-2 max-w-[160px]"
+              />
+            </label>
+          )}
+
           {useZones && (
-            <p className="text-xs text-slate-500">
-              สร้างงานก่อน แล้วไปตั้งชื่อ/สีโซนของแต่ละโต๊ะได้ที่หน้า &ldquo;จัดการโต๊ะ &amp; โซน&rdquo;
-            </p>
+            <div className="flex flex-col gap-3">
+              {zones.map((z, i) => (
+                <div key={i} className="flex flex-wrap items-end gap-2 border border-slate-200 rounded-lg p-3">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-slate-500">ชื่อโซน</span>
+                    <input
+                      value={z.name}
+                      onChange={(e) => updateZone(i, { name: e.target.value })}
+                      className="border rounded px-3 py-2 w-40"
+                      placeholder="เช่น VIP, ใกล้เวที"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-slate-500">จำนวนโต๊ะ</span>
+                    <input
+                      type="number"
+                      value={z.tableCount}
+                      onChange={(e) => updateZone(i, { tableCount: Number(e.target.value) })}
+                      className="border rounded px-3 py-2 w-24"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-slate-500">สีโซน</span>
+                    <input
+                      type="color"
+                      value={z.color}
+                      onChange={(e) => updateZone(i, { color: e.target.value })}
+                      className="border rounded h-[42px] w-14 p-1"
+                    />
+                  </label>
+                  {zones.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeZone(i)}
+                      className="text-sm text-red-500 hover:underline px-2 py-2"
+                    >
+                      ลบโซน
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={addZone}
+                  className="text-sm text-primary-700 hover:underline"
+                >
+                  + เพิ่มโซน
+                </button>
+                <span className="text-xs text-slate-500">
+                  รวมทั้งหมด {zones.reduce((sum, z) => sum + (Number(z.tableCount) || 0), 0)} โต๊ะ
+                </span>
+              </div>
+            </div>
           )}
         </section>
 
