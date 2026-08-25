@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import QrCode from "@/app/components/qr-code";
 
@@ -12,7 +12,7 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   expired: { label: "หมดเวลาจอง", color: "bg-slate-200 text-slate-600" },
 };
 
-export default function StatusPage() {
+function StatusForm() {
   const searchParams = useSearchParams();
   const [bookingCode, setBookingCode] = useState(searchParams.get("bookingCode") || "");
   const [phone, setPhone] = useState(searchParams.get("phone") || "");
@@ -124,5 +124,16 @@ export default function StatusPage() {
         })}
       </div>
     </main>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary above it for the build's
+// static-export pass (Next.js prerender check) — without this, `next build`
+// fails with "useSearchParams() should be wrapped in a suspense boundary".
+export default function StatusPage() {
+  return (
+    <Suspense fallback={null}>
+      <StatusForm />
+    </Suspense>
   );
 }

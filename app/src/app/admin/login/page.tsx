@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
@@ -60,5 +60,16 @@ export default function AdminLoginPage() {
         </button>
       </form>
     </main>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary above it for the build's
+// static-export pass (Next.js prerender check) — without this, `next build`
+// fails with "useSearchParams() should be wrapped in a suspense boundary".
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminLoginForm />
+    </Suspense>
   );
 }
