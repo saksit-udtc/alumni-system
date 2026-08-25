@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  verifiedSlips     PaymentSlip[] @relation("VerifiedBy")
+  checkedInReservs  Reservation[] @relation("CheckedInBy")
+  souvenirReservs   Reservation[] @relation("SouvenirBy")
+}
+
+model Alumni {
+  id                String   @id @default(cuid())
+  fullName          String
+  graduationYear    String?
+  department        String?
+  currentOccupation String?
+  phone             String?
+  email             String?
+  lineId            String?
+  photoUrl          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([phone])
+}
+
+enum EventStatus {
+  draft
+  open
+  closed
+}
+
+model Event {
+  id            String      @id @default(cuid())
+  name          String
+  eventDate     DateTime
+  location      String?
+  seatsPerTable Int         @default(10)
+  pricePerTable Decimal     @db.Decimal(10, 2)
+  pricePerSeat  Decimal     @db.Decimal(10, 2)
+  status        EventStatus @default(draft)
+  floorPlanUrl  String?
+  createdAt     DateTime    @default(now())
+
+  tables       Table[]
+  reservations Reservation[]
+}
+
+model Table {
+  id                 String   @id @default(cuid())
+  eventId            String
+  event              Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tableNumber        Int
+  capacity           Int
+  seatsReserved      Int      @default(0)
+  isFullTableBooking Boolean  @default(false)
+  zone               String?
+  zoneColor          String?
+  positionX          Float?
+  positionY          Float?
+
+  reservations Reservation[]
+
+  @@unique([eventId, tableNumber])
+  @@index([eventId])
+}
+
+enum BookingType {
+  full_table
+  seats
+}
+
+enum PaymentStatus {
+  pending
+  awaiting_verify
+  confirmed
+  rejected
+  expired
+}
+
+model Reservation {
+  id             String        @id @default(cuid())
+  bookingCode    String        @unique
+  eventId        String
+  event          Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tableId        String
+  table          Table         @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  bookingType    BookingType
+  seatCount      Int
+  bookerName     String
+  bookerPhone    String
+  bookerEmail    String?
+  partyNames     Json?
+  paymentStatus  PaymentStatus @default(pending)
+  totalAmount    Decimal       @db.Decimal(10, 2)
+  reservedUntil  DateTime
+  checkedIn      Boolean       @default(false)
+  checkedInAt    DateTime?
+  checkedInBy    String?
+  checkedInByUser AdminUser?   @relation("CheckedInBy", fields: [checkedInBy], references: [id])
+  souvenirGiven   Boolean      @default(false)
+  souvenirGivenAt DateTime?
+  souvenirGivenBy String?
+  souvenirGivenByUser AdminUser? @relation("SouvenirBy", fields: [souvenirGivenBy], references: [id])
+  qrCodeToken    String?       @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  slips PaymentSlip[]
+
+  @@index([eventId])
+  @@index([tableId])
+  @@index([bookerPhone])
+  @@index([paymentStatus, reservedUntil])
+}
+
+model PaymentSlip {
+  id            String       @id @default(cuid())
+  reservationId String
+  reservation   Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  fileKey       String
+  uploadedAt    DateTime     @default(now())
+  verifiedBy    String?
+  verifiedByUser AdminUser?  @relation("VerifiedBy", fields: [verifiedBy], references: [id])
+  verifiedAt    DateTime?
+  note          String?
+
+  @@index([reservationId])
+}
