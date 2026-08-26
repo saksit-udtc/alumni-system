@@ -39,6 +39,7 @@ export default function MerchShopPage() {
   const [shippingAddress, setShippingAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/merch/products")
@@ -169,7 +170,14 @@ export default function MerchShopPage() {
           return (
             <div key={p.id} className="bg-white rounded-xl shadow p-4 flex flex-col gap-2">
               {p.imageUrl ? (
-                <img src={p.imageUrl} alt={p.name} className="w-full h-40 object-cover rounded-lg" />
+                <button
+                  type="button"
+                  onClick={() => setLightbox({ url: p.imageUrl!, alt: p.name })}
+                  className="block w-full cursor-zoom-in"
+                  aria-label={`ดูภาพขยายของ ${p.name}`}
+                >
+                  <img src={p.imageUrl} alt={p.name} className="w-full h-40 object-cover rounded-lg" />
+                </button>
               ) : (
                 <div className="w-full h-40 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-sm">
                   ไม่มีรูปภาพ
@@ -309,6 +317,32 @@ export default function MerchShopPage() {
           {submitting ? "กำลังสั่งซื้อ..." : "สั่งซื้อ"}
         </button>
       </form>
+
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out overflow-auto"
+        >
+          <img
+            src={lightbox.url}
+            alt={lightbox.alt}
+            // Native pinch-to-zoom on mobile works because the image sits in
+            // a scrollable overlay; on desktop it's just shown large. Stop
+            // the click from bubbling to the backdrop so tapping the image
+            // itself doesn't close the lightbox.
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-full sm:max-w-[90vw] sm:max-h-[90vh] object-contain rounded-lg"
+          />
+          <button
+            type="button"
+            onClick={() => setLightbox(null)}
+            aria-label="ปิด"
+            className="fixed top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full w-10 h-10 flex items-center justify-center text-xl"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </main>
   );
 }
