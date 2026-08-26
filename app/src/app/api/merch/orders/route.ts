@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createMerchOrder, MerchOrderError } from "@/lib/createMerchOrder";
+import { sendMerchOrderReceivedEmail } from "@/lib/mailer";
 
 // Public: create a merch order. Fully independent of table booking.
 export async function POST(req: NextRequest) {
@@ -29,6 +30,20 @@ export async function POST(req: NextRequest) {
         productId: i.productId,
         size: i.size,
         quantity: Number(i.quantity),
+      })),
+    });
+
+    await sendMerchOrderReceivedEmail({
+      to: order.bookerEmail,
+      bookerName: order.bookerName,
+      bookerPhone: order.bookerPhone,
+      orderCode: order.orderCode,
+      shippingAddress: order.shippingAddress,
+      totalAmount: Number(order.totalAmount),
+      items: order.items.map((it) => ({
+        productName: it.productName,
+        size: it.size,
+        quantity: it.quantity,
       })),
     });
 

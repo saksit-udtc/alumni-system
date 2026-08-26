@@ -273,6 +273,143 @@ export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmai
   }
 }
 
+interface MerchOrderReceivedEmailArgs {
+  to: string;
+  bookerName: string;
+  bookerPhone: string;
+  orderCode: string;
+  shippingAddress: string;
+  totalAmount: number;
+  items: { productName: string; size: string | null; quantity: number }[];
+}
+
+function uploadMerchSlipUrl(orderCode: string, bookerPhone: string) {
+  const base = process.env.APP_BASE_URL || "http://localhost:3000";
+  return `${base}/merch/orders/${orderCode}/upload-slip?phone=${encodeURIComponent(bookerPhone)}`;
+}
+
+function buildMerchOrderReceivedHtml(args: MerchOrderReceivedEmailArgs) {
+  const slipUrl = uploadMerchSlipUrl(args.orderCode, args.bookerPhone);
+  const rows = args.items
+    .map(
+      (it) =>
+        `<li>${it.productName}${it.size ? ` (ไซส์ ${it.size})` : ""} × ${it.quantity}</li>`
+    )
+    .join("");
+  return `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>สั่งซื้อของที่ระลึกสำเร็จ</h2>
+      <p>เรียน คุณ${args.bookerName}</p>
+      <p>เราได้รับคำสั่งซื้อของที่ระลึกของท่านเรียบร้อยแล้ว</p>
+      <ul>
+        <li>รหัสการสั่งซื้อ: <strong>${args.orderCode}</strong></li>
+        <li>ยอดชำระ: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
+      </ul>
+      <p><strong>รายการสินค้า:</strong></p>
+      <ul>${rows}</ul>
+      <p><strong>จัดส่งไปที่:</strong><br/>${args.shippingAddress.replace(/\n/g, "<br/>")}</p>
+      <p>กรุณาชำระเงินและอัปโหลดสลิปการโอนเพื่อยืนยันการสั่งซื้อ เมื่อเจ้าหน้าที่ตรวจสอบสลิปเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันการสั่งซื้อให้อีกครั้ง</p>
+      <p style="margin: 20px 0;">
+        <a href="${slipUrl}" style="display:inline-block; background:#1e3a8a; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:6px;">อัปโหลดสลิปการโอนเงิน</a>
+      </p>
+      <p style="color:#64748b; font-size:12px;">หรือคัดลอกลิงก์นี้: ${slipUrl}</p>
+    </div>
+  `;
+}
+
+/**
+ * Sent right after a merch order is created — the merch equivalent of
+ * sendBookingReceivedEmail above. Same fail-soft contract: never throws, so
+ * a bad/missing mail config can never block order creation.
+ */
+export async function sendMerchOrderReceivedEmail(args: MerchOrderReceivedEmailArgs): Promise<void> {
+  try {
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        to: args.to,
+        subject: `สั่งซื้อของที่ระลึกสำเร็จ - ${args.orderCode}`,
+        html: buildMerchOrderReceivedHtml(args),
+      });
+      if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      return;
+    }
+    if (process.env.SMTP_HOST) {
+      const transport = getTransport();
+      await transport.sendMail({
+        from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
+        to: args.to,
+        subject: `สั่งซื้อของที่ระลึกสำเร็จ - ${args.orderCode}`,
+        html: buildMerchOrderReceivedHtml(args),
+      });
+      return;
+    }
+    console.warn(
+      "[mailer] neither RESEND_API_KEY nor SMTP_HOST configured, skipping merch order received email"
+    );
+  } catch (err) {
+    console.error("[mailer] failed to send merch order received email (non-fatal):", err);
+  }
+}
+
+interface MerchSlipReceivedEmailArgs {
+  to: string;
+  bookerName: string;
+  orderCode: string;
+}
+
+function buildMerchSlipReceivedHtml(args: MerchSlipReceivedEmailArgs) {
+  return `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>ได้รับสลิปแล้ว รอตรวจสอบ</h2>
+      <p>เรียน คุณ${args.bookerName}</p>
+      <p>เราได้รับสลิปการโอนเงินสำหรับการสั่งซื้อของที่ระลึกของท่านเรียบร้อยแล้ว</p>
+      <ul>
+        <li>รหัสการสั่งซื้อ: <strong>${args.orderCode}</strong></li>
+      </ul>
+      <p>เจ้าหน้าที่กำลังตรวจสอบสลิปของท่าน เมื่อตรวจสอบเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันการสั่งซื้อให้อีกครั้ง</p>
+    </div>
+  `;
+}
+
+/**
+ * Sent right after a merch order's slip is uploaded (paymentStatus ->
+ * awaiting_verify), before an admin has reviewed it — the merch equivalent
+ * of sendSlipReceivedEmail above. Same fail-soft contract: never throws, so
+ * a bad/missing mail config can never block the slip upload itself.
+ */
+export async function sendMerchSlipReceivedEmail(args: MerchSlipReceivedEmailArgs): Promise<void> {
+  try {
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        to: args.to,
+        subject: `ได้รับสลิปแล้ว รอตรวจสอบ - ${args.orderCode}`,
+        html: buildMerchSlipReceivedHtml(args),
+      });
+      if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      return;
+    }
+    if (process.env.SMTP_HOST) {
+      const transport = getTransport();
+      await transport.sendMail({
+        from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
+        to: args.to,
+        subject: `ได้รับสลิปแล้ว รอตรวจสอบ - ${args.orderCode}`,
+        html: buildMerchSlipReceivedHtml(args),
+      });
+      return;
+    }
+    console.warn(
+      "[mailer] neither RESEND_API_KEY nor SMTP_HOST configured, skipping merch slip received email"
+    );
+  } catch (err) {
+    console.error("[mailer] failed to send merch slip received email (non-fatal):", err);
+  }
+}
+
 interface SlipReceivedEmailArgs {
   to: string;
   bookerName: string;

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { uploadObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
+import { sendMerchSlipReceivedEmail } from "@/lib/mailer";
 import crypto from "crypto";
 
 /**
  * Guest mutating endpoint — verifies ownership via the orderCode +
  * bookerPhone shared-secret pair, never trusting a bare orderId. Mirrors
- * reservations/[bookingCode]/upload-slip exactly, minus the email step.
+ * reservations/[bookingCode]/upload-slip, including the "slip received"
+ * email step.
  */
 export async function POST(req: NextRequest, { params }: { params: { orderCode: string } }) {
   const formData = await req.formData().catch(() => null);
@@ -50,6 +52,12 @@ export async function POST(req: NextRequest, { params }: { params: { orderCode: 
       data: { paymentStatus: "awaiting_verify" },
     }),
   ]);
+
+  await sendMerchSlipReceivedEmail({
+    to: order.bookerEmail,
+    bookerName: order.bookerName,
+    orderCode: order.orderCode,
+  });
 
   return NextResponse.json({ ok: true });
 }
