@@ -1,5 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { publicMerchProductUrl } from "@/lib/minio";
+
+export const dynamic = "force-dynamic";
 
 /**
  * Public status lookup. Requires bookerPhone (or orderCode + bookerPhone

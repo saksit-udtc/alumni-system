@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { publicMerchProductUrl } from "@/lib/minio";
+export const dynamic = "force-dynamic";
 
 // Public: list active merch products for the shop page.
 export async function GET() {
