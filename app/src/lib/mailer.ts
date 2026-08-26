@@ -202,6 +202,77 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
   }
 }
 
+interface MerchOrderConfirmedEmailArgs {
+  to: string;
+  bookerName: string;
+  orderCode: string;
+  shippingAddress: string;
+  totalAmount: number;
+  items: { productName: string; size: string | null; quantity: number }[];
+}
+
+function buildMerchOrderConfirmedHtml(args: MerchOrderConfirmedEmailArgs) {
+  const rows = args.items
+    .map(
+      (it) =>
+        `<li>${it.productName}${it.size ? ` (ไซส์ ${it.size})` : ""} × ${it.quantity}</li>`
+    )
+    .join("");
+  return `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>ยืนยันการสั่งซื้อของที่ระลึกสำเร็จ</h2>
+      <p>เรียน คุณ${args.bookerName}</p>
+      <p>การสั่งซื้อของที่ระลึกของท่านได้รับการตรวจสอบและยืนยันเรียบร้อยแล้ว</p>
+      <ul>
+        <li>รหัสการสั่งซื้อ: <strong>${args.orderCode}</strong></li>
+        <li>ยอดชำระ: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
+      </ul>
+      <p><strong>รายการสินค้า:</strong></p>
+      <ul>${rows}</ul>
+      <p><strong>จัดส่งไปที่:</strong><br/>${args.shippingAddress.replace(/\n/g, "<br/>")}</p>
+      <p>ทางวิทยาลัยจะดำเนินการจัดส่งสินค้าตามที่อยู่ที่ท่านแจ้งไว้ ขอบคุณที่อุดหนุนของที่ระลึกงานคืนสู่เหย้าครับ/ค่ะ</p>
+    </div>
+  `;
+}
+
+/**
+ * Sent once an admin approves a merch order's payment slip (paymentStatus ->
+ * confirmed) — the merch equivalent of sendConfirmationEmail above, minus
+ * the check-in QR (merch orders aren't checked in at the event). Same
+ * fail-soft contract: never throws, so a bad/missing mail config can never
+ * block slip approval.
+ */
+export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmailArgs): Promise<void> {
+  try {
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        to: args.to,
+        subject: `ยืนยันการสั่งซื้อของที่ระลึก - ${args.orderCode}`,
+        html: buildMerchOrderConfirmedHtml(args),
+      });
+      if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      return;
+    }
+    if (process.env.SMTP_HOST) {
+      const transport = getTransport();
+      await transport.sendMail({
+        from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
+        to: args.to,
+        subject: `ยืนยันการสั่งซื้อของที่ระลึก - ${args.orderCode}`,
+        html: buildMerchOrderConfirmedHtml(args),
+      });
+      return;
+    }
+    console.warn(
+      "[mailer] neither RESEND_API_KEY nor SMTP_HOST configured, skipping merch order confirmed email"
+    );
+  } catch (err) {
+    console.error("[mailer] failed to send merch order confirmed email (non-fatal):", err);
+  }
+}
+
 interface SlipReceivedEmailArgs {
   to: string;
   bookerName: string;

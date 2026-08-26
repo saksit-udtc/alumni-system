@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { sendMerchOrderConfirmedEmail } from "@/lib/mailer";
 
 /**
  * Approve slip -> confirmed, records verifiedBy/verifiedAt on the latest
- * MerchPaymentSlip row. No email step for merch orders (unlike
- * reservations). Mirrors admin/reservations/[id]/approve's atomic
- * updateMany race-guard pattern exactly.
+ * MerchPaymentSlip row, and emails the booker a confirmation (order code,
+ * items, shipping address) — bookerEmail is required on every merch order.
+ * Mirrors admin/reservations/[id]/approve's atomic updateMany race-guard
+ * pattern exactly; the email send is fire-and-forget/fail-soft (mailer.ts
+ * never throws) so a bad mail config can never block approval.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const { admin, response } = requireAdmin(req);
@@ -14,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const order = await prisma.merchOrder.findUnique({
     where: { id: params.id },
-    include: { slips: { orderBy: { uploadedAt: "desc" }, take: 1 } },
+    include: { slips: { orderBy: { uploadedAt: "desc" }, take: 1 }, items: true },
   });
   if (!order) return jsonError("ไม่พบการสั่งซื้อที่ระบุ", 404);
 
@@ -44,6 +47,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!updated) {
     return jsonError("สถานะการสั่งซื้อไม่สามารถอนุมัติได้ (มีการอนุมัติไปแล้ว)", 409);
   }
+
+  await sendMerchOrderConfirmedEmail({
+    to: order.bookerEmail,
+    bookerName: order.bookerName,
+    orderCode: order.orderCode,
+    shippingAddress: order.shippingAddress,
+    totalAmount: Number(order.totalAmount),
+    items: order.items.map((it) => ({
+      productName: it.productName,
+      size: it.size,
+      quantity: it.quantity,
+    })),
+  });
 
   return NextResponse.json({ ok: true });
 }
