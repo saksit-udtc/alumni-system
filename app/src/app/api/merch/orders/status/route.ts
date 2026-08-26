@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { publicMerchProductUrl } from "@/lib/minio";
 
 export const dynamic = "force-dynamic";
 
