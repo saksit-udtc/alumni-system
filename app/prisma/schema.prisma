@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model AdminUser {
@@ -139,7 +141,6 @@ model PaymentSlip {
   @@index([reservationId])
 }
 
-
 // --- Merchandise ordering (สั่งซื้อของที่ระลึก) ---
 // Fully independent of table booking — anyone can order without booking a
 // table. Reuses the same PaymentStatus enum and slip-upload-then-admin-
@@ -156,6 +157,21 @@ model MerchProduct {
   createdAt    DateTime @default(now())
 
   orderItems MerchOrderItem[]
+  stocks     MerchProductStock[]
+}
+
+// One row per (product, size) — size is null for products that don't
+// require a size (requiresSize: false), so each such product has exactly
+// one stock row. Sized products (e.g. shirts) get one row per size.
+model MerchProductStock {
+  id        String       @id @default(cuid())
+  productId String
+  product   MerchProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      String?
+  quantity  Int          @default(0)
+
+  @@unique([productId, size])
+  @@index([productId])
 }
 
 model MerchOrder {

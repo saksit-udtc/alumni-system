@@ -97,6 +97,24 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
   }
 
   const order = await prisma.$transaction(async (tx) => {
+    // Decrement stock first, atomically and race-safely: the WHERE clause
+    // re-checks quantity >= requested at the moment of the update, so two
+    // concurrent orders competing for the last unit can't both succeed.
+    // Each cart line is checked independently (in order), which is safe
+    // even if the same product+size appears twice in one order — each
+    // updateMany re-reads the just-decremented quantity.
+    for (const item of orderItemsData) {
+      const result = await tx.merchProductStock.updateMany({
+        where: { productId: item.productId, size: item.size, quantity: { gte: item.quantity } },
+        data: { quantity: { decrement: item.quantity } },
+      });
+      if (result.count === 0) {
+        const product = productMap.get(item.productId)!;
+        const label = item.size ? `${product.name} (ไซส์ ${item.size})` : product.name;
+        throw new MerchOrderError("OUT_OF_STOCK", `สินค้า "${label}" มีไม่เพียงพอ กรุณาลดจำนวนหรือเลือกไซส์อื่น`);
+      }
+    }
+
     const created = await tx.merchOrder.create({
       data: {
         orderCode,

@@ -3,12 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { publicMerchProductUrl } from "@/lib/minio";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const { response } = requireAdmin(req);
   if (response) return response;
 
   const products = await prisma.merchProduct.findMany({
     orderBy: { createdAt: "asc" },
+    include: { stocks: true },
   });
 
   return NextResponse.json({
@@ -20,6 +23,7 @@ export async function GET(req: NextRequest) {
       requiresSize: p.requiresSize,
       active: p.active,
       imageUrl: p.imageKey ? publicMerchProductUrl(p.imageKey) : null,
+      stock: Object.fromEntries(p.stocks.map((s) => [s.size ?? "", s.quantity])),
     })),
   });
 }

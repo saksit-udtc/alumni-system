@@ -20,6 +20,21 @@ export const s3 = new S3Client({
   forcePathStyle: true,
 });
 
+// Presigning client — used only to generate presigned GET URLs. Must sign
+// against the PUBLIC endpoint (e.g. https://files.udontech.ac.th), because
+// the resulting URL is opened directly by the admin's browser, which cannot
+// resolve the internal Docker hostname "minio". Signing with the wrong host
+// produces a URL the browser can't reach at all.
+const s3Public = new S3Client({
+  endpoint: process.env.MINIO_PUBLIC_URL || process.env.MINIO_ENDPOINT || "http://minio:9000",
+  region: "us-east-1",
+  credentials: {
+    accessKeyId: process.env.MINIO_ROOT_USER || "minioadmin",
+    secretAccessKey: process.env.MINIO_ROOT_PASSWORD || "minioadmin",
+  },
+  forcePathStyle: true,
+});
+
 export async function uploadObject(
   bucket: string,
   key: string,
@@ -42,7 +57,7 @@ export async function uploadObject(
  */
 export async function presignedGetUrl(bucket: string, key: string, expiresInSeconds = 300): Promise<string> {
   const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
-  return getSignedUrl(s3, cmd, { expiresIn: expiresInSeconds });
+  return getSignedUrl(s3Public, cmd, { expiresIn: expiresInSeconds });
 }
 
 export async function deleteObject(bucket: string, key: string): Promise<void> {

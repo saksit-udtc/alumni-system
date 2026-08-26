@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/apiHelpers";
 import { presignedGetUrl, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const { response } = requireAdmin(req);
   if (response) return response;

@@ -11,7 +11,10 @@ interface Product {
   requiresSize: boolean;
   active: boolean;
   imageUrl: string | null;
+  stock: Record<string, number>;
 }
+
+const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 
 export default function AdminMerchProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -21,6 +24,10 @@ export default function AdminMerchProductsPage() {
   const [requiresSize, setRequiresSize] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  // Draft stock edits keyed by `${productId}:${size}` (size "" for
+  // non-sized products), so typing in one box doesn't touch the others.
+  const [stockDrafts, setStockDrafts] = useState<Record<string, string>>({});
+  const [savingStock, setSavingStock] = useState<string | null>(null);
 
   function load() {
     fetch("/api/admin/merch/products")
@@ -84,6 +91,53 @@ export default function AdminMerchProductsPage() {
     load();
   }
 
+  function draftKey(productId: string, size: string) {
+    return `${productId}:${size}`;
+  }
+
+  function stockValue(p: Product, size: string) {
+    const key = draftKey(p.id, size);
+    if (key in stockDrafts) return stockDrafts[key];
+    return String(p.stock[size] ?? 0);
+  }
+
+  function updateDraft(productId: string, size: string, value: string) {
+    setStockDrafts((prev) => ({ ...prev, [draftKey(productId, size)]: value }));
+  }
+
+  async function saveStock(p: Product) {
+    const sizes = p.requiresSize ? SIZES : [""];
+    const stock: Record<string, number> = {};
+    for (const size of sizes) {
+      const raw = stockValue(p, size);
+      const qty = Math.max(0, Math.floor(Number(raw) || 0));
+      stock[size] = qty;
+    }
+    setSavingStock(p.id);
+    try {
+      const res = await fetch(`/api/admin/merch/products/${p.id}/stock`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stock }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "บันทึกสต๊อกไม่สำเร็จ");
+        return;
+      }
+      // Clear drafts for this product so the freshly-saved values (from
+      // the reload) become the new baseline.
+      setStockDrafts((prev) => {
+        const next = { ...prev };
+        for (const size of sizes) delete next[draftKey(p.id, size)];
+        return next;
+      });
+      load();
+    } finally {
+      setSavingStock(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -127,62 +181,84 @@ export default function AdminMerchProductsPage() {
         >
           {creating ? "กำลังเพิ่ม..." : "+ เพิ่มสินค้าใหม่"}
         </button>
+        <p className="text-xs text-gray-400">
+          สินค้าที่สร้างใหม่จะมีสต๊อกเป็น 0 ทุกไซส์ — ตั้งจำนวนสต๊อกได้ในตารางด้านล่างหลังสร้างเสร็จ
+        </p>
       </form>
 
-      <div className="overflow-x-auto">
-        <table className="w-full bg-white rounded-xl shadow text-sm">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="p-2">รูป</th>
-              <th className="p-2">ชื่อสินค้า</th>
-              <th className="p-2">ราคา</th>
-              <th className="p-2">ไซส์</th>
-              <th className="p-2">สถานะ</th>
-              <th className="p-2">การจัดการ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((p) => (
-              <tr key={p.id} className="border-b align-top">
-                <td className="p-2">
+      <div className="flex flex-col gap-3">
+        {products.map((p) => {
+          const sizes = p.requiresSize ? SIZES : [""];
+          const totalStock = sizes.reduce((sum, s) => sum + (p.stock[s] ?? 0), 0);
+          return (
+            <div key={p.id} className="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
                   {p.imageUrl ? (
-                    <img src={p.imageUrl} alt={p.name} className="w-12 h-12 object-cover rounded" />
+                    <img src={p.imageUrl} alt={p.name} className="w-16 h-16 object-cover rounded" />
                   ) : (
-                    <div className="w-12 h-12 bg-slate-100 rounded" />
+                    <div className="w-16 h-16 bg-slate-100 rounded" />
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="text-xs mt-1"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) uploadImage(p.id, file);
-                    }}
-                  />
-                </td>
-                <td className="p-2">
-                  <div>{p.name}</div>
-                  {p.description && <div className="text-xs text-gray-400">{p.description}</div>}
-                </td>
-                <td className="p-2">{Number(p.price).toLocaleString()} บาท</td>
-                <td className="p-2">{p.requiresSize ? "ต้องเลือกไซส์" : "—"}</td>
-                <td className="p-2">
+                  <div>
+                    <div className="font-semibold">{p.name}</div>
+                    {p.description && <div className="text-xs text-gray-400">{p.description}</div>}
+                    <div className="text-sm text-primary-700 font-medium">{Number(p.price).toLocaleString()} บาท</div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="text-xs mt-1"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadImage(p.id, file);
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-1 rounded ${totalStock > 0 ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}`}>
+                    รวมสต๊อก {totalStock}
+                  </span>
                   <button
                     onClick={() => toggleActive(p)}
                     className={`text-xs px-2 py-1 rounded ${p.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
                   >
                     {p.active ? "เปิดขาย" : "ปิดขาย"}
                   </button>
-                </td>
-                <td className="p-2">
                   <button onClick={() => deleteProduct(p.id)} className="text-red-500 hover:underline text-xs">
                     ลบ
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </div>
+
+              <div className="border-t pt-3">
+                <div className="text-xs font-medium text-gray-500 mb-2">
+                  สต๊อกสินค้า{p.requiresSize ? " (แยกตามไซส์)" : ""}
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                  {sizes.map((size) => (
+                    <label key={size || "single"} className="flex flex-col gap-1 text-xs">
+                      <span className="text-gray-500">{size || "จำนวน"}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={stockValue(p, size)}
+                        onChange={(e) => updateDraft(p.id, size, e.target.value)}
+                        className="border rounded px-2 py-1 w-20"
+                      />
+                    </label>
+                  ))}
+                  <button
+                    onClick={() => saveStock(p)}
+                    disabled={savingStock === p.id}
+                    className="bg-slate-800 hover:bg-slate-900 text-white text-xs rounded px-3 py-1.5 disabled:opacity-50"
+                  >
+                    {savingStock === p.id ? "กำลังบันทึก..." : "บันทึกสต๊อก"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

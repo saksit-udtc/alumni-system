@@ -10,6 +10,9 @@ interface Product {
   price: string;
   requiresSize: boolean;
   imageUrl: string | null;
+  // "" -> qty for non-sized products; per-size key otherwise. A missing
+  // key means 0 in stock, same as an explicit 0.
+  stock: Record<string, number>;
 }
 
 interface CartLine {
@@ -42,26 +45,44 @@ export default function MerchShopPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  function stockFor(p: Product, size: string) {
+    return p.stock?.[size] ?? 0;
+  }
+
+  function inCartQty(productId: string, size: string | undefined) {
+    return cart
+      .filter((l) => l.productId === productId && (l.size || "") === (size || ""))
+      .reduce((sum, l) => sum + l.quantity, 0);
+  }
+
+  function defaultSize(p: Product) {
+    return SIZES.find((s) => stockFor(p, s) > 0) || SIZES[0];
+  }
+
   function getSelection(p: Product) {
-    return selections[p.id] || { size: SIZES[1], quantity: 1 };
+    return selections[p.id] || { size: defaultSize(p), quantity: 1 };
   }
 
   function updateSelection(productId: string, patch: Partial<{ size: string; quantity: number }>) {
+    const product = products.find((p) => p.id === productId);
     setSelections((prev) => ({
       ...prev,
-      [productId]: { ...(prev[productId] || { size: SIZES[1], quantity: 1 }), ...patch },
+      [productId]: { ...(prev[productId] || { size: product ? defaultSize(product) : SIZES[0], quantity: 1 }), ...patch },
     }));
   }
 
   function addToCart(p: Product) {
     const sel = getSelection(p);
-    const quantity = Math.max(1, Number(sel.quantity) || 1);
+    const size = p.requiresSize ? sel.size : undefined;
+    const remaining = stockFor(p, size || "") - inCartQty(p.id, size);
+    if (remaining <= 0) return;
+    const quantity = Math.max(1, Math.min(Number(sel.quantity) || 1, remaining));
     setCart((prev) => [
       ...prev,
       {
         productId: p.id,
         name: p.name,
-        size: p.requiresSize ? sel.size : undefined,
+        size,
         quantity,
         unitPrice: Number(p.price),
       },
@@ -103,6 +124,9 @@ export default function MerchShopPage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        // OUT_OF_STOCK can still happen here even after client-side checks
+        // (someone else bought the last unit in the meantime) — the server
+        // is always the final authority.
         setError(data.error || "เกิดข้อผิดพลาด");
         return;
       }
@@ -122,6 +146,9 @@ export default function MerchShopPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {products.map((p) => {
           const sel = getSelection(p);
+          const selectedSize = p.requiresSize ? sel.size : "";
+          const remaining = stockFor(p, selectedSize) - inCartQty(p.id, p.requiresSize ? selectedSize : undefined);
+          const anyStock = p.requiresSize ? SIZES.some((s) => stockFor(p, s) > 0) : stockFor(p, "") > 0;
           return (
             <div key={p.id} className="bg-white rounded-xl shadow p-4 flex flex-col gap-2">
               {p.imageUrl ? (
@@ -135,7 +162,11 @@ export default function MerchShopPage() {
               {p.description && <p className="text-sm text-gray-500">{p.description}</p>}
               <p className="font-semibold text-primary-700">{Number(p.price).toLocaleString()} บาท</p>
 
-              {p.requiresSize && (
+              {!anyStock && (
+                <p className="text-sm font-medium text-red-500">สินค้าหมด</p>
+              )}
+
+              {anyStock && p.requiresSize && (
                 <label className="flex flex-col gap-1 text-sm">
                   <span className="font-medium">ไซส์</span>
                   <select
@@ -144,31 +175,37 @@ export default function MerchShopPage() {
                     className="border rounded px-2 py-1"
                   >
                     {SIZES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
+                      <option key={s} value={s} disabled={stockFor(p, s) === 0}>
+                        {s} {stockFor(p, s) === 0 ? "(หมด)" : `(เหลือ ${stockFor(p, s)})`}
                       </option>
                     ))}
                   </select>
                 </label>
               )}
 
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium">จำนวน</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={sel.quantity}
-                  onChange={(e) => updateSelection(p.id, { quantity: Number(e.target.value) })}
-                  className="border rounded px-2 py-1 w-24"
-                />
-              </label>
+              {anyStock && (
+                <>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-medium">จำนวน {!p.requiresSize && `(เหลือ ${stockFor(p, "")})`}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={Math.max(1, remaining)}
+                      value={sel.quantity}
+                      onChange={(e) => updateSelection(p.id, { quantity: Number(e.target.value) })}
+                      className="border rounded px-2 py-1 w-24"
+                    />
+                  </label>
 
-              <button
-                onClick={() => addToCart(p)}
-                className="mt-1 bg-primary-600 hover:bg-primary-700 text-white rounded py-2 font-semibold"
-              >
-                + เพิ่มลงตะกร้า
-              </button>
+                  <button
+                    onClick={() => addToCart(p)}
+                    disabled={remaining <= 0}
+                    className="mt-1 bg-primary-600 hover:bg-primary-700 text-white rounded py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {remaining <= 0 ? "หมด" : "+ เพิ่มลงตะกร้า"}
+                  </button>
+                </>
+              )}
             </div>
           );
         })}
