@@ -27,6 +27,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/alumni" className="hover:underline">
             ทำเนียบศิษย์เก่า
           </Link>
+          <Link href="/admin/merch/orders" className="hover:underline">
+            คำสั่งซื้อของที่ระลึก
+          </Link>
+          <Link href="/admin/merch/products" className="hover:underline">
+            จัดการสินค้า/สต๊อก
+          </Link>
         </nav>
         <div className="flex items-center gap-3 text-sm text-blue-500 min-w-0">
           <button onClick={logout} className="hover:underline">

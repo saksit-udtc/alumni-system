@@ -32,6 +32,9 @@ export default function HomePage() {
           <Link href="/status" className="text-primary-600 hover:underline">
             ตรวจสอบการจอง
           </Link>
+          <Link href="/merch" className="text-primary-600 hover:underline">
+            สั่งซื้อของที่ระลึก
+          </Link>
           <Link href="/admin/login" className="text-gray-500 hover:underline">
             สำหรับเจ้าหน้าที่
           </Link>
