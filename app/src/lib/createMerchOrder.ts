@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import crypto from "crypto";
+import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
 
 export interface CreateMerchOrderItemInput {
   productId: string;
@@ -10,7 +11,8 @@ export interface CreateMerchOrderItemInput {
 export interface CreateMerchOrderInput {
   bookerName: string;
   bookerPhone: string;
-  bookerEmail?: string;
+  bookerEmail: string;
+  shippingAddress: string;
   items: CreateMerchOrderItemInput[];
 }
 
@@ -43,13 +45,30 @@ function generateOrderCode(): string {
  * Prices are always taken from the DB, never trusted from the client.
  */
 export async function createMerchOrder(input: CreateMerchOrderInput) {
-  const { bookerName, bookerPhone, bookerEmail, items } = input;
+  const { bookerName, bookerPhone, bookerEmail, shippingAddress, items } = input;
 
-  if (!bookerName?.trim() || !bookerPhone?.trim()) {
-    throw new MerchOrderError("MISSING_FIELDS", "กรุณากรอกชื่อและเบอร์โทรศัพท์");
+  if (!bookerName?.trim() || !bookerPhone?.trim() || !bookerEmail?.trim()) {
+    throw new MerchOrderError("MISSING_FIELDS", "กรุณากรอกชื่อ เบอร์โทรศัพท์ และอีเมล");
+  }
+  if (!shippingAddress?.trim()) {
+    throw new MerchOrderError("MISSING_FIELDS", "กรุณากรอกที่อยู่สำหรับจัดส่ง");
   }
   if (!items || items.length === 0) {
     throw new MerchOrderError("EMPTY_CART", "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ");
+  }
+
+  const email = bookerEmail.trim();
+  if (!isValidEmailFormat(email)) {
+    throw new MerchOrderError("INVALID_EMAIL", "รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง");
+  }
+  // Same DNS-deliverability check used for table booking. Done outside the
+  // DB transaction below since it's network I/O.
+  const deliverable = await hasDeliverableEmailDomain(email);
+  if (!deliverable) {
+    throw new MerchOrderError(
+      "UNDELIVERABLE_EMAIL",
+      "ไม่สามารถส่งอีเมลไปยังโดเมนนี้ได้ กรุณาตรวจสอบอีเมลอีกครั้ง"
+    );
   }
 
   const productIds = [...new Set(items.map((i) => i.productId))];
@@ -122,7 +141,8 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
         orderCode,
         bookerName: bookerName.trim(),
         bookerPhone: bookerPhone.trim(),
-        bookerEmail: bookerEmail?.trim() || null,
+        bookerEmail: email,
+        shippingAddress: shippingAddress.trim(),
         totalAmount,
         paymentStatus: "pending",
         items: { create: orderItemsData },

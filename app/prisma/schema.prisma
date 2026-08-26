@@ -174,15 +174,16 @@ model MerchProductStock {
 }
 
 model MerchOrder {
-  id            String        @id @default(cuid())
-  orderCode     String        @unique
-  bookerName    String
-  bookerPhone   String
-  bookerEmail   String?
-  totalAmount   Decimal       @db.Decimal(10, 2)
-  paymentStatus PaymentStatus @default(pending)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  orderCode       String        @unique
+  bookerName      String
+  bookerPhone     String
+  bookerEmail     String
+  shippingAddress String        @db.Text
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  paymentStatus   PaymentStatus @default(pending)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   items MerchOrderItem[]
   slips MerchPaymentSlip[]

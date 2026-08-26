@@ -51,6 +51,7 @@ export default function AdminMerchOrdersPage() {
             <tr className="text-left border-b">
               <th className="p-2">รหัส</th>
               <th className="p-2">ผู้สั่ง</th>
+              <th className="p-2">ที่อยู่จัดส่ง</th>
               <th className="p-2">รายการ</th>
               <th className="p-2">ยอดรวม</th>
               <th className="p-2">สถานะ</th>
@@ -65,6 +66,10 @@ export default function AdminMerchOrdersPage() {
                 <td className="p-2">
                   <div>{o.bookerName}</div>
                   <div className="text-xs text-gray-400">{o.bookerPhone}</div>
+                  <div className="text-xs text-gray-400">{o.bookerEmail}</div>
+                </td>
+                <td className="p-2 max-w-[16rem] whitespace-pre-wrap text-xs text-gray-600">
+                  {o.shippingAddress}
                 </td>
                 <td className="p-2">
                   {o.items.map((it: any, i: number) => (

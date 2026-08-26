@@ -6,9 +6,16 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "invalid body" }, { status: 400 });
 
-  const { bookerName, bookerPhone, bookerEmail, items } = body;
+  const { bookerName, bookerPhone, bookerEmail, shippingAddress, items } = body;
 
-  if (!bookerName || !bookerPhone || !Array.isArray(items) || items.length === 0) {
+  if (
+    !bookerName ||
+    !bookerPhone ||
+    !bookerEmail ||
+    !shippingAddress ||
+    !Array.isArray(items) ||
+    items.length === 0
+  ) {
     return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" }, { status: 400 });
   }
 
@@ -17,6 +24,7 @@ export async function POST(req: NextRequest) {
       bookerName,
       bookerPhone,
       bookerEmail,
+      shippingAddress,
       items: items.map((i: any) => ({
         productId: i.productId,
         size: i.size,

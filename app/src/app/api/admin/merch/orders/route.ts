@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
         bookerName: o.bookerName,
         bookerPhone: o.bookerPhone,
         bookerEmail: o.bookerEmail,
+        shippingAddress: o.shippingAddress,
         paymentStatus: o.paymentStatus,
         totalAmount: o.totalAmount,
         createdAt: o.createdAt,

@@ -36,6 +36,7 @@ export default function MerchShopPage() {
   const [bookerName, setBookerName] = useState("");
   const [bookerPhone, setBookerPhone] = useState("");
   const [bookerEmail, setBookerEmail] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -103,8 +104,12 @@ export default function MerchShopPage() {
       setError("กรุณาเพิ่มสินค้าลงตะกร้าก่อนสั่งซื้อ");
       return;
     }
-    if (!bookerName.trim() || !bookerPhone.trim()) {
-      setError("กรุณากรอกชื่อผู้สั่งและเบอร์โทรศัพท์");
+    if (!bookerName.trim() || !bookerPhone.trim() || !bookerEmail.trim()) {
+      setError("กรุณากรอกชื่อผู้สั่ง เบอร์โทรศัพท์ และอีเมล");
+      return;
+    }
+    if (!shippingAddress.trim()) {
+      setError("กรุณากรอกที่อยู่สำหรับจัดส่ง");
       return;
     }
     setSubmitting(true);
@@ -116,6 +121,7 @@ export default function MerchShopPage() {
           bookerName,
           bookerPhone,
           bookerEmail,
+          shippingAddress,
           items: cart.map((line) => ({
             productId: line.productId,
             size: line.size,
@@ -271,11 +277,25 @@ export default function MerchShopPage() {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">อีเมล (ไม่บังคับ)</span>
+          <span className="font-medium">อีเมล *</span>
           <input
+            type="email"
             value={bookerEmail}
             onChange={(e) => setBookerEmail(e.target.value)}
             className="border rounded px-3 py-2"
+            required
+          />
+          <p className="text-xs text-blue-400">ใช้แจ้งสถานะและติดต่อกลับเรื่องการสั่งซื้อ</p>
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">ที่อยู่สำหรับจัดส่ง *</span>
+          <textarea
+            value={shippingAddress}
+            onChange={(e) => setShippingAddress(e.target.value)}
+            className="border rounded px-3 py-2"
+            rows={3}
+            placeholder="บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์"
+            required
           />
         </label>
 
