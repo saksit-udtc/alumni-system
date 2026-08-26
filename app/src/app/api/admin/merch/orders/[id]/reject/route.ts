@@ -39,8 +39,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // Rejecting means the order won't be fulfilled — give the stock back so
     // the product/size becomes purchasable again. Uses upsert (not a plain
     // increment) because a size row could in theory have been removed by
-    // the admin after the order was placed.
+    // the admin after the order was placed. Skips items whose product was
+    // deleted since the order was placed (productId is nullable now that
+    // products can be deleted even with order history) — there's no stock
+    // row to restore to.
     for (const item of order.items) {
+      if (!item.productId) continue;
       await tx.merchProductStock.upsert({
         where: { productId_size: { productId: item.productId, size: item.size as string } },
         update: { quantity: { increment: item.quantity } },

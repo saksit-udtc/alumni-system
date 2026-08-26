@@ -29,19 +29,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ product });
 }
 
-// Delete a product — refused if it's referenced by any order history, so
-// past orders are never left pointing at a missing product.
+// Delete a product. Order history is preserved even after deletion —
+// MerchOrderItem stores a productName snapshot taken at order time, and its
+// productId is nullable (ON DELETE SET NULL), so past orders keep showing a
+// real product name instead of breaking or disappearing.
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const { response } = requireAdmin(req);
   if (response) return response;
 
   const existing = await prisma.merchProduct.findUnique({ where: { id: params.id } });
   if (!existing) return jsonError("ไม่พบสินค้าที่ระบุ", 404);
-
-  const usedCount = await prisma.merchOrderItem.count({ where: { productId: params.id } });
-  if (usedCount > 0) {
-    return jsonError("ไม่สามารถลบสินค้านี้ได้ เนื่องจากมีประวัติการสั่งซื้ออยู่ กรุณาปิดการขายแทน", 409);
-  }
 
   await prisma.merchProduct.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });

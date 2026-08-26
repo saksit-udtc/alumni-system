@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   const orders = await prisma.merchOrder.findMany({
     include: {
-      items: { include: { product: { select: { name: true } } } },
+      items: true,
       slips: { orderBy: { uploadedAt: "desc" }, take: 1 },
     },
     orderBy: { createdAt: "desc" },
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
         totalAmount: o.totalAmount,
         createdAt: o.createdAt,
         items: o.items.map((it) => ({
-          productName: it.product.name,
+          productName: it.productName,
           size: it.size,
           quantity: it.quantity,
           unitPrice: it.unitPrice,
