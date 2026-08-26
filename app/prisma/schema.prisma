@@ -16,6 +16,7 @@ model AdminUser {
   verifiedSlips     PaymentSlip[] @relation("VerifiedBy")
   checkedInReservs  Reservation[] @relation("CheckedInBy")
   souvenirReservs   Reservation[] @relation("SouvenirBy")
+  merchVerifiedSlips MerchPaymentSlip[] @relation("MerchVerifiedBy")
 }
 
 model Alumni {
@@ -136,4 +137,68 @@ model PaymentSlip {
   note          String?
 
   @@index([reservationId])
+}
+
+
+// --- Merchandise ordering (สั่งซื้อของที่ระลึก) ---
+// Fully independent of table booking — anyone can order without booking a
+// table. Reuses the same PaymentStatus enum and slip-upload-then-admin-
+// approves flow as Reservation/PaymentSlip above.
+
+model MerchProduct {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  price        Decimal  @db.Decimal(10, 2)
+  imageKey     String?
+  requiresSize Boolean  @default(false)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  orderItems MerchOrderItem[]
+}
+
+model MerchOrder {
+  id            String        @id @default(cuid())
+  orderCode     String        @unique
+  bookerName    String
+  bookerPhone   String
+  bookerEmail   String?
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @default(pending)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  items MerchOrderItem[]
+  slips MerchPaymentSlip[]
+
+  @@index([bookerPhone])
+  @@index([paymentStatus])
+}
+
+model MerchOrderItem {
+  id        String       @id @default(cuid())
+  orderId   String
+  order     MerchOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   MerchProduct @relation(fields: [productId], references: [id])
+  size      String?
+  quantity  Int
+  unitPrice Decimal      @db.Decimal(10, 2)
+
+  @@index([orderId])
+}
+
+model MerchPaymentSlip {
+  id             String     @id @default(cuid())
+  orderId        String
+  order          MerchOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fileKey        String
+  uploadedAt     DateTime   @default(now())
+  verifiedBy     String?
+  verifiedByUser AdminUser? @relation("MerchVerifiedBy", fields: [verifiedBy], references: [id])
+  verifiedAt     DateTime?
+  note           String?
+
+  @@index([orderId])
 }
