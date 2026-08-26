@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     entries.map(([sizeKey, qty]) => {
       const size = sizeKey === "" ? null : sizeKey;
       return prisma.merchProductStock.upsert({
-        where: { productId_size: { productId: params.id, size } },
+        where: { productId_size: { productId: params.id, size: size as string } },
         update: { quantity: qty as number },
         create: { productId: params.id, size, quantity: qty as number },
       });
