@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   pending: { label: "รอชำระเงิน", color: "bg-amber-100 text-amber-700" },
@@ -45,7 +46,12 @@ function MerchStatusForm() {
 
   return (
     <main className="max-w-md mx-auto p-4 space-y-4">
-      <h1 className="text-xl font-bold">เช็คสถานะการสั่งซื้อของที่ระลึก</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-bold">เช็คสถานะการสั่งซื้อของที่ระลึก</h1>
+        <Link href="/merch" className="text-primary-600 hover:underline text-sm">
+          ← กลับหน้าสั่งซื้อ
+        </Link>
+      </div>
 
       <form onSubmit={search} className="space-y-3 bg-white border rounded-lg p-4 shadow">
         <div>

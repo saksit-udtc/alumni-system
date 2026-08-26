@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface Product {
   id: string;
@@ -138,7 +139,17 @@ export default function MerchShopPage() {
 
   return (
     <main className="max-w-3xl mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-bold text-primary-700">สั่งซื้อของที่ระลึก</h1>
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold text-primary-700">สั่งซื้อของที่ระลึก</h1>
+        <nav className="flex flex-wrap gap-3 text-sm">
+          <Link href="/" className="text-primary-600 hover:underline">
+            ← กลับหน้าจองโต๊ะ
+          </Link>
+          <Link href="/merch/status" className="text-primary-600 hover:underline">
+            ตรวจสอบคำสั่งซื้อ
+          </Link>
+        </nav>
+      </header>
 
       {loading && <p>กำลังโหลด...</p>}
       {!loading && products.length === 0 && <p className="text-gray-500">ยังไม่มีสินค้าเปิดขายในขณะนี้</p>}
