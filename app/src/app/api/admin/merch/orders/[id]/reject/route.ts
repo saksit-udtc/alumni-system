@@ -37,19 +37,29 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (result.count === 0) return false;
 
     // Rejecting means the order won't be fulfilled — give the stock back so
-    // the product/size becomes purchasable again. Uses upsert (not a plain
-    // increment) because a size row could in theory have been removed by
-    // the admin after the order was placed. Skips items whose product was
-    // deleted since the order was placed (productId is nullable now that
-    // products can be deleted even with order history) — there's no stock
-    // row to restore to.
+    // the product/size becomes purchasable again. Manual find-then-update/
+    // create (not upsert) because a size row could in theory have been
+    // removed by the admin after the order was placed, and because
+    // Prisma's compound-unique `where` (productId_size) rejects a literal
+    // null for the nullable `size` half even though the column itself is
+    // nullable. Skips items whose product was deleted since the order was
+    // placed (productId is nullable now that products can be deleted even
+    // with order history) — there's no stock row to restore to.
     for (const item of order.items) {
       if (!item.productId) continue;
-      await tx.merchProductStock.upsert({
-        where: { productId_size: { productId: item.productId, size: item.size as string } },
-        update: { quantity: { increment: item.quantity } },
-        create: { productId: item.productId, size: item.size, quantity: item.quantity },
+      const existing = await tx.merchProductStock.findFirst({
+        where: { productId: item.productId, size: item.size },
       });
+      if (existing) {
+        await tx.merchProductStock.update({
+          where: { id: existing.id },
+          data: { quantity: { increment: item.quantity } },
+        });
+      } else {
+        await tx.merchProductStock.create({
+          data: { productId: item.productId, size: item.size, quantity: item.quantity },
+        });
+      }
     }
 
     if (latestSlip && note) {
