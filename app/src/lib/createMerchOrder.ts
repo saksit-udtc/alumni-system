@@ -60,6 +60,7 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
 
   const orderItemsData: {
     productId: string;
+    productName: string;
     size: string | null;
     quantity: number;
     unitPrice: number;
@@ -83,6 +84,7 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
 
     orderItemsData.push({
       productId: product.id,
+      productName: product.name,
       size: product.requiresSize ? item.size!.trim() : null,
       quantity: item.quantity,
       unitPrice,

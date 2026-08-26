@@ -192,14 +192,19 @@ model MerchOrder {
 }
 
 model MerchOrderItem {
-  id        String       @id @default(cuid())
+  id        String        @id @default(cuid())
   orderId   String
-  order     MerchOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   MerchProduct @relation(fields: [productId], references: [id])
+  order     MerchOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // productId/product is now optional: deleting a product must not be
+  // blocked by its order history. productName is a snapshot taken at order
+  // time (same idea as unitPrice below) so past orders keep showing a real
+  // name even after the product is gone.
+  productId String?
+  product   MerchProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
   size      String?
   quantity  Int
-  unitPrice Decimal      @db.Decimal(10, 2)
+  unitPrice Decimal       @db.Decimal(10, 2)
 
   @@index([orderId])
 }
