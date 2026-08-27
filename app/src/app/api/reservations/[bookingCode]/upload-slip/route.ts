@@ -62,6 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookingCode
       await sendSlipReceivedEmail({
         to: reservation.bookerEmail!,
         bookerName: reservation.bookerName,
+        bookerPhone: reservation.bookerPhone,
         eventName: event.name,
         bookingCode: reservation.bookingCode,
       });

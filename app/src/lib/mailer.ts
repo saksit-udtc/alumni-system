@@ -356,10 +356,19 @@ export async function sendMerchOrderReceivedEmail(args: MerchOrderReceivedEmailA
 interface MerchSlipReceivedEmailArgs {
   to: string;
   bookerName: string;
+  bookerPhone: string;
   orderCode: string;
 }
 
+// Same status-check page the shop's own nav links to — orderCode + phone as
+// the shared-secret pairing (anti-IDOR), mirroring uploadMerchSlipUrl above.
+function merchOrderStatusUrl(orderCode: string, bookerPhone: string) {
+  const base = process.env.APP_BASE_URL || "http://localhost:3000";
+  return `${base}/merch/status?orderCode=${encodeURIComponent(orderCode)}&phone=${encodeURIComponent(bookerPhone)}`;
+}
+
 function buildMerchSlipReceivedHtml(args: MerchSlipReceivedEmailArgs) {
+  const statusUrl = merchOrderStatusUrl(args.orderCode, args.bookerPhone);
   return `
     <div style="font-family: sans-serif; line-height: 1.6;">
       <h2>ได้รับสลิปแล้ว รอตรวจสอบ</h2>
@@ -369,6 +378,10 @@ function buildMerchSlipReceivedHtml(args: MerchSlipReceivedEmailArgs) {
         <li>รหัสการสั่งซื้อ: <strong>${args.orderCode}</strong></li>
       </ul>
       <p>เจ้าหน้าที่กำลังตรวจสอบสลิปของท่าน เมื่อตรวจสอบเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันการสั่งซื้อให้อีกครั้ง</p>
+      <p style="margin: 20px 0;">
+        <a href="${statusUrl}" style="display:inline-block; background:#1e3a8a; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:6px;">ตรวจสอบสถานะการสั่งซื้อ</a>
+      </p>
+      <p style="color:#64748b; font-size:12px;">หรือคัดลอกลิงก์นี้: ${statusUrl}</p>
     </div>
   `;
 }
@@ -413,11 +426,20 @@ export async function sendMerchSlipReceivedEmail(args: MerchSlipReceivedEmailArg
 interface SlipReceivedEmailArgs {
   to: string;
   bookerName: string;
+  bookerPhone: string;
   eventName: string;
   bookingCode: string;
 }
 
+// Same status-check page the site's own nav links to — bookingCode + phone
+// as the shared-secret pairing (anti-IDOR), mirroring uploadSlipUrl above.
+function reservationStatusUrl(bookingCode: string, bookerPhone: string) {
+  const base = process.env.APP_BASE_URL || "http://localhost:3000";
+  return `${base}/status?bookingCode=${encodeURIComponent(bookingCode)}&phone=${encodeURIComponent(bookerPhone)}`;
+}
+
 function buildSlipReceivedHtml(args: SlipReceivedEmailArgs) {
+  const statusUrl = reservationStatusUrl(args.bookingCode, args.bookerPhone);
   return `
     <div style="font-family: sans-serif; line-height: 1.6;">
       <h2>ได้รับสลิปแล้ว รอตรวจสอบ</h2>
@@ -427,6 +449,10 @@ function buildSlipReceivedHtml(args: SlipReceivedEmailArgs) {
         <li>รหัสการจอง: <strong>${args.bookingCode}</strong></li>
       </ul>
       <p>เจ้าหน้าที่กำลังตรวจสอบสลิปของท่าน เมื่อตรวจสอบเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันพร้อม QR Code สำหรับเช็คอินหน้างานให้อีกครั้ง</p>
+      <p style="margin: 20px 0;">
+        <a href="${statusUrl}" style="display:inline-block; background:#1e3a8a; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:6px;">ตรวจสอบสถานะการจอง</a>
+      </p>
+      <p style="color:#64748b; font-size:12px;">หรือคัดลอกลิงก์นี้: ${statusUrl}</p>
     </div>
   `;
 }

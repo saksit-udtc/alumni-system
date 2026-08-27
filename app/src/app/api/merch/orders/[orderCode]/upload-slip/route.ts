@@ -56,6 +56,7 @@ export async function POST(req: NextRequest, { params }: { params: { orderCode: 
   await sendMerchSlipReceivedEmail({
     to: order.bookerEmail,
     bookerName: order.bookerName,
+    bookerPhone: order.bookerPhone,
     orderCode: order.orderCode,
   });
 
