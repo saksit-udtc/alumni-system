@@ -26,17 +26,17 @@ type Table = {
 function tableCardClasses(t: Table) {
   const isFull = t.isFullTableBooking || t.seatsReserved >= t.capacity;
   const isPartial = !isFull && t.seatsReserved > 0;
-  if (isFull) return "rounded-lg border-2 border-green-400 bg-green-50 p-3";
+  if (isFull) return "rounded-lg border-2 border-emerald-400 bg-emerald-50 p-3";
   if (isPartial) return "rounded-lg border-2 border-amber-300 bg-amber-50 p-3";
-  return "rounded-lg border bg-white p-3";
+  return "rounded-lg border border-cream-200 bg-white p-3";
 }
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-lg border bg-white p-4">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="text-2xl font-bold mt-1">{value}</div>
-      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+    <div className="rounded-xl border border-cream-200 shadow-md bg-white p-4">
+      <div className="text-xs text-stone-500">{label}</div>
+      <div className="text-2xl font-display font-semibold text-maroon-700 mt-1">{value}</div>
+      {sub && <div className="text-xs text-stone-400 mt-0.5">{sub}</div>}
     </div>
   );
 }
@@ -57,7 +57,7 @@ export default function AdminEventDetailPage() {
     };
   }, [id]);
 
-  if (!data) return <p className="text-slate-400 text-sm">กำลังโหลด...</p>;
+  if (!data) return <p className="text-stone-400 text-sm">กำลังโหลด...</p>;
   const { event, stats } = data;
   const allTables: Table[] = event.tables ?? [];
 
@@ -73,19 +73,19 @@ export default function AdminEventDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">{event.name}</h1>
-          <p className="text-slate-500 text-sm">
+          <h1 className="text-2xl font-display font-semibold text-stone-800">{event.name}</h1>
+          <p className="text-stone-500 text-sm">
             {new Date(event.eventDate).toLocaleString("th-TH")} · {event.location}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/admin/events/${id}/edit`} className="text-sm rounded border px-3 py-1.5">
+          <Link href={`/admin/events/${id}/edit`} className="text-sm rounded-lg border border-stone-300 hover:bg-cream-50 transition-colors px-3 py-1.5 text-stone-700">
             แก้ไขข้อมูลงาน
           </Link>
-          <Link href={`/admin/events/${id}/tables`} className="text-sm rounded border px-3 py-1.5">
+          <Link href={`/admin/events/${id}/tables`} className="text-sm rounded-lg border border-stone-300 hover:bg-cream-50 transition-colors px-3 py-1.5 text-stone-700">
             จัดการโต๊ะ & โซน
           </Link>
-          <Link href={`/admin/events/${id}/floor-plan`} className="text-sm rounded border px-3 py-1.5">
+          <Link href={`/admin/events/${id}/floor-plan`} className="text-sm rounded-lg border border-stone-300 hover:bg-cream-50 transition-colors px-3 py-1.5 text-stone-700">
             ผังพื้นที่งาน
           </Link>
           <StatusToggle eventId={event.id} status={event.status} />
@@ -94,13 +94,13 @@ export default function AdminEventDetailPage() {
 
       <Link
         href={`/admin/events/${id}/reservations`}
-        className="inline-block text-sm rounded bg-slate-900 text-white px-4 py-2"
+        className="inline-block text-sm rounded-lg bg-maroon-700 hover:bg-maroon-800 transition-colors text-white px-4 py-2 font-medium shadow-sm"
       >
         รายชื่อผู้จอง & ตรวจสลิป
       </Link>
 
       <section>
-        <h2 className="text-lg font-semibold mb-3">ภาพรวม</h2>
+        <h2 className="text-lg font-display font-semibold text-stone-800 mb-3">ภาพรวม</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label="โต๊ะที่ถูกจอง" value={`${bookedTables}/${totalTables}`} />
           <StatCard label="ที่นั่งที่จองแล้ว" value={`${reservedSeats}/${totalSeats}`} />
@@ -114,7 +114,7 @@ export default function AdminEventDetailPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold mb-3">ผังโต๊ะ (ภาพรวม)</h2>
+        <h2 className="text-lg font-display font-semibold text-stone-800 mb-3">ผังโต๊ะ (ภาพรวม)</h2>
         {/* Same FloorPlanMap component + aspect-ratio math as the public
             event page, but this page (unlike the public one) has no
             max-width wrapper — without a cap here the floor plan stretches
@@ -141,7 +141,7 @@ export default function AdminEventDetailPage() {
           <div className="space-y-6">
             {zoneNames.map((zone) => (
               <div key={zone}>
-                <h3 className="text-sm font-semibold text-slate-600 mb-2 flex items-center gap-1.5">
+                <h3 className="text-sm font-semibold text-stone-600 mb-2 flex items-center gap-1.5">
                   <span
                     className="inline-block w-3 h-3 rounded-full"
                     style={{ background: zoneColor(zone === "ไม่ระบุโซน" ? null : zone).bg }}
@@ -153,8 +153,8 @@ export default function AdminEventDetailPage() {
                     .filter((t) => (t.zone ?? "ไม่ระบุโซน") === zone)
                     .map((t) => (
                       <div key={t.id} className={tableCardClasses(t)}>
-                        <div className="font-semibold">โต๊ะ {t.tableNumber}</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="font-semibold text-stone-800">โต๊ะ {t.tableNumber}</div>
+                        <div className="text-xs text-stone-500">
                           {t.isFullTableBooking ? "เหมาแล้ว" : `${t.seatsReserved}/${t.capacity} ที่นั่ง`}
                         </div>
                       </div>
@@ -166,9 +166,9 @@ export default function AdminEventDetailPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {allTables.map((t) => (
-              <div key={t.id} className="rounded-lg border bg-white p-3">
-                <div className="font-semibold">โต๊ะ {t.tableNumber}</div>
-                <div className="text-xs text-slate-500">
+              <div key={t.id} className="rounded-lg border border-cream-200 shadow-md bg-white p-3">
+                <div className="font-semibold text-stone-800">โต๊ะ {t.tableNumber}</div>
+                <div className="text-xs text-stone-500">
                   {t.isFullTableBooking ? "เหมาแล้ว" : `${t.seatsReserved}/${t.capacity} ที่นั่ง`}
                 </div>
               </div>

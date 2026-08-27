@@ -140,19 +140,22 @@ export default function AdminMerchProductsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">สินค้าที่ระลึก</h1>
-        <Link href="/admin/merch/orders" className="text-primary-600 hover:underline text-sm">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-display font-semibold text-stone-800">สินค้าที่ระลึก</h1>
+          <p className="text-sm text-stone-500 mt-0.5">จัดการสินค้าและสต๊อกของที่ระลึกที่เปิดขาย ({products.length} รายการ)</p>
+        </div>
+        <Link href="/admin/merch/orders" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
           ดูรายการสั่งซื้อ
         </Link>
       </div>
 
-      <form onSubmit={createProduct} className="bg-white rounded-xl shadow p-4 space-y-3">
-        <h2 className="font-semibold">+ เพิ่มสินค้าใหม่</h2>
+      <form onSubmit={createProduct} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
+        <h2 className="font-display font-semibold text-stone-800">+ เพิ่มสินค้าใหม่</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">ชื่อสินค้า *</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="border rounded px-3 py-2" />
+            <input value={name} onChange={(e) => setName(e.target.value)} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2" />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">ราคา (บาท) *</span>
@@ -161,48 +164,53 @@ export default function AdminMerchProductsPage() {
               min={0}
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              className="border rounded px-3 py-2"
+              className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2"
             />
           </label>
         </div>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">รายละเอียด</span>
-          <input value={description} onChange={(e) => setDescription(e.target.value)} className="border rounded px-3 py-2" />
+          <input value={description} onChange={(e) => setDescription(e.target.value)} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2" />
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={requiresSize} onChange={(e) => setRequiresSize(e.target.checked)} />
+        <label className="flex items-center gap-2 text-sm text-stone-700">
+          <input type="checkbox" checked={requiresSize} onChange={(e) => setRequiresSize(e.target.checked)} className="accent-maroon-700" />
           <span>สินค้านี้ต้องเลือกไซส์ (เช่น เสื้อ)</span>
         </label>
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <button
           type="submit"
           disabled={creating}
-          className="bg-primary-600 hover:bg-primary-700 text-white rounded py-2 px-4 font-semibold disabled:opacity-50"
+          className="bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 px-4 font-semibold disabled:opacity-50"
         >
           {creating ? "กำลังเพิ่ม..." : "+ เพิ่มสินค้าใหม่"}
         </button>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-stone-400">
           สินค้าที่สร้างใหม่จะมีสต๊อกเป็น 0 ทุกไซส์ — ตั้งจำนวนสต๊อกได้ในตารางด้านล่างหลังสร้างเสร็จ
         </p>
       </form>
 
+      {products.length === 0 ? (
+        <div className="bg-white rounded-xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
+          ยังไม่มีสินค้าที่ระลึก — เพิ่มสินค้าแรกได้จากแบบฟอร์มด้านบน
+        </div>
+      ) : (
       <div className="flex flex-col gap-3">
         {products.map((p) => {
           const sizes = p.requiresSize ? SIZES : [""];
           const totalStock = sizes.reduce((sum, s) => sum + (p.stock[s] ?? 0), 0);
           return (
-            <div key={p.id} className="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
+            <div key={p.id} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 flex flex-col gap-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   {p.imageUrl ? (
-                    <img src={p.imageUrl} alt={p.name} className="w-16 h-16 object-cover rounded" />
+                    <img src={p.imageUrl} alt={p.name} className="w-16 h-16 object-cover rounded-lg" />
                   ) : (
-                    <div className="w-16 h-16 bg-slate-100 rounded" />
+                    <div className="w-16 h-16 bg-cream-100 rounded-lg" />
                   )}
                   <div>
-                    <div className="font-semibold">{p.name}</div>
-                    {p.description && <div className="text-xs text-gray-400">{p.description}</div>}
-                    <div className="text-sm text-primary-700 font-medium">{Number(p.price).toLocaleString()} บาท</div>
+                    <div className="font-display font-semibold text-stone-800">{p.name}</div>
+                    {p.description && <div className="text-xs text-stone-400">{p.description}</div>}
+                    <div className="text-sm text-maroon-700 font-medium">{Number(p.price).toLocaleString()} บาท</div>
                     <input
                       type="file"
                       accept="image/*"
@@ -215,51 +223,54 @@ export default function AdminMerchProductsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-1 rounded ${totalStock > 0 ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}`}>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${totalStock > 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                     รวมสต๊อก {totalStock}
                   </span>
                   <button
                     onClick={() => toggleActive(p)}
-                    className={`text-xs px-2 py-1 rounded ${p.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                    className={`text-xs px-2 py-1 rounded-full font-medium transition-colors ${p.active ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-stone-100 text-stone-500 hover:bg-stone-200"}`}
                   >
                     {p.active ? "เปิดขาย" : "ปิดขาย"}
                   </button>
-                  <button onClick={() => deleteProduct(p.id)} className="text-red-500 hover:underline text-xs">
+                  <button onClick={() => deleteProduct(p.id)} className="text-red-600 hover:text-red-700 hover:underline text-xs">
                     ลบ
                   </button>
                 </div>
               </div>
 
-              <div className="border-t pt-3">
-                <div className="text-xs font-medium text-gray-500 mb-2">
-                  สต๊อกสินค้า{p.requiresSize ? " (แยกตามไซส์)" : ""}
+              <div className="border-t border-cream-200 pt-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="text-xs font-medium text-stone-500">
+                    สต๊อกสินค้า{p.requiresSize ? " (แยกตามไซส์)" : ""}
+                  </div>
+                  <button
+                    onClick={() => saveStock(p)}
+                    disabled={savingStock === p.id}
+                    className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white text-xs rounded-lg px-3 py-1.5 font-medium disabled:opacity-50"
+                  >
+                    {savingStock === p.id ? "กำลังบันทึก..." : "บันทึกสต๊อก"}
+                  </button>
                 </div>
-                <div className="flex flex-wrap items-end gap-3">
+                <div className={`grid gap-3 ${p.requiresSize ? "grid-cols-4 sm:grid-cols-8" : "grid-cols-4 sm:grid-cols-8 max-w-xs"}`}>
                   {sizes.map((size) => (
                     <label key={size || "single"} className="flex flex-col gap-1 text-xs">
-                      <span className="text-gray-500">{size || "จำนวน"}</span>
+                      <span className="text-stone-500">{size || "จำนวน"}</span>
                       <input
                         type="number"
                         min={0}
                         value={stockValue(p, size)}
                         onChange={(e) => updateDraft(p.id, size, e.target.value)}
-                        className="border rounded px-2 py-1 w-20"
+                        className="w-full border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-1"
                       />
                     </label>
                   ))}
-                  <button
-                    onClick={() => saveStock(p)}
-                    disabled={savingStock === p.id}
-                    className="bg-slate-800 hover:bg-slate-900 text-white text-xs rounded px-3 py-1.5 disabled:opacity-50"
-                  >
-                    {savingStock === p.id ? "กำลังบันทึก..." : "บันทึกสต๊อก"}
-                  </button>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+      )}
     </div>
   );
 }

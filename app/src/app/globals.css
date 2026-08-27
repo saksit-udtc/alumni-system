@@ -3,5 +3,21 @@
 @tailwind utilities;
 
 body {
-  font-family: "Sarabun", "Noto Sans Thai", system-ui, sans-serif;
+  font-family: var(--font-body), "Sarabun", "Noto Sans Thai", system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), "Pridi", serif;
+}
+
+::selection {
+  background-color: #9fc7fb;
+  color: #081f3a;
+}
+
+:focus-visible {
+  outline: 2px solid #2580fa;
+  outline-offset: 2px;
 }

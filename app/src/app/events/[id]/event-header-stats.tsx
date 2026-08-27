@@ -19,21 +19,22 @@ export default function EventHeaderStats({ tables }: { tables: TableRow[] }) {
   const reservedSeats = tables.reduce((sum, t) => sum + t.seatsReserved, 0);
 
   const stats = [
-    { value: totalTables, label: "โต๊ะทั้งหมด", color: "text-blue-900" },
+    { value: totalTables, label: "โต๊ะทั้งหมด", color: "text-maroon-700" },
     { value: bookedTables, label: "โต๊ะจอง/เต็มแล้ว", color: "text-red-600" },
-    { value: availableTables, label: "โต๊ะว่าง", color: "text-green-600" },
-    { value: `${reservedSeats}/${totalSeats}`, label: "ที่นั่งที่จองแล้ว", color: "text-blue-900" },
+    { value: availableTables, label: "โต๊ะว่าง", color: "text-emerald-600" },
+    { value: `${reservedSeats}/${totalSeats}`, label: "ที่นั่งที่จองแล้ว", color: "text-maroon-700" },
   ];
 
   return (
-    // 2 columns on narrow phones so the 4 boxes don't force horizontal
-    // overflow inside the page's px-4 gutter; back to one row of 4 (sized
-    // to balance against the title block) from the sm breakpoint up.
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0 w-full sm:w-auto">
+    // Full-width 4-up strip (2 columns on narrow phones) placed below the
+    // hero as its own section, rather than squeezed beside the title — a
+    // fixed-width stat block floating next to a short title inside a
+    // justify-between hero left an awkward empty gap between them.
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {stats.map((s) => (
-        <div key={s.label} className="bg-white border rounded-lg px-4 py-4 text-center flex flex-col justify-center sm:min-w-[92px]">
-          <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-          <div className="text-xs text-blue-500 mt-1">{s.label}</div>
+        <div key={s.label} className="bg-white border border-cream-200 shadow-md rounded-xl px-4 py-4 text-center">
+          <div className={`text-2xl font-display font-semibold ${s.color}`}>{s.value}</div>
+          <div className="text-xs text-stone-500 mt-1">{s.label}</div>
         </div>
       ))}
     </div>

@@ -108,70 +108,70 @@ export default function NewEventPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-xl font-bold mb-4">สร้างงานเลี้ยงใหม่</h1>
+      <h1 className="text-2xl font-display font-semibold text-stone-800 mb-5">สร้างงานเลี้ยงใหม่</h1>
       <form onSubmit={create} className="flex flex-col gap-4">
-        <section className="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
+        <section className="bg-white rounded-xl border border-cream-200 shadow-md p-5 flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-primary-700">ข้อมูลงาน</h2>
           <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-600">ชื่องาน</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="border rounded px-3 py-2" required />
+            <span className="text-sm text-stone-600">ชื่องาน</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2" required />
           </label>
 
           <DateTimeFields value={dateParts} onChange={updateDatePart} />
 
           <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-600">สถานที่</span>
-            <input value={location} onChange={(e) => setLocation(e.target.value)} className="border rounded px-3 py-2" />
+            <span className="text-sm text-stone-600">สถานที่</span>
+            <input value={location} onChange={(e) => setLocation(e.target.value)} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2" />
           </label>
         </section>
 
-        <section className="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
+        <section className="bg-white rounded-xl border border-cream-200 shadow-md p-5 flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-primary-700">ที่นั่งและราคา</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-slate-600">ที่นั่งต่อโต๊ะ</span>
+              <span className="text-sm text-stone-600">ที่นั่งต่อโต๊ะ</span>
               <input
                 type="number"
                 value={seatsPerTable}
                 onChange={(e) => setSeatsPerTable(Number(e.target.value))}
-                className="border rounded px-3 py-2"
+                className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-slate-600">ราคาเหมาโต๊ะ</span>
+              <span className="text-sm text-stone-600">ราคาเหมาโต๊ะ</span>
               <input
                 type="number"
                 value={pricePerTable}
                 onChange={(e) => setPricePerTable(Number(e.target.value))}
-                className="border rounded px-3 py-2"
+                className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-slate-600">ราคาต่อที่นั่ง</span>
+              <span className="text-sm text-stone-600">ราคาต่อที่นั่ง</span>
               <input
                 type="number"
                 value={pricePerSeat}
                 onChange={(e) => setPricePerSeat(Number(e.target.value))}
-                className="border rounded px-3 py-2"
+                className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2"
               />
             </label>
           </div>
         </section>
 
-        <section className="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
+        <section className="bg-white rounded-xl border border-cream-200 shadow-md p-5 flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-primary-700">การจัดโต๊ะ</h2>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={useZones} onChange={(e) => setUseZones(e.target.checked)} className="rounded border-slate-300" />
+          <label className="flex items-center gap-2 text-sm text-stone-700">
+            <input type="checkbox" checked={useZones} onChange={(e) => setUseZones(e.target.checked)} className="rounded border-stone-300 accent-maroon-700" />
             แบ่งโต๊ะเป็นโซน (เช่น VIP, ใกล้เวที, โซนตามรุ่น)
           </label>
           {!useZones && (
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-slate-600">จำนวนโต๊ะ</span>
+              <span className="text-sm text-stone-600">จำนวนโต๊ะ</span>
               <input
                 type="number"
                 value={tableCount}
                 onChange={(e) => setTableCount(Number(e.target.value))}
-                className="border rounded px-3 py-2 max-w-[160px]"
+                className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2 max-w-[160px]"
               />
             </label>
           )}
@@ -179,32 +179,32 @@ export default function NewEventPage() {
           {useZones && (
             <div className="flex flex-col gap-3">
               {zones.map((z, i) => (
-                <div key={i} className="flex flex-wrap items-end gap-2 border border-slate-200 rounded-lg p-3">
+                <div key={i} className="flex flex-wrap items-end gap-2 border border-cream-200 rounded-lg p-3">
                   <label className="flex flex-col gap-1">
-                    <span className="text-xs text-slate-500">ชื่อโซน</span>
+                    <span className="text-xs text-stone-500">ชื่อโซน</span>
                     <input
                       value={z.name}
                       onChange={(e) => updateZone(i, { name: e.target.value })}
-                      className="border rounded px-3 py-2 w-40"
+                      className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2 w-40"
                       placeholder="เช่น VIP, ใกล้เวที"
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span className="text-xs text-slate-500">จำนวนโต๊ะ</span>
+                    <span className="text-xs text-stone-500">จำนวนโต๊ะ</span>
                     <input
                       type="number"
                       value={z.tableCount}
                       onChange={(e) => updateZone(i, { tableCount: Number(e.target.value) })}
-                      className="border rounded px-3 py-2 w-24"
+                      className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2 w-24"
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span className="text-xs text-slate-500">สีโซน</span>
+                    <span className="text-xs text-stone-500">สีโซน</span>
                     <input
                       type="color"
                       value={z.color}
                       onChange={(e) => updateZone(i, { color: e.target.value })}
-                      className="border rounded h-[42px] w-14 p-1"
+                      className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow h-[42px] w-14 p-1"
                     />
                   </label>
                   {zones.length > 1 && (
@@ -226,7 +226,7 @@ export default function NewEventPage() {
                 >
                   + เพิ่มโซน
                 </button>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-stone-500">
                   รวมทั้งหมด {zones.reduce((sum, z) => sum + (Number(z.tableCount) || 0), 0)} โต๊ะ
                 </span>
               </div>

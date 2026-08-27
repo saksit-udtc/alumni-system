@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import TableMap from "./table-map";
 import EventHeaderStats from "./event-header-stats";
 import type { TableRow } from "./table-graphic";
+import SiteNav from "@/app/components/site-nav";
 
 // Always poll fresh event + table data — the floor plan image, table
 // positions, and booking counts can change any time (an admin edit, or
@@ -54,24 +55,41 @@ export default function EventDetailPage() {
     return () => clearInterval(interval);
   }, [load]);
 
-  if (error) return <main className="max-w-4xl mx-auto p-4 text-red-600">{error}</main>;
-  if (!event) return <main className="max-w-4xl mx-auto p-4">กำลังโหลด...</main>;
+  if (error) {
+    return (
+      <div>
+        <SiteNav />
+        <main className="max-w-4xl mx-auto p-4 text-red-600">{error}</main>
+      </div>
+    );
+  }
+  if (!event) {
+    return (
+      <div>
+        <SiteNav />
+        <main className="max-w-4xl mx-auto p-4 text-stone-500">กำลังโหลด...</main>
+      </div>
+    );
+  }
 
   return (
-    <main className="max-w-4xl mx-auto p-4 space-y-6">
-      <section className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{event.name}</h1>
-          <p className="text-blue-500">
+    <div>
+      <SiteNav />
+      <main className="max-w-4xl mx-auto p-4 space-y-6">
+      <section className="relative overflow-hidden rounded-2xl bg-maroon-700 px-5 py-6 shadow-lg shadow-maroon-900/20">
+        <div className="relative">
+          <h1 className="text-2xl font-display font-semibold text-primary-200">{event.name}</h1>
+          <p className="text-cream-50/80 mt-1">
             {new Date(event.eventDate).toLocaleString("th-TH")}
           </p>
-          {event.location && <p className="text-blue-500">{event.location}</p>}
+          {event.location && <p className="text-cream-50/80">{event.location}</p>}
         </div>
-        <EventHeaderStats tables={tables} />
       </section>
 
+      <EventHeaderStats tables={tables} />
+
       <section>
-        <h2 className="text-lg font-semibold mb-3">ผังโต๊ะ</h2>
+        <h2 className="text-lg font-display font-semibold text-stone-800 mb-3">ผังโต๊ะ</h2>
         <TableMap
           eventId={event.id}
           eventOpen={event.status === "open"}
@@ -81,6 +99,7 @@ export default function EventDetailPage() {
           pricePerSeat={Number(event.pricePerSeat)}
         />
       </section>
-    </main>
+      </main>
+    </div>
   );
 }

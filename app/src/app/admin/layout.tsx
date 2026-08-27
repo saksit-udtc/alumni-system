@@ -1,11 +1,100 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+
+const ICONS: Record<string, JSX.Element> = {
+  dashboard: (
+    <>
+      <rect x="3" y="3" width="8" height="8" rx="1.5" />
+      <rect x="13" y="3" width="8" height="5" rx="1.5" />
+      <rect x="13" y="10" width="8" height="11" rx="1.5" />
+      <rect x="3" y="13" width="8" height="8" rx="1.5" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
+    </>
+  ),
+  checkin: (
+    <>
+      <path d="M9 12l2 2 4-4" />
+      <circle cx="12" cy="12" r="9" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.25" />
+      <path d="M3.5 20c0-3.5 2.5-6 5.5-6s5.5 2.5 5.5 6" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M15.5 14a5 5 0 0 1 5 6" />
+    </>
+  ),
+  bag: (
+    <>
+      <path d="M6 8h12l-1 12H7z" />
+      <path d="M9 8a3 3 0 0 1 6 0" />
+    </>
+  ),
+  box: (
+    <>
+      <path d="M21 8l-9-5-9 5 9 5 9-5z" />
+      <path d="M3 8v8l9 5 9-5V8" />
+      <path d="M12 13v8" />
+    </>
+  ),
+};
+
+function NavIcon({ name }: { name: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 shrink-0">
+      {ICONS[name]}
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 shrink-0">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" className="w-6 h-6">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" className="w-6 h-6">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+const NAV_ITEMS = [
+  { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true },
+  { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar" },
+  { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin" },
+  { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users" },
+  { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag" },
+  { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box" },
+];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   if (pathname === "/admin/login") return <>{children}</>;
 
@@ -14,33 +103,94 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push("/admin/login");
   }
 
+  function itemClass(href: string, exact?: boolean) {
+    const active = exact ? pathname === href : pathname?.startsWith(href);
+    return `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors border-l-2 ${
+      active
+        ? "bg-primary-50 text-maroon-700 font-semibold border-maroon-700"
+        : "text-stone-600 hover:bg-cream-50 hover:text-maroon-700 border-transparent"
+    }`;
+  }
+
+  const Brand = (
+    <Link href="/admin" className="flex items-center gap-2.5 px-5 h-16 border-b border-cream-200 shrink-0">
+      <img src="/logo.jpg" alt="ตราสัญลักษณ์" className="w-9 h-9 rounded-full object-cover shrink-0" />
+      <span className="leading-tight">
+        <span className="block font-display font-semibold text-stone-800 text-sm">งานคืนสู่เหย้า</span>
+        <span className="block text-xs text-stone-400">ระบบแอดมิน</span>
+      </span>
+    </Link>
+  );
+
+  const NavList = (
+    <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
+      {NAV_ITEMS.map((item) => (
+        <Link key={item.href} href={item.href} className={itemClass(item.href, item.exact)} onClick={() => setMobileOpen(false)}>
+          <NavIcon name={item.icon} />
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+
+  const LogoutButton = (
+    <div className="p-3 border-t border-cream-200 shrink-0">
+      <button
+        onClick={logout}
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-stone-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+      >
+        <LogoutIcon />
+        ออกจากระบบ
+      </button>
+    </div>
+  );
+
   return (
-    <div className="space-y-4 p-4 max-w-4xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-        <nav className="flex flex-wrap gap-4 text-sm">
-          <Link href="/admin/events" className="hover:underline">
-            งานเลี้ยง
-          </Link>
-          <Link href="/admin/checkin" className="hover:underline">
-            เช็คอิน
-          </Link>
-          <Link href="/admin/alumni" className="hover:underline">
-            ทำเนียบศิษย์เก่า
-          </Link>
-          <Link href="/admin/merch/orders" className="hover:underline">
-            คำสั่งซื้อของที่ระลึก
-          </Link>
-          <Link href="/admin/merch/products" className="hover:underline">
-            จัดการสินค้า/สต๊อก
-          </Link>
-        </nav>
-        <div className="flex items-center gap-3 text-sm text-blue-500 min-w-0">
-          <button onClick={logout} className="hover:underline">
-            ออกจากระบบ
-          </button>
+    <div className="min-h-screen bg-cream-50 flex">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 border-r border-cream-200 bg-white">
+        {Brand}
+        {NavList}
+        {LogoutButton}
+      </aside>
+
+      {/* Mobile off-canvas sidebar */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-72 bg-white shadow-xl flex flex-col">
+            <div className="flex items-center justify-between border-b border-cream-200 h-16 px-3 shrink-0">
+              <div className="flex-1">{Brand}</div>
+              <button
+                onClick={() => setMobileOpen(false)}
+                aria-label="ปิดเมนู"
+                className="p-2 mr-2 text-stone-500 hover:text-maroon-700"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            {NavList}
+            {LogoutButton}
+          </aside>
         </div>
+      )}
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Mobile topbar */}
+        <div className="lg:hidden h-14 flex items-center justify-between px-4 border-b border-cream-200 bg-white/90 backdrop-blur sticky top-0 z-40">
+          <button
+            onClick={() => setMobileOpen(true)}
+            aria-label="เปิดเมนู"
+            className="p-2 -ml-2 text-stone-700 hover:text-maroon-700"
+          >
+            <MenuIcon />
+          </button>
+          <span className="font-display font-semibold text-stone-800 text-sm">งานคืนสู่เหย้า</span>
+          <span className="w-10" aria-hidden="true" />
+        </div>
+
+        <main className="flex-1 p-4 sm:p-6 w-full max-w-5xl mx-auto">{children}</main>
       </div>
-      {children}
     </div>
   );
 }

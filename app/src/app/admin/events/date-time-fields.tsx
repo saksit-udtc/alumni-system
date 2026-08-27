@@ -64,36 +64,36 @@ export function DateTimeFields({
 
   return (
     <div>
-      <span className="text-sm text-slate-600">วันเวลาจัดงาน (ปี พ.ศ.)</span>
+      <span className="text-sm text-stone-600">วันเวลาจัดงาน (ปี พ.ศ.)</span>
       <div className="flex flex-wrap items-center gap-2 mt-1">
-        <select value={value.day} onChange={(e) => onChange({ day: Number(e.target.value) })} className="border rounded px-2 py-2">
+        <select value={value.day} onChange={(e) => onChange({ day: Number(e.target.value) })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-2">
           {DAYS.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
-        <select value={value.month} onChange={(e) => onChange({ month: Number(e.target.value) })} className="border rounded px-2 py-2">
+        <select value={value.month} onChange={(e) => onChange({ month: Number(e.target.value) })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-2">
           {THAI_MONTHS.map((m, i) => (
             <option key={m} value={i + 1}>{m}</option>
           ))}
         </select>
-        <select value={value.yearBE} onChange={(e) => onChange({ yearBE: Number(e.target.value) })} className="border rounded px-2 py-2">
+        <select value={value.yearBE} onChange={(e) => onChange({ yearBE: Number(e.target.value) })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-2">
           {years.map((y) => (
             <option key={y} value={y}>{y}</option>
           ))}
         </select>
-        <span className="text-slate-300">|</span>
-        <select value={value.hour} onChange={(e) => onChange({ hour: Number(e.target.value) })} className="border rounded px-2 py-2">
+        <span className="text-stone-300">|</span>
+        <select value={value.hour} onChange={(e) => onChange({ hour: Number(e.target.value) })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-2">
           {HOURS.map((h) => (
             <option key={h} value={h}>{pad2(h)}</option>
           ))}
         </select>
         <span>:</span>
-        <select value={value.minute} onChange={(e) => onChange({ minute: Number(e.target.value) })} className="border rounded px-2 py-2">
+        <select value={value.minute} onChange={(e) => onChange({ minute: Number(e.target.value) })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-2">
           {MINUTES.map((m) => (
             <option key={m} value={m}>{pad2(m)}</option>
           ))}
         </select>
-        <span className="text-sm text-slate-500">น. (24 ชม.)</span>
+        <span className="text-sm text-stone-500">น. (24 ชม.)</span>
       </div>
     </div>
   );

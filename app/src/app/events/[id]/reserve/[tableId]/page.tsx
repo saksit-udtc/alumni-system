@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import ReserveForm from "./reserve-form";
+import SiteNav from "@/app/components/site-nav";
 
 export default function ReservePage() {
   const { id, tableId } = useParams<{ id: string; tableId: string }>();
@@ -27,41 +28,48 @@ export default function ReservePage() {
       });
   }, [id, tableId]);
 
-  if (error) return <main className="max-w-md mx-auto p-4 text-red-600">{error}</main>;
-  if (!event || !table) return <main className="max-w-md mx-auto p-4">กำลังโหลด...</main>;
+  let content: React.ReactNode;
 
-  if (event.status !== "open") {
-    return <main className="max-w-md mx-auto p-4 text-red-600">งานนี้ปิดรับจองแล้ว</main>;
+  if (error) {
+    content = <p className="text-red-600">{error}</p>;
+  } else if (!event || !table) {
+    content = <p className="text-stone-500">กำลังโหลด...</p>;
+  } else if (event.status !== "open") {
+    content = <p className="text-red-600">งานนี้ปิดรับจองแล้ว</p>;
+  } else if (bookingType === "full_table" && table.seatsReserved !== 0) {
+    content = <p className="text-red-600">โต๊ะนี้มีคนจองบางส่วนแล้ว ไม่สามารถเหมาได้</p>;
+  } else if (bookingType === "seats" && table.isFullTableBooking) {
+    content = <p className="text-red-600">โต๊ะนี้ถูกเหมาไปแล้ว</p>;
+  } else {
+    const seatsRemaining = table.seatsAvailable;
+    content = (
+      <div className="space-y-4">
+        <div>
+          <a href={`/events/${id}`} className="text-sm text-maroon-700 hover:text-maroon-800 hover:underline">
+            ← กลับไปหน้าจองโต๊ะ
+          </a>
+          <h1 className="text-2xl font-display font-semibold text-stone-800 mt-1">
+            {bookingType === "full_table" ? "เหมาโต๊ะ" : "จองที่นั่ง"} — โต๊ะ {table.tableNumber}
+          </h1>
+          <p className="text-stone-500 text-sm">{event.name}</p>
+        </div>
+        <ReserveForm
+          eventId={id}
+          tableId={tableId}
+          bookingType={bookingType}
+          capacity={table.capacity}
+          seatsRemaining={seatsRemaining}
+          pricePerTable={Number(event.pricePerTable)}
+          pricePerSeat={Number(event.pricePerSeat)}
+        />
+      </div>
+    );
   }
-  if (bookingType === "full_table" && table.seatsReserved !== 0) {
-    return <main className="max-w-md mx-auto p-4 text-red-600">โต๊ะนี้มีคนจองบางส่วนแล้ว ไม่สามารถเหมาได้</main>;
-  }
-  if (bookingType === "seats" && table.isFullTableBooking) {
-    return <main className="max-w-md mx-auto p-4 text-red-600">โต๊ะนี้ถูกเหมาไปแล้ว</main>;
-  }
-
-  const seatsRemaining = table.seatsAvailable;
 
   return (
-    <main className="max-w-md mx-auto p-4 space-y-4">
-      <div>
-        <a href={`/events/${id}`} className="text-sm text-blue-600 hover:underline">
-          ← กลับไปหน้าจองโต๊ะ
-        </a>
-        <h1 className="text-xl font-bold mt-1">
-          {bookingType === "full_table" ? "เหมาโต๊ะ" : "จองที่นั่ง"} — โต๊ะ {table.tableNumber}
-        </h1>
-        <p className="text-slate-500 text-sm">{event.name}</p>
-      </div>
-      <ReserveForm
-        eventId={id}
-        tableId={tableId}
-        bookingType={bookingType}
-        capacity={table.capacity}
-        seatsRemaining={seatsRemaining}
-        pricePerTable={Number(event.pricePerTable)}
-        pricePerSeat={Number(event.pricePerSeat)}
-      />
-    </main>
+    <div>
+      <SiteNav />
+      <main className="max-w-md mx-auto p-4">{content}</main>
+    </div>
   );
 }

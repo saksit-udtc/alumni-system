@@ -35,7 +35,7 @@ export default function StatusToggle({ eventId, status }: { eventId: string; sta
       value={current}
       disabled={saving}
       onChange={(e) => handleChange(e.target.value)}
-      className="border rounded px-3 py-1.5 text-sm"
+      className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-1.5 text-sm"
     >
       {OPTIONS.map((o) => (
         <option key={o.value} value={o.value}>

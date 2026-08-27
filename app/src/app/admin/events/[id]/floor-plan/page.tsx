@@ -29,11 +29,11 @@ export default function FloorPlanEditorPage() {
       });
   }, [id]);
 
-  if (!tables) return <p className="text-sm text-gray-400">กำลังโหลด...</p>;
+  if (!tables) return <p className="text-sm text-stone-400">กำลังโหลด...</p>;
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <h1 className="text-xl font-bold">ผังพื้นที่งาน (Custom Floor Plan) — {eventName}</h1>
+      <h1 className="text-2xl font-display font-semibold text-stone-800">ผังพื้นที่งาน (Custom Floor Plan) — {eventName}</h1>
       <FloorPlanEditor eventId={id} initialFloorPlanUrl={floorPlanUrl} tables={tables} />
     </div>
   );

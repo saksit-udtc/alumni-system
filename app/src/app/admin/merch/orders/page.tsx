@@ -36,87 +36,119 @@ export default function AdminMerchOrdersPage() {
     }
   }
 
+  const pendingCount = orders.filter((o) => ["pending", "awaiting_verify"].includes(o.paymentStatus)).length;
+  const confirmedOrders = orders.filter((o) => o.paymentStatus === "confirmed");
+  const confirmedRevenue = confirmedOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
+
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <h1 className="text-xl font-bold">รายการสั่งซื้อของที่ระลึก</h1>
-        <Link href="/admin/merch/products" className="bg-white shadow rounded px-3 py-2 text-sm hover:bg-gray-50">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-display font-semibold text-stone-800">รายการสั่งซื้อของที่ระลึก</h1>
+          <p className="text-sm text-stone-500 mt-0.5">ตรวจสอบสลิปและอนุมัติคำสั่งซื้อของที่ระลึกทั้งหมด</p>
+        </div>
+        <Link href="/admin/merch/products" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
           จัดการสินค้า
         </Link>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full bg-white rounded-xl shadow text-sm">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="p-2">รหัส</th>
-              <th className="p-2">ผู้สั่ง</th>
-              <th className="p-2">ที่อยู่จัดส่ง</th>
-              <th className="p-2">รายการ</th>
-              <th className="p-2">ยอดรวม</th>
-              <th className="p-2">สถานะ</th>
-              <th className="p-2">สลิป</th>
-              <th className="p-2">การจัดการ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((o) => (
-              <tr key={o.id} className="border-b align-top">
-                <td className="p-2 font-mono">{o.orderCode}</td>
-                <td className="p-2">
-                  <div>{o.bookerName}</div>
-                  <div className="text-xs text-gray-400">{o.bookerPhone}</div>
-                  <div className="text-xs text-gray-400">{o.bookerEmail}</div>
-                </td>
-                <td className="p-2 max-w-[16rem] whitespace-pre-wrap text-xs text-gray-600">
-                  {o.shippingAddress}
-                </td>
-                <td className="p-2">
-                  {o.items.map((it: any, i: number) => (
-                    <div key={i} className="text-xs">
-                      {it.productName}
-                      {it.size ? ` (${it.size})` : ""} × {it.quantity}
-                    </div>
-                  ))}
-                </td>
-                <td className="p-2">{Number(o.totalAmount).toLocaleString()} บาท</td>
-                <td className="p-2">{STATUS_LABEL[o.paymentStatus] || o.paymentStatus}</td>
-                <td className="p-2">
-                  {o.latestSlipUrl ? (
-                    <a href={o.latestSlipUrl} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline">
-                      ดูสลิป
-                    </a>
-                  ) : (
-                    <span className="text-gray-300">ไม่มี</span>
-                  )}
-                </td>
-                <td className="p-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {["pending", "awaiting_verify"].includes(o.paymentStatus) && (
-                      <>
-                        <button
-                          onClick={() => act(o.id, "approve")}
-                          disabled={busyId === o.id}
-                          className="text-xs px-2 py-1.5 rounded bg-green-100 text-green-700"
-                        >
-                          อนุมัติ
-                        </button>
-                        <button
-                          onClick={() => act(o.id, "reject")}
-                          disabled={busyId === o.id}
-                          className="text-xs px-2 py-1.5 rounded bg-red-100 text-red-700"
-                        >
-                          ปฏิเสธ
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
+          <div className="text-xs text-stone-500">คำสั่งซื้อทั้งหมด</div>
+          <div className="text-2xl font-display font-semibold text-stone-800 mt-1">{orders.length}</div>
+        </div>
+        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
+          <div className="text-xs text-stone-500">รอตรวจสอบ</div>
+          <div className="text-2xl font-display font-semibold text-amber-600 mt-1">{pendingCount}</div>
+        </div>
+        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
+          <div className="text-xs text-stone-500">ยืนยันแล้ว</div>
+          <div className="text-2xl font-display font-semibold text-emerald-600 mt-1">{confirmedOrders.length}</div>
+        </div>
+        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
+          <div className="text-xs text-stone-500">ยอดขายยืนยันแล้ว</div>
+          <div className="text-2xl font-display font-semibold text-maroon-700 mt-1">{confirmedRevenue.toLocaleString()} บาท</div>
+        </div>
       </div>
+
+      {orders.length === 0 ? (
+        <div className="bg-white rounded-xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
+          ยังไม่มีคำสั่งซื้อของที่ระลึกเข้ามาในระบบ
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-cream-200 shadow-md">
+          <table className="w-full bg-white text-sm">
+            <thead>
+              <tr className="text-left bg-cream-100 text-stone-500 text-xs uppercase tracking-wide">
+                <th className="p-3 font-semibold">รหัส</th>
+                <th className="p-3 font-semibold">ผู้สั่ง</th>
+                <th className="p-3 font-semibold">ที่อยู่จัดส่ง</th>
+                <th className="p-3 font-semibold">รายการ</th>
+                <th className="p-3 font-semibold">ยอดรวม</th>
+                <th className="p-3 font-semibold">สถานะ</th>
+                <th className="p-3 font-semibold">สลิป</th>
+                <th className="p-3 font-semibold">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o.id} className="border-t border-cream-100 hover:bg-cream-50/60 transition-colors align-top">
+                  <td className="p-3 font-mono text-stone-700">{o.orderCode}</td>
+                  <td className="p-3">
+                    <div className="font-medium text-stone-800">{o.bookerName}</div>
+                    <div className="text-xs text-stone-400">{o.bookerPhone}</div>
+                    <div className="text-xs text-stone-400">{o.bookerEmail}</div>
+                  </td>
+                  <td className="p-3 max-w-[16rem] whitespace-pre-wrap text-xs text-stone-600">
+                    {o.shippingAddress}
+                  </td>
+                  <td className="p-3">
+                    {o.items.map((it: any, i: number) => (
+                      <div key={i} className="text-xs text-stone-600">
+                        {it.productName}
+                        {it.size ? ` (${it.size})` : ""} × {it.quantity}
+                      </div>
+                    ))}
+                  </td>
+                  <td className="p-3 text-stone-700">{Number(o.totalAmount).toLocaleString()} บาท</td>
+                  <td className="p-3 text-stone-700">{STATUS_LABEL[o.paymentStatus] || o.paymentStatus}</td>
+                  <td className="p-3">
+                    {o.latestSlipUrl ? (
+                      <a href={o.latestSlipUrl} target="_blank" rel="noreferrer" className="text-primary-700 hover:text-primary-800 hover:underline">
+                        ดูสลิป
+                      </a>
+                    ) : (
+                      <span className="text-stone-300">ไม่มี</span>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {["pending", "awaiting_verify"].includes(o.paymentStatus) && (
+                        <>
+                          <button
+                            onClick={() => act(o.id, "approve")}
+                            disabled={busyId === o.id}
+                            className="text-xs px-2.5 py-1.5 rounded-md bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors font-medium"
+                          >
+                            อนุมัติ
+                          </button>
+                          <button
+                            onClick={() => act(o.id, "reject")}
+                            disabled={busyId === o.id}
+                            className="text-xs px-2.5 py-1.5 rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition-colors font-medium"
+                          >
+                            ปฏิเสธ
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

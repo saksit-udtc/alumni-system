@@ -27,7 +27,7 @@ export default function EditEventPage() {
       });
   }, [id]);
 
-  if (!form || !dateParts) return <p>กำลังโหลด...</p>;
+  if (!form || !dateParts) return <p className="text-stone-500">กำลังโหลด...</p>;
 
   function updateDatePart(part: Partial<DateParts>) {
     setDateParts((prev) => (prev ? { ...prev, ...part } : prev));
@@ -46,28 +46,28 @@ export default function EditEventPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-xl font-bold mb-4">แก้ไขข้อมูลงานเลี้ยง</h1>
-      <form onSubmit={save} className="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
+      <h1 className="text-2xl font-display font-semibold text-stone-800 mb-5">แก้ไขข้อมูลงานเลี้ยง</h1>
+      <form onSubmit={save} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 flex flex-col gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-sm text-slate-600">ชื่องาน</span>
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="border rounded px-3 py-2" />
+          <span className="text-sm text-stone-600">ชื่องาน</span>
+          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2" />
         </label>
 
         <DateTimeFields value={dateParts} onChange={updateDatePart} />
 
         <label className="flex flex-col gap-1">
-          <span className="text-sm text-slate-600">สถานที่</span>
-          <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="border rounded px-3 py-2" placeholder="สถานที่" />
+          <span className="text-sm text-stone-600">สถานที่</span>
+          <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2" placeholder="สถานที่" />
         </label>
-        <input type="number" value={form.seatsPerTable} onChange={(e) => setForm({ ...form, seatsPerTable: Number(e.target.value) })} className="border rounded px-3 py-2" placeholder="ที่นั่งต่อโต๊ะ" />
-        <input type="number" value={form.pricePerTable} onChange={(e) => setForm({ ...form, pricePerTable: Number(e.target.value) })} className="border rounded px-3 py-2" placeholder="ราคาทั้งโต๊ะ" />
-        <input type="number" value={form.pricePerSeat} onChange={(e) => setForm({ ...form, pricePerSeat: Number(e.target.value) })} className="border rounded px-3 py-2" placeholder="ราคาต่อที่นั่ง" />
-        <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="border rounded px-3 py-2">
+        <input type="number" value={form.seatsPerTable} onChange={(e) => setForm({ ...form, seatsPerTable: Number(e.target.value) })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2" placeholder="ที่นั่งต่อโต๊ะ" />
+        <input type="number" value={form.pricePerTable} onChange={(e) => setForm({ ...form, pricePerTable: Number(e.target.value) })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2" placeholder="ราคาทั้งโต๊ะ" />
+        <input type="number" value={form.pricePerSeat} onChange={(e) => setForm({ ...form, pricePerSeat: Number(e.target.value) })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2" placeholder="ราคาต่อที่นั่ง" />
+        <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2">
           <option value="draft">ร่าง</option>
           <option value="open">เปิดจอง</option>
           <option value="closed">ปิดรับจอง</option>
         </select>
-        <button className="bg-primary-600 text-white rounded py-2">บันทึก</button>
+        <button className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg py-2.5 font-medium">บันทึก</button>
       </form>
     </div>
   );

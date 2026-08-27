@@ -130,55 +130,58 @@ export default function ReserveForm({
     router.push(`/reservations/${data.bookingCode}/upload-slip?phone=${encodeURIComponent(bookerPhone)}`);
   }
 
+  const inputClass =
+    "w-full border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow";
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 bg-white border rounded-lg p-4 max-w-md">
+    <form onSubmit={handleSubmit} className="space-y-4 bg-white border border-cream-200 shadow-md rounded-xl p-5 max-w-md">
       {bookingType === "seats" && (
         <div>
-          <label className="block text-sm font-medium mb-1">จำนวนที่นั่ง (เหลือ {seatsRemaining} ที่)</label>
+          <label className="block text-sm font-medium text-stone-700 mb-1">จำนวนที่นั่ง (เหลือ {seatsRemaining} ที่)</label>
           <input
             type="number"
             min={1}
             max={seatsRemaining}
             value={seatCount}
             onChange={(e) => setSeatCount(Number(e.target.value))}
-            className="w-full border rounded px-3 py-2"
+            className={inputClass}
             required
           />
         </div>
       )}
       <div>
-        <label className="block text-sm font-medium mb-1">ชื่อ-นามสกุลผู้จอง</label>
+        <label className="block text-sm font-medium text-stone-700 mb-1">ชื่อ-นามสกุลผู้จอง</label>
         <input
           value={bookerName}
           onChange={(e) => setBookerName(e.target.value)}
-          className="w-full border rounded px-3 py-2"
+          className={inputClass}
           required
         />
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">เบอร์โทรศัพท์</label>
+        <label className="block text-sm font-medium text-stone-700 mb-1">เบอร์โทรศัพท์</label>
         <input
           value={bookerPhone}
           onChange={(e) => setBookerPhone(e.target.value)}
-          className="w-full border rounded px-3 py-2"
+          className={inputClass}
           required
         />
-        <p className="text-xs text-blue-400 mt-1">ใช้เบอร์นี้เช็คสถานะการจองในภายหลัง</p>
+        <p className="text-xs text-stone-400 mt-1">ใช้เบอร์นี้เช็คสถานะการจองในภายหลัง</p>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">อีเมล</label>
+        <label className="block text-sm font-medium text-stone-700 mb-1">อีเมล</label>
         <input
           type="email"
           value={bookerEmail}
           onChange={(e) => setBookerEmail(e.target.value)}
-          className="w-full border rounded px-3 py-2"
+          className={inputClass}
         />
-        <p className="text-xs text-blue-400 mt-1">ใช้ส่ง QR Code ยืนยันการจองให้ทางอีเมลนี้หลังตรวจสอบสลิปแล้ว</p>
+        <p className="text-xs text-stone-400 mt-1">ใช้ส่ง QR Code ยืนยันการจองให้ทางอีเมลนี้หลังตรวจสอบสลิปแล้ว</p>
       </div>
 
       {maxCompanions > 0 && (
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="block text-sm font-medium text-stone-700 mb-1">
             รายชื่อผู้ร่วมโต๊ะ (ไม่บังคับ) — {companions.length}/{maxCompanions} คน
           </label>
           <div className="space-y-2">
@@ -190,12 +193,12 @@ export default function ReserveForm({
                     setCompanions((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
                   }
                   placeholder={`ผู้ร่วมโต๊ะคนที่ ${i + 1}`}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
                 />
                 <button
                   type="button"
                   onClick={() => removeCompanion(i)}
-                  className="shrink-0 text-blue-400 hover:text-red-600 px-2"
+                  className="shrink-0 text-stone-400 hover:text-red-600 px-2"
                   aria-label="ลบรายชื่อนี้"
                 >
                   ✕
@@ -207,7 +210,7 @@ export default function ReserveForm({
             <button
               type="button"
               onClick={addCompanion}
-              className="mt-2 text-sm text-blue-700 border rounded px-3 py-1.5 hover:bg-blue-50"
+              className="mt-2 text-sm text-primary-700 border border-primary-200 rounded-lg px-3 py-1.5 hover:bg-primary-50 transition-colors"
             >
               + เพิ่มรายชื่อผู้ร่วมโต๊ะ
             </button>
@@ -215,12 +218,13 @@ export default function ReserveForm({
         </div>
       )}
 
-      <div className="border-t pt-3">
-        <label className="flex items-center gap-2 text-sm">
+      <div className="border-t border-cream-200 pt-3">
+        <label className="flex items-center gap-2 text-sm text-stone-700">
           <input
             type="checkbox"
             checked={registerAsAlumni}
             onChange={(e) => setRegisterAsAlumni(e.target.checked)}
+            className="accent-maroon-700"
           />
           ฉันเป็นศิษย์เก่า ต้องการแจ้งสาขา/ปีที่จบไว้ในระบบด้วย (ไม่บังคับ)
         </label>
@@ -229,48 +233,48 @@ export default function ReserveForm({
           <div className="mt-3 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-medium mb-1">ปีที่จบ (พ.ศ.)</label>
+                <label className="block text-xs font-medium text-stone-600 mb-1">ปีที่จบ (พ.ศ.)</label>
                 <input
                   value={graduationYear}
                   onChange={(e) => setGraduationYear(e.target.value)}
-                  className="w-full border rounded px-2 py-1.5 text-sm"
+                  className="w-full border border-stone-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1">สาขาที่จบ</label>
+                <label className="block text-xs font-medium text-stone-600 mb-1">สาขาที่จบ</label>
                 <input
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full border rounded px-2 py-1.5 text-sm"
+                  className="w-full border border-stone-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">อาชีพปัจจุบัน</label>
+              <label className="block text-xs font-medium text-stone-600 mb-1">อาชีพปัจจุบัน</label>
               <input
                 value={currentOccupation}
                 onChange={(e) => setCurrentOccupation(e.target.value)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
+                className="w-full border border-stone-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">Line ID</label>
+              <label className="block text-xs font-medium text-stone-600 mb-1">Line ID</label>
               <input
                 value={lineId}
                 onChange={(e) => setLineId(e.target.value)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
+                className="w-full border border-stone-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
               />
             </div>
           </div>
         )}
       </div>
 
-      <div className="text-sm font-medium">ยอดชำระ: {total.toLocaleString()} บาท</div>
+      <div className="text-sm font-medium text-stone-800">ยอดชำระ: {total.toLocaleString()} บาท</div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded bg-blue-900 text-white py-2 disabled:opacity-50"
+        className="w-full rounded bg-maroon-700 hover:bg-maroon-800 text-white font-medium py-2.5 transition-colors disabled:opacity-50"
       >
         {submitting ? "กำลังจอง..." : "ยืนยันการจอง"}
       </button>

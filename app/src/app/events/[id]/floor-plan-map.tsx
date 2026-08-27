@@ -61,29 +61,29 @@ function TableInfoModal({ table, onClose }: { table: TableRow; onClose: () => vo
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-lg p-4 max-w-xs w-full space-y-2"
+        className="bg-white rounded-xl border border-cream-200 shadow-lg p-5 max-w-xs w-full space-y-2"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold">โต๊ะ {table.tableNumber}{table.zone ? ` (โซน ${table.zone})` : ""}</h3>
-          <button onClick={onClose} className="text-slate-400 text-sm">✕</button>
+          <h3 className="font-display font-semibold text-stone-800">โต๊ะ {table.tableNumber}{table.zone ? ` (โซน ${table.zone})` : ""}</h3>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-sm">✕</button>
         </div>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-stone-600">
           {table.isFullTableBooking ? "เหมาแล้ว" : table.seatsRemaining === 0 ? "เต็ม" : `เหลือ ${table.seatsRemaining}/${table.capacity} ที่`}
         </p>
-        <div className="border-t pt-2">
-          <p className="text-xs text-slate-500 mb-1">ศิษย์เก่าที่จองโต๊ะนี้</p>
+        <div className="border-t border-cream-200 pt-2">
+          <p className="text-xs text-stone-500 mb-1">ศิษย์เก่าที่จองโต๊ะนี้</p>
           {table.alumniBookers.length > 0 ? (
-            <ul className="text-sm text-slate-700 space-y-1">
+            <ul className="text-sm text-stone-700 space-y-1">
               {table.alumniBookers.map((a, i) => (
                 <li key={i}>🎓 {a.department || "ไม่ระบุสาขา"}{a.graduationYear ? ` · จบปี ${a.graduationYear}` : ""}</li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-400">ยังไม่มีศิษย์เก่าจองโต๊ะนี้</p>
+            <p className="text-sm text-stone-400">ยังไม่มีศิษย์เก่าจองโต๊ะนี้</p>
           )}
         </div>
-        <p className="text-xs text-slate-400 pt-1">เลือกโซนด้านบนก่อนจึงจะจองโต๊ะนี้ได้</p>
+        <p className="text-xs text-stone-400 pt-1">เลือกโซนด้านบนก่อนจึงจะจองโต๊ะนี้ได้</p>
       </div>
     </div>
   );
@@ -187,35 +187,35 @@ export default function FloorPlanMap({
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border rounded-lg divide-y divide-slate-100">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3">
+      <div className="bg-white border border-cream-200 shadow-md rounded-xl divide-y divide-cream-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex flex-wrap gap-x-6 gap-y-1">
             <div>
-              <span className="text-2xl font-bold text-slate-900">{pricePerTable.toLocaleString()}</span>
-              <span className="text-sm text-slate-500"> บาท/โต๊ะ (เหมา)</span>
+              <span className="text-2xl font-display font-semibold text-maroon-700">{pricePerTable.toLocaleString()}</span>
+              <span className="text-sm text-stone-500"> บาท/โต๊ะ (เหมา)</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-slate-900">{pricePerSeat.toLocaleString()}</span>
-              <span className="text-sm text-slate-500"> บาท/ที่นั่ง</span>
+              <span className="text-2xl font-display font-semibold text-maroon-700">{pricePerSeat.toLocaleString()}</span>
+              <span className="text-sm text-stone-500"> บาท/ที่นั่ง</span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-4 text-xs text-stone-500 px-4 py-2">
           <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full" style={{ background: "#86efac", border: "1.5px solid #16a34a" }} />ที่นั่งว่าง</span>
           <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full" style={{ background: "#fca5a5", border: "1.5px solid #dc2626" }} />ที่นั่งจองแล้ว</span>
           <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-amber-400" />สีโต๊ะ = โซน (จางลง = เต็ม/เหมาแล้ว)</span>
         </div>
 
         {zoneNames.length > 0 && (
-          <div className="px-3 py-2 space-y-1.5">
+          <div className="px-4 py-2.5 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-400 mr-1">
+              <span className="text-xs text-stone-400 mr-1">
                 เลือกโซนเพื่อขยาย{!readOnly && requireZoneSelection && <span className="text-amber-600 font-medium">*จำเป็นก่อนจอง</span>}:
               </span>
               <button
                 onClick={() => setSelectedZone(null)}
-                className={`text-xs px-3 py-1 rounded-full border ${selectedZone === null ? "bg-slate-900 text-white border-slate-900" : "border-slate-300 text-slate-600"}`}
+                className={`text-xs px-3 py-1 rounded-full border transition-colors ${selectedZone === null ? "bg-maroon-700 text-white border-maroon-700" : "border-stone-300 text-stone-600 hover:bg-cream-50"}`}
               >
                 ทั้งหมด
               </button>
@@ -223,7 +223,7 @@ export default function FloorPlanMap({
                 <button
                   key={z}
                   onClick={() => setSelectedZone(zoneKey(z))}
-                  className={`text-xs px-3 py-1 rounded-full border flex items-center gap-1.5 ${selectedZone === zoneKey(z) ? "text-white border-transparent" : "border-slate-300 text-slate-600"}`}
+                  className={`text-xs px-3 py-1 rounded-full border flex items-center gap-1.5 transition-colors ${selectedZone === zoneKey(z) ? "text-white border-transparent" : "border-stone-300 text-stone-600 hover:bg-cream-50"}`}
                   style={selectedZone === zoneKey(z) ? { background: zoneColor(z).bg } : undefined}
                 >
                   <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: zoneColor(z).bg }} />
@@ -242,7 +242,7 @@ export default function FloorPlanMap({
 
       <div
         ref={viewportRef}
-        className={`relative border rounded-lg bg-slate-100 ${zoomed ? "overflow-auto" : "overflow-hidden"}`}
+        className={`relative border border-cream-200 rounded-xl bg-cream-100 ${zoomed ? "overflow-auto" : "overflow-hidden"}`}
         style={zoomed ? { maxHeight: "65vh" } : { aspectRatio: `${imageRatio} / 1` }}
       >
         <div
@@ -269,14 +269,14 @@ export default function FloorPlanMap({
           ))}
         </div>
       </div>
-      {zoomed && <p className="text-xs text-slate-400">เลื่อนภาพเพื่อดูโต๊ะอื่นในโซนนี้ได้</p>}
+      {zoomed && <p className="text-xs text-stone-400">เลื่อนภาพเพื่อดูโต๊ะอื่นในโซนนี้ได้</p>}
 
       {unpositioned.length > 0 && (
         <div>
-          <p className="text-xs text-slate-400 mb-2">โต๊ะที่ยังไม่ได้จัดตำแหน่งบนผัง</p>
+          <p className="text-xs text-stone-400 mb-2">โต๊ะที่ยังไม่ได้จัดตำแหน่งบนผัง</p>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
             {unpositioned.map((t) => (
-              <div key={t.id} className="rounded-lg border bg-white p-2 flex flex-col items-center">
+              <div key={t.id} className="rounded-lg border border-cream-200 bg-white p-2 flex flex-col items-center">
                 <TableGraphic
                   table={t}
                   eventId={eventId}
@@ -285,7 +285,7 @@ export default function FloorPlanMap({
                   disableBooking={readOnly || requireZoneSelection}
                   onInfoClick={() => setInfoTable(t)}
                 />
-                <span className="text-xs text-slate-500 mt-1">โต๊ะ {t.tableNumber}</span>
+                <span className="text-xs text-stone-500 mt-1">โต๊ะ {t.tableNumber}</span>
               </div>
             ))}
           </div>

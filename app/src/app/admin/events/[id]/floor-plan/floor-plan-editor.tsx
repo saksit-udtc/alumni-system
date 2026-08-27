@@ -277,12 +277,12 @@ export default function FloorPlanEditor({
 
   if (!floorPlanUrl) {
     return (
-      <div className="bg-white border rounded-lg p-6 max-w-md space-y-3">
-        <p className="text-sm text-slate-600">
+      <div className="bg-white border border-cream-200 shadow-md rounded-xl p-6 max-w-md space-y-3">
+        <p className="text-sm text-stone-600">
           อัปโหลดภาพผังพื้นที่จัดงาน (เช่น แผนผังบริเวณงาน) แล้วลากวางตำแหน่งโต๊ะแต่ละตัวบนภาพนี้ได้
         </p>
         <input type="file" accept="image/*" onChange={handleUpload} disabled={uploading} className="text-sm" />
-        {uploading && <p className="text-xs text-slate-400">กำลังอัปโหลด...</p>}
+        {uploading && <p className="text-xs text-stone-400">กำลังอัปโหลด...</p>}
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     );
@@ -291,21 +291,21 @@ export default function FloorPlanEditor({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-stone-600">
           คลิกโต๊ะเพื่อเลือกได้หลายตัว แล้วลากตัวใดตัวหนึ่งเพื่อขยับทั้งกลุ่มพร้อมกัน — ลากโต๊ะที่ไม่ได้เลือกจะขยับตัวนั้นตัวเดียว
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {selectedIds.size > 0 && (
             <>
-              <span className="text-xs text-slate-500">เลือกอยู่ {selectedIds.size} โต๊ะ</span>
-              <button onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-500 underline">
+              <span className="text-xs text-stone-500">เลือกอยู่ {selectedIds.size} โต๊ะ</span>
+              <button onClick={() => setSelectedIds(new Set())} className="text-xs text-stone-500 underline">
                 ล้างการเลือก
               </button>
             </>
           )}
           <button
             onClick={() => setShowGrid((v) => !v)}
-            className={`text-xs rounded border px-2 py-1 ${showGrid ? "bg-slate-900 text-white border-slate-900" : "text-slate-600"}`}
+            className={`text-xs rounded-md border px-2 py-1 transition-colors ${showGrid ? "bg-maroon-700 text-white border-maroon-700" : "text-stone-600 border-stone-300 hover:bg-cream-50"}`}
           >
             {showGrid ? "ซ่อนตาราง ✓" : "แสดงตาราง"}
           </button>
@@ -313,7 +313,7 @@ export default function FloorPlanEditor({
             <select
               value={gridStep}
               onChange={(e) => setGridStep(Number(e.target.value))}
-              className="text-xs rounded border px-1.5 py-1 text-slate-600"
+              className="text-xs rounded-md border border-stone-300 px-1.5 py-1 text-stone-600"
             >
               {GRID_STEPS.map((s) => (
                 <option key={s} value={s}>
@@ -325,22 +325,22 @@ export default function FloorPlanEditor({
           <button
             onClick={saveLayout}
             disabled={saving}
-            className="text-sm rounded bg-slate-900 text-white px-4 py-1.5 disabled:opacity-50"
+            className="text-sm rounded-md bg-maroon-700 hover:bg-maroon-800 transition-colors text-white px-4 py-1.5 font-medium disabled:opacity-50"
           >
             {saving ? "กำลังบันทึก..." : saved ? "บันทึกแล้ว ✓" : "บันทึกตำแหน่ง"}
           </button>
-          <button onClick={handleRemove} className="text-xs text-red-600 underline">
+          <button onClick={handleRemove} className="text-xs text-red-600 hover:text-red-700 underline">
             ลบภาพผัง
           </button>
         </div>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
 
-      {zoomed && <p className="text-xs text-slate-400">เลื่อนภาพเพื่อดูโต๊ะอื่นในโซนนี้ได้</p>}
+      {zoomed && <p className="text-xs text-stone-400">เลื่อนภาพเพื่อดูโต๊ะอื่นในโซนนี้ได้</p>}
 
       <div
         ref={viewportRef}
-        className={`relative border rounded-lg bg-slate-100 select-none touch-none ${zoomed ? "overflow-auto" : "overflow-hidden"}`}
+        className={`relative border border-cream-200 rounded-xl bg-cream-100 select-none touch-none ${zoomed ? "overflow-auto" : "overflow-hidden"}`}
         style={zoomed ? { maxHeight: "65vh" } : { aspectRatio: `${imageRatio} / 1` }}
       >
         <div ref={canvasRef} className="relative" style={{ width: `${100 * scale}%`, aspectRatio: `${imageRatio} / 1` }}>

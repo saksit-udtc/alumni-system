@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import SiteNav from "../components/site-nav";
 
 interface Product {
   id: string;
@@ -145,21 +146,22 @@ export default function MerchShopPage() {
   }
 
   return (
-    <main className="max-w-3xl mx-auto p-4 space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold text-primary-700">สั่งซื้อของที่ระลึก</h1>
-        <nav className="flex flex-wrap gap-3 text-sm">
-          <Link href="/" className="text-primary-600 hover:underline">
-            ← กลับหน้าจองโต๊ะ
-          </Link>
-          <Link href="/merch/status" className="text-primary-600 hover:underline">
-            ตรวจสอบคำสั่งซื้อ
-          </Link>
-        </nav>
-      </header>
+    <div>
+      <SiteNav />
 
-      {loading && <p>กำลังโหลด...</p>}
-      {!loading && products.length === 0 && <p className="text-gray-500">ยังไม่มีสินค้าเปิดขายในขณะนี้</p>}
+      <section className="relative overflow-hidden bg-maroon-700">
+        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
+          <span className="inline-block text-xs font-medium tracking-wide uppercase bg-white/10 text-primary-200 rounded-full px-3 py-1 mb-4 border border-primary-400/30">
+            ของที่ระลึกงานคืนสู่เหย้า
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-display font-semibold text-white leading-snug">สั่งซื้อของที่ระลึก</h1>
+          <p className="mt-3 text-cream-50/80 max-w-xl mx-auto">เลือกซื้อเสื้อ เหรียญ และของที่ระลึกอื่นๆ ของศิษย์เก่า พร้อมจัดส่งถึงบ้าน</p>
+        </div>
+      </section>
+
+      <main className="max-w-3xl mx-auto p-4 space-y-6">
+      {loading && <p className="text-stone-500">กำลังโหลด...</p>}
+      {!loading && products.length === 0 && <p className="text-stone-500">ยังไม่มีสินค้าเปิดขายในขณะนี้</p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {products.map((p) => {
@@ -168,7 +170,7 @@ export default function MerchShopPage() {
           const remaining = stockFor(p, selectedSize) - inCartQty(p.id, p.requiresSize ? selectedSize : undefined);
           const anyStock = p.requiresSize ? SIZES.some((s) => stockFor(p, s) > 0) : stockFor(p, "") > 0;
           return (
-            <div key={p.id} className="bg-white rounded-xl shadow p-4 flex flex-col gap-2">
+            <div key={p.id} className="bg-white rounded-xl border border-cream-200 shadow-md hover:shadow-md transition-shadow p-4 flex flex-col gap-2">
               {p.imageUrl ? (
                 <button
                   type="button"
@@ -179,25 +181,25 @@ export default function MerchShopPage() {
                   <img src={p.imageUrl} alt={p.name} className="w-full h-40 object-cover rounded-lg" />
                 </button>
               ) : (
-                <div className="w-full h-40 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-sm">
+                <div className="w-full h-40 bg-cream-100 rounded-lg flex items-center justify-center text-stone-400 text-sm">
                   ไม่มีรูปภาพ
                 </div>
               )}
-              <h2 className="font-semibold">{p.name}</h2>
-              {p.description && <p className="text-sm text-gray-500">{p.description}</p>}
-              <p className="font-semibold text-primary-700">{Number(p.price).toLocaleString()} บาท</p>
+              <h2 className="font-display font-semibold text-stone-800">{p.name}</h2>
+              {p.description && <p className="text-sm text-stone-500">{p.description}</p>}
+              <p className="font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
 
               {!anyStock && (
-                <p className="text-sm font-medium text-red-500">สินค้าหมด</p>
+                <p className="text-sm font-medium text-red-600">สินค้าหมด</p>
               )}
 
               {anyStock && p.requiresSize && (
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium">ไซส์</span>
+                  <span className="font-medium text-stone-700">ไซส์</span>
                   <select
                     value={sel.size}
                     onChange={(e) => updateSelection(p.id, { size: e.target.value })}
-                    className="border rounded px-2 py-1"
+                    className="border border-stone-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500"
                   >
                     {SIZES.map((s) => (
                       <option key={s} value={s} disabled={stockFor(p, s) === 0}>
@@ -211,21 +213,21 @@ export default function MerchShopPage() {
               {anyStock && (
                 <>
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-medium">จำนวน {!p.requiresSize && `(เหลือ ${stockFor(p, "")})`}</span>
+                    <span className="font-medium text-stone-700">จำนวน {!p.requiresSize && `(เหลือ ${stockFor(p, "")})`}</span>
                     <input
                       type="number"
                       min={1}
                       max={Math.max(1, remaining)}
                       value={sel.quantity}
                       onChange={(e) => updateSelection(p.id, { quantity: Number(e.target.value) })}
-                      className="border rounded px-2 py-1 w-24"
+                      className="border border-stone-300 rounded-lg px-2 py-1.5 w-24 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500"
                     />
                   </label>
 
                   <button
                     onClick={() => addToCart(p)}
                     disabled={remaining <= 0}
-                    className="mt-1 bg-primary-600 hover:bg-primary-700 text-white rounded py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="mt-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {remaining <= 0 ? "หมด" : "+ เพิ่มลงตะกร้า"}
                   </button>
@@ -236,20 +238,20 @@ export default function MerchShopPage() {
         })}
       </div>
 
-      <div className="bg-white rounded-xl shadow p-4 space-y-2">
-        <h2 className="font-semibold">ตะกร้าสินค้า</h2>
-        {cart.length === 0 && <p className="text-sm text-gray-400">ยังไม่มีสินค้าในตะกร้า</p>}
+      <div className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-2">
+        <h2 className="font-display font-semibold text-stone-800">ตะกร้าสินค้า</h2>
+        {cart.length === 0 && <p className="text-sm text-stone-400">ยังไม่มีสินค้าในตะกร้า</p>}
         <div className="flex flex-col gap-2">
           {cart.map((line, i) => (
-            <div key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm border-b pb-2">
+            <div key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm border-b border-cream-200 pb-2">
               <div>
-                <span className="font-medium">{line.name}</span>
-                {line.size && <span className="text-gray-400"> · ไซส์ {line.size}</span>}
-                <span className="text-gray-400"> × {line.quantity}</span>
+                <span className="font-medium text-stone-800">{line.name}</span>
+                {line.size && <span className="text-stone-400"> · ไซส์ {line.size}</span>}
+                <span className="text-stone-400"> × {line.quantity}</span>
               </div>
               <div className="flex items-center gap-3">
-                <span>{(line.unitPrice * line.quantity).toLocaleString()} บาท</span>
-                <button onClick={() => removeLine(i)} className="text-red-500 hover:underline text-xs">
+                <span className="text-stone-700">{(line.unitPrice * line.quantity).toLocaleString()} บาท</span>
+                <button onClick={() => removeLine(i)} className="text-red-600 hover:text-red-700 hover:underline text-xs">
                   ลบ
                 </button>
               </div>
@@ -257,50 +259,50 @@ export default function MerchShopPage() {
           ))}
         </div>
         {cart.length > 0 && (
-          <div className="flex justify-between font-semibold pt-2">
+          <div className="flex justify-between font-semibold text-stone-800 pt-2">
             <span>รวมทั้งหมด</span>
             <span>{total.toLocaleString()} บาท</span>
           </div>
         )}
       </div>
 
-      <form onSubmit={checkout} className="bg-white rounded-xl shadow p-4 space-y-3">
-        <h2 className="font-semibold">ข้อมูลผู้สั่งซื้อ</h2>
+      <form onSubmit={checkout} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
+        <h2 className="font-display font-semibold text-stone-800">ข้อมูลผู้สั่งซื้อ</h2>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">ชื่อผู้สั่ง *</span>
+          <span className="font-medium text-stone-700">ชื่อผู้สั่ง *</span>
           <input
             value={bookerName}
             onChange={(e) => setBookerName(e.target.value)}
-            className="border rounded px-3 py-2"
+            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
             required
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">เบอร์โทรศัพท์ *</span>
+          <span className="font-medium text-stone-700">เบอร์โทรศัพท์ *</span>
           <input
             value={bookerPhone}
             onChange={(e) => setBookerPhone(e.target.value)}
-            className="border rounded px-3 py-2"
+            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
             required
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">อีเมล *</span>
+          <span className="font-medium text-stone-700">อีเมล *</span>
           <input
             type="email"
             value={bookerEmail}
             onChange={(e) => setBookerEmail(e.target.value)}
-            className="border rounded px-3 py-2"
+            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
             required
           />
-          <p className="text-xs text-blue-400">ใช้แจ้งสถานะและติดต่อกลับเรื่องการสั่งซื้อ</p>
+          <p className="text-xs text-stone-400">ใช้แจ้งสถานะและติดต่อกลับเรื่องการสั่งซื้อ</p>
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">ที่อยู่สำหรับจัดส่ง *</span>
+          <span className="font-medium text-stone-700">ที่อยู่สำหรับจัดส่ง *</span>
           <textarea
             value={shippingAddress}
             onChange={(e) => setShippingAddress(e.target.value)}
-            className="border rounded px-3 py-2"
+            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
             rows={3}
             placeholder="บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์"
             required
@@ -312,7 +314,7 @@ export default function MerchShopPage() {
         <button
           type="submit"
           disabled={submitting || cart.length === 0}
-          className="w-full bg-primary-600 hover:bg-primary-700 text-white rounded py-2 font-semibold disabled:opacity-50"
+          className="w-full bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg py-2.5 font-semibold disabled:opacity-50"
         >
           {submitting ? "กำลังสั่งซื้อ..." : "สั่งซื้อ"}
         </button>
@@ -343,6 +345,7 @@ export default function MerchShopPage() {
           </button>
         </div>
       )}
-    </main>
+      </main>
+    </div>
   );
 }
