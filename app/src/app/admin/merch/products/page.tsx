@@ -251,16 +251,16 @@ export default function AdminMerchProductsPage() {
                     {savingStock === p.id ? "กำลังบันทึก..." : "บันทึกสต๊อก"}
                   </button>
                 </div>
-                <div className={`grid gap-3 ${p.requiresSize ? "grid-cols-4 sm:grid-cols-8" : "grid-cols-4 sm:grid-cols-8 max-w-xs"}`}>
+                <div className={p.requiresSize ? "grid grid-cols-4 sm:grid-cols-8 gap-3" : "flex"}>
                   {sizes.map((size) => (
-                    <label key={size || "single"} className="flex flex-col gap-1 text-xs">
+                    <label key={size || "single"} className={`flex flex-col gap-1 text-xs ${p.requiresSize ? "" : "w-28"}`}>
                       <span className="text-stone-500">{size || "จำนวน"}</span>
                       <input
                         type="number"
                         min={0}
                         value={stockValue(p, size)}
                         onChange={(e) => updateDraft(p.id, size, e.target.value)}
-                        className="w-full border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-1"
+                        className="w-full border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-1.5 text-sm"
                       />
                     </label>
                   ))}

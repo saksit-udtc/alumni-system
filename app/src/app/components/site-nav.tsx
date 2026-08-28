@@ -41,9 +41,9 @@ export default function SiteNav() {
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-cream-200">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2 shrink-0">
+        <Link href="/" className="flex items-center gap-2 min-w-0">
           <img src="/logo.jpg" alt="ตราสัญลักษณ์" className="w-9 h-9 rounded-full object-cover shrink-0" />
-          <span className="font-display font-semibold text-stone-800 hidden sm:block">งานคืนสู่เหย้า</span>
+          <span className="font-display font-semibold text-stone-800 text-sm sm:text-base truncate">งานคืนสู่เหย้า</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-7 text-sm">
