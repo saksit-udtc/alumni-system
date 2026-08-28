@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const existing = await prisma.merchProduct.findUnique({ where: { id: params.id } });
@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 // productId is nullable (ON DELETE SET NULL), so past orders keep showing a
 // real product name instead of breaking or disappearing.
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const existing = await prisma.merchProduct.findUnique({ where: { id: params.id } });

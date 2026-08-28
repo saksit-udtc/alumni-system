@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }, { status: 401 });
   }
 
-  const token = signAdminToken({ adminId: admin.id, username: admin.username });
+  const token = signAdminToken({ adminId: admin.id, username: admin.username, role: admin.role });
 
   const res = NextResponse.json({ ok: true, username: admin.username });
   res.cookies.set(ADMIN_COOKIE_NAME, token, {

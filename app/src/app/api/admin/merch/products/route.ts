@@ -6,7 +6,7 @@ import { publicMerchProductUrl } from "@/lib/minio";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const products = await prisma.merchProduct.findMany({
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const body = await req.json().catch(() => null);

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { logAdminAction } from "@/lib/auditLog";
 
 // GET: lookup a reservation by id OR qrCodeToken for the check-in detail page.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "CHECKIN_STAFF"]);
   if (response) return response;
 
   const reservation = await prisma.reservation.findFirst({
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
  * this admin-protected page keyed by qrCodeToken or reservation id.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "CHECKIN_STAFF"]);
   if (response) return response;
 
   const reservation = await prisma.reservation.findFirst({
@@ -40,6 +41,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const updated = await prisma.reservation.update({
     where: { id: reservation.id },
     data: { checkedIn: true, checkedInAt: new Date(), checkedInBy: admin!.adminId },
+  });
+
+  await logAdminAction({
+    adminId: admin!.adminId,
+    action: "RESERVATION_CHECKIN",
+    targetType: "Reservation",
+    targetId: reservation.id,
+    detail: `bookingCode=${reservation.bookingCode}`,
   });
 
   return NextResponse.json({ reservation: updated });

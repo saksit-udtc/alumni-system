@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/apiHelpers";
 import { presignedGetUrl, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const reservations = await prisma.reservation.findMany({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { logAdminAction } from "@/lib/auditLog";
 import { sendMerchOrderConfirmedEmail } from "@/lib/mailer";
 
 /**
@@ -12,7 +13,7 @@ import { sendMerchOrderConfirmedEmail } from "@/lib/mailer";
  * never throws) so a bad mail config can never block approval.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const order = await prisma.merchOrder.findUnique({
@@ -47,6 +48,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!updated) {
     return jsonError("สถานะการสั่งซื้อไม่สามารถอนุมัติได้ (มีการอนุมัติไปแล้ว)", 409);
   }
+
+  await logAdminAction({
+    adminId: admin!.adminId,
+    action: "MERCH_ORDER_APPROVE",
+    targetType: "MerchOrder",
+    targetId: order.id,
+    detail: `orderCode=${order.orderCode}`,
+  });
 
   await sendMerchOrderConfirmedEmail({
     to: order.bookerEmail,

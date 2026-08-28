@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { logAdminAction } from "@/lib/auditLog";
 import { releaseReservation, ReleaseError } from "@/lib/releaseReservation";
 
 /**
@@ -8,7 +9,7 @@ import { releaseReservation, ReleaseError } from "@/lib/releaseReservation";
  * expiry job (requirement #2), passing newStatus='rejected'.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const body = await req.json().catch(() => ({}));
@@ -23,6 +24,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     console.error("[POST /api/admin/reservations/[id]/reject]", err);
     return jsonError("เกิดข้อผิดพลาด", 500);
   }
+
+  await logAdminAction({
+    adminId: admin!.adminId,
+    action: "RESERVATION_REJECT",
+    targetType: "Reservation",
+    targetId: params.id,
+    detail: note ? `note=${note}` : undefined,
+  });
 
   if (note) {
     const latestSlip = await prisma.paymentSlip.findFirst({

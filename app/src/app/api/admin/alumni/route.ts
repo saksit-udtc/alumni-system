@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 
 export async function GET(req: NextRequest) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const q = new URL(req.url).searchParams.get("q")?.trim();
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const body = await req.json().catch(() => null);

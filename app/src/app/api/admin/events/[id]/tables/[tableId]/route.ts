@@ -13,7 +13,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string; tableId: string } }
 ) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const table = await loadTableForEvent(params.id, params.tableId);
@@ -52,7 +52,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string; tableId: string } }
 ) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const table = await loadTableForEvent(params.id, params.tableId);

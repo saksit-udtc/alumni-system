@@ -4,7 +4,7 @@ import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { publicFloorPlanUrl } from "@/lib/minio";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const event = await prisma.event.findUnique({
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const body = await req.json().catch(() => null);
@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const existing = await prisma.event.findUnique({ where: { id: params.id } });

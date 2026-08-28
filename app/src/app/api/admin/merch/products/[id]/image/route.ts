@@ -5,7 +5,7 @@ import { uploadObject, deleteObject, MERCH_PRODUCTS_BUCKET, publicMerchProductUr
 import crypto from "crypto";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const product = await prisma.merchProduct.findUnique({ where: { id: params.id } });
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const existing = await prisma.merchProduct.findUnique({ where: { id: params.id } });

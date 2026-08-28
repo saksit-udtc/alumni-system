@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const PENDING_STATUSES = ["pending", "awaiting_verify"] as const;
 
 export async function GET(req: NextRequest) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const [

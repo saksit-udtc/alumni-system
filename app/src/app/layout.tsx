@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Pridi, Sarabun } from "next/font/google";
 import "./globals.css";
+import PageViewLogger from "./components/page-view-logger";
 
 const displayFont = Pridi({
   subsets: ["thai", "latin"],
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         className={`${displayFont.variable} ${bodyFont.variable} min-h-screen bg-cream-100 text-stone-800`}
       >
+        <PageViewLogger />
         {children}
       </body>
     </html>

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/apiHelpers";
 
 export async function GET(req: NextRequest) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "CHECKIN_STAFF"]);
   if (response) return response;
 
   const q = new URL(req.url).searchParams.get("q")?.trim() || "";

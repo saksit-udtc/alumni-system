@@ -8,16 +8,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AdminRole {
+  SUPER_ADMIN
+  CHECKIN_STAFF
+  MERCH_STAFF
+}
+
 model AdminUser {
-  id           String   @id @default(cuid())
-  username     String   @unique
+  id           String    @id @default(cuid())
+  username     String    @unique
   passwordHash String
-  createdAt    DateTime @default(now())
+  role         AdminRole @default(SUPER_ADMIN)
+  createdAt    DateTime  @default(now())
 
   verifiedSlips     PaymentSlip[] @relation("VerifiedBy")
   checkedInReservs  Reservation[] @relation("CheckedInBy")
   souvenirReservs   Reservation[] @relation("SouvenirBy")
   merchVerifiedSlips MerchPaymentSlip[] @relation("MerchVerifiedBy")
+  auditLogs         AuditLog[]
+}
+
+// Two kinds of entries, told apart by actorType:
+//  - "ADMIN": an admin performed an action on a record (adminId/action/targetType/targetId set, path null).
+//  - "PUBLIC": an anonymous visit to a public page was recorded (path set, everything else null).
+// No IP address or other visitor-identifying data is stored for PUBLIC entries by design.
+model EmailLog {
+  id        String   @id @default(cuid())
+  type      String
+  recipient String
+  status    String
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([recipient])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorType  String
+  adminId    String?
+  admin      AdminUser? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String?
+  targetId   String?
+  detail     String?
+  path       String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorType, createdAt])
+  @@index([adminId])
+  @@index([targetType, targetId])
 }
 
 model Alumni {

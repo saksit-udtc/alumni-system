@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { logAdminAction } from "@/lib/auditLog";
 import { sendConfirmationEmail } from "@/lib/mailer";
 
 /**
@@ -10,7 +11,7 @@ import { sendConfirmationEmail } from "@/lib/mailer";
  * this endpoint.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const reservation = await prisma.reservation.findUnique({
@@ -52,6 +53,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!updated) {
     return jsonError("สถานะการจองไม่สามารถอนุมัติได้ (มีการอนุมัติไปแล้ว)", 409);
   }
+
+  await logAdminAction({
+    adminId: admin!.adminId,
+    action: "RESERVATION_APPROVE",
+    targetType: "Reservation",
+    targetId: reservation.id,
+    detail: `bookingCode=${reservation.bookingCode}`,
+  });
 
   if (reservation.bookerEmail && reservation.qrCodeToken) {
     await sendConfirmationEmail({

@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { generateQrPngBuffer, checkinUrl } from "./qrcode";
+import { logEmail } from "./auditLog";
 
 function getTransport() {
   return nodemailer.createTransport({
@@ -106,10 +107,12 @@ export async function sendConfirmationEmail(args: ConfirmationEmailArgs): Promis
   try {
     if (process.env.RESEND_API_KEY) {
       await sendViaResend(args);
+      await logEmail({ type: "CONFIRMATION", recipient: args.to, status: "SUCCESS" });
       return;
     }
     if (process.env.SMTP_HOST) {
       await sendViaSmtp(args);
+      await logEmail({ type: "CONFIRMATION", recipient: args.to, status: "SUCCESS" });
       return;
     }
     console.warn(
@@ -117,6 +120,7 @@ export async function sendConfirmationEmail(args: ConfirmationEmailArgs): Promis
     );
   } catch (err) {
     console.error("[mailer] failed to send confirmation email (non-fatal):", err);
+    await logEmail({ type: "CONFIRMATION", recipient: args.to, status: "FAILED", error: String(err) });
   }
 }
 
@@ -182,6 +186,7 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
         html: buildBookingReceivedHtml(args),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      await logEmail({ type: "BOOKING_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     if (process.env.SMTP_HOST) {
@@ -192,6 +197,7 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
         subject: `จองโต๊ะสำเร็จ - ${args.eventName}`,
         html: buildBookingReceivedHtml(args),
       });
+      await logEmail({ type: "BOOKING_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     console.warn(
@@ -199,6 +205,7 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
     );
   } catch (err) {
     console.error("[mailer] failed to send booking-received email (non-fatal):", err);
+    await logEmail({ type: "BOOKING_RECEIVED", recipient: args.to, status: "FAILED", error: String(err) });
   }
 }
 
@@ -253,6 +260,7 @@ export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmai
         html: buildMerchOrderConfirmedHtml(args),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      await logEmail({ type: "MERCH_ORDER_CONFIRMED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     if (process.env.SMTP_HOST) {
@@ -263,6 +271,7 @@ export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmai
         subject: `ยืนยันการสั่งซื้อของที่ระลึก - ${args.orderCode}`,
         html: buildMerchOrderConfirmedHtml(args),
       });
+      await logEmail({ type: "MERCH_ORDER_CONFIRMED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     console.warn(
@@ -270,6 +279,7 @@ export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmai
     );
   } catch (err) {
     console.error("[mailer] failed to send merch order confirmed email (non-fatal):", err);
+    await logEmail({ type: "MERCH_ORDER_CONFIRMED", recipient: args.to, status: "FAILED", error: String(err) });
   }
 }
 
@@ -333,6 +343,7 @@ export async function sendMerchOrderReceivedEmail(args: MerchOrderReceivedEmailA
         html: buildMerchOrderReceivedHtml(args),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      await logEmail({ type: "MERCH_ORDER_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     if (process.env.SMTP_HOST) {
@@ -343,6 +354,7 @@ export async function sendMerchOrderReceivedEmail(args: MerchOrderReceivedEmailA
         subject: `สั่งซื้อของที่ระลึกสำเร็จ - ${args.orderCode}`,
         html: buildMerchOrderReceivedHtml(args),
       });
+      await logEmail({ type: "MERCH_ORDER_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     console.warn(
@@ -350,6 +362,7 @@ export async function sendMerchOrderReceivedEmail(args: MerchOrderReceivedEmailA
     );
   } catch (err) {
     console.error("[mailer] failed to send merch order received email (non-fatal):", err);
+    await logEmail({ type: "MERCH_ORDER_RECEIVED", recipient: args.to, status: "FAILED", error: String(err) });
   }
 }
 
@@ -403,6 +416,7 @@ export async function sendMerchSlipReceivedEmail(args: MerchSlipReceivedEmailArg
         html: buildMerchSlipReceivedHtml(args),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      await logEmail({ type: "MERCH_SLIP_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     if (process.env.SMTP_HOST) {
@@ -413,6 +427,7 @@ export async function sendMerchSlipReceivedEmail(args: MerchSlipReceivedEmailArg
         subject: `ได้รับสลิปแล้ว รอตรวจสอบ - ${args.orderCode}`,
         html: buildMerchSlipReceivedHtml(args),
       });
+      await logEmail({ type: "MERCH_SLIP_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     console.warn(
@@ -420,6 +435,7 @@ export async function sendMerchSlipReceivedEmail(args: MerchSlipReceivedEmailArg
     );
   } catch (err) {
     console.error("[mailer] failed to send merch slip received email (non-fatal):", err);
+    await logEmail({ type: "MERCH_SLIP_RECEIVED", recipient: args.to, status: "FAILED", error: String(err) });
   }
 }
 
@@ -478,6 +494,7 @@ export async function sendSlipReceivedEmail(args: SlipReceivedEmailArgs): Promis
         html: buildSlipReceivedHtml(args),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      await logEmail({ type: "SLIP_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     if (process.env.SMTP_HOST) {
@@ -488,6 +505,7 @@ export async function sendSlipReceivedEmail(args: SlipReceivedEmailArgs): Promis
         subject: `ได้รับสลิปแล้ว รอตรวจสอบ - ${args.eventName}`,
         html: buildSlipReceivedHtml(args),
       });
+      await logEmail({ type: "SLIP_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
     }
     console.warn(
@@ -495,5 +513,6 @@ export async function sendSlipReceivedEmail(args: SlipReceivedEmailArgs): Promis
     );
   } catch (err) {
     console.error("[mailer] failed to send slip-received email (non-fatal):", err);
+    await logEmail({ type: "SLIP_RECEIVED", recipient: args.to, status: "FAILED", error: String(err) });
   }
 }

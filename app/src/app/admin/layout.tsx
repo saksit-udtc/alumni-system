@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -46,6 +46,12 @@ const ICONS: Record<string, JSX.Element> = {
       <path d="M12 13v8" />
     </>
   ),
+  log: (
+    <>
+      <path d="M4 5h16M4 12h16M4 19h10" />
+      <circle cx="20" cy="19" r="1.5" fill="currentColor" stroke="none" />
+    </>
+  ),
 };
 
 function NavIcon({ name }: { name: string }) {
@@ -82,21 +88,62 @@ function CloseIcon() {
   );
 }
 
-const NAV_ITEMS = [
-  { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true },
-  { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar" },
-  { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin" },
-  { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users" },
-  { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag" },
-  { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box" },
+type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF";
+
+// roles: undefined = visible to every logged-in admin.
+const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; roles?: AdminRole[] }[] = [
+  { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true, roles: ["SUPER_ADMIN"] },
+  { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN"] },
+  { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"] },
+  { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"] },
+  { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF"] },
+  { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box", roles: ["SUPER_ADMIN", "MERCH_STAFF"] },
+  { href: "/admin/audit-log", label: "บันทึกการใช้งาน", icon: "log", roles: ["SUPER_ADMIN"] },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [role, setRole] = useState<AdminRole | null>(null);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+
+  // Mirrors the server-side allow-list enforced per-route in src/lib/apiHelpers.ts —
+  // this is just for a clean UX (no flash of a page the API will refuse); the API
+  // calls are what actually protect the data.
+  const ROLE_ALLOWED_PREFIXES: Record<string, string[]> = {
+    CHECKIN_STAFF: ["/admin/checkin"],
+    MERCH_STAFF: ["/admin/merch"],
+  };
+  const ROLE_HOME: Record<string, string> = {
+    CHECKIN_STAFF: "/admin/checkin",
+    MERCH_STAFF: "/admin/merch/orders",
+  };
+
+  useEffect(() => {
+    if (pathname === "/admin/login") return;
+    setCheckingAccess(true);
+    fetch("/api/admin/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const r: AdminRole | null = data?.role ?? null;
+        setRole(r);
+        if (r && r !== "SUPER_ADMIN") {
+          const allowed = ROLE_ALLOWED_PREFIXES[r] || [];
+          const ok = allowed.some((prefix) => pathname?.startsWith(prefix));
+          if (!ok) {
+            router.replace(ROLE_HOME[r] || "/admin/login");
+            return; // keep checkingAccess true — we're navigating away, never render this page's content
+          }
+        }
+        setCheckingAccess(false);
+      })
+      .catch(() => setCheckingAccess(false));
+  }, [pathname]);
 
   if (pathname === "/admin/login") return <>{children}</>;
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.roles || !role || item.roles.includes(role));
 
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST" });
@@ -124,7 +171,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const NavList = (
     <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
-      {NAV_ITEMS.map((item) => (
+      {visibleNavItems.map((item) => (
         <Link key={item.href} href={item.href} className={itemClass(item.href, item.exact)} onClick={() => setMobileOpen(false)}>
           <NavIcon name={item.icon} />
           {item.label}
@@ -189,7 +236,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className="w-10" aria-hidden="true" />
         </div>
 
-        <main className="flex-1 p-4 sm:p-6 w-full max-w-5xl mx-auto">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 w-full max-w-5xl mx-auto">
+          {checkingAccess ? <div className="text-sm text-stone-400 py-10 text-center">กำลังตรวจสอบสิทธิ์...</div> : children}
+        </main>
       </div>
     </div>
   );

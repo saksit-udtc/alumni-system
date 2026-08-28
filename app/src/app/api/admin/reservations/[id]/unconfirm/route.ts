@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { logAdminAction } from "@/lib/auditLog";
 
 const HOLD_MINUTES = 20;
 
@@ -10,7 +11,7 @@ const HOLD_MINUTES = 20;
  * immediately re-expire it. Does not touch seatsReserved.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const reservation = await prisma.reservation.findUnique({ where: { id: params.id } });
@@ -29,6 +30,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       checkedInAt: null,
       checkedInBy: null,
     },
+  });
+
+  await logAdminAction({
+    adminId: admin!.adminId,
+    action: "RESERVATION_UNCONFIRM",
+    targetType: "Reservation",
+    targetId: params.id,
   });
 
   return NextResponse.json({ reservation: updated });

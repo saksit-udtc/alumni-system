@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { logAdminAction } from "@/lib/auditLog";
 
 /**
  * Admin "reject slip" for a merch order. Merch orders have no seat/table to
@@ -9,7 +10,7 @@ import { requireAdmin, jsonError } from "@/lib/apiHelpers";
  * releaseReservation.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const order = await prisma.merchOrder.findUnique({
@@ -74,6 +75,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!updated) {
     return jsonError("สถานะการสั่งซื้อไม่สามารถปฏิเสธได้ (มีการดำเนินการไปแล้ว)", 409);
   }
+
+  await logAdminAction({
+    adminId: admin!.adminId,
+    action: "MERCH_ORDER_REJECT",
+    targetType: "MerchOrder",
+    targetId: order.id,
+    detail: `orderCode=${order.orderCode}`,
+  });
 
   return NextResponse.json({ ok: true });
 }

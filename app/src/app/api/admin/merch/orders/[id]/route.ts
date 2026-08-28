@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { logAdminAction } from "@/lib/auditLog";
 
 /**
  * Admin-only edit of an order's shipping address (e.g. fixing a typo the
@@ -8,7 +9,7 @@ import { requireAdmin, jsonError } from "@/lib/apiHelpers";
  * no other field on the order should be patchable through this route.
  */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const body = await req.json().catch(() => null);
@@ -23,6 +24,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   await prisma.merchOrder.update({
     where: { id: params.id },
     data: { shippingAddress },
+  });
+
+  await logAdminAction({
+    adminId: admin!.adminId,
+    action: "MERCH_ORDER_EDIT_ADDRESS",
+    targetType: "MerchOrder",
+    targetId: params.id,
+    detail: `orderCode=${order.orderCode}`,
   });
 
   return NextResponse.json({ ok: true });

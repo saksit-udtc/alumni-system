@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * updates, e.g. from the shop UI editing one size at a time, are safe).
  */
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
   if (response) return response;
 
   const product = await prisma.merchProduct.findUnique({ where: { id: params.id } });

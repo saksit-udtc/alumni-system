@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { logAdminAction } from "@/lib/auditLog";
 
 /**
  * Requirement #7: souvenir claim toggle, independent from check-in,
  * only allowed for confirmed reservations.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "CHECKIN_STAFF"]);
   if (response) return response;
 
   const reservation = await prisma.reservation.findUnique({ where: { id: params.id } });
@@ -25,6 +26,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       souvenirGivenAt: newValue ? new Date() : null,
       souvenirGivenBy: newValue ? admin!.adminId : null,
     },
+  });
+
+  await logAdminAction({
+    adminId: admin!.adminId,
+    action: newValue ? "RESERVATION_SOUVENIR_GIVE" : "RESERVATION_SOUVENIR_UNDO",
+    targetType: "Reservation",
+    targetId: params.id,
   });
 
   return NextResponse.json({ reservation: updated });
