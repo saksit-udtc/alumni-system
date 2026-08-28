@@ -14,6 +14,9 @@ const STATUS_LABEL: Record<string, string> = {
 export default function AdminMerchOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   function load() {
     fetch("/api/admin/merch/orders")
@@ -36,6 +39,34 @@ export default function AdminMerchOrdersPage() {
     }
   }
 
+  function startEditAddress(orderId: string, currentAddress: string) {
+    setEditingId(orderId);
+    setEditValue(currentAddress);
+  }
+
+  function cancelEditAddress() {
+    setEditingId(null);
+    setEditValue("");
+  }
+
+  async function saveAddress(orderId: string) {
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/admin/merch/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shippingAddress: editValue }),
+      });
+      if (res.ok) {
+        setEditingId(null);
+        setEditValue("");
+        load();
+      }
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   const pendingCount = orders.filter((o) => ["pending", "awaiting_verify"].includes(o.paymentStatus)).length;
   const confirmedOrders = orders.filter((o) => o.paymentStatus === "confirmed");
   const confirmedRevenue = confirmedOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
@@ -47,9 +78,23 @@ export default function AdminMerchOrdersPage() {
           <h1 className="text-2xl font-display font-semibold text-stone-800">รายการสั่งซื้อของที่ระลึก</h1>
           <p className="text-sm text-stone-500 mt-0.5">ตรวจสอบสลิปและอนุมัติคำสั่งซื้อของที่ระลึกทั้งหมด</p>
         </div>
-        <Link href="/admin/merch/products" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
-          จัดการสินค้า
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/merch/orders/print"
+            className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
+          >
+            ปริ้นที่อยู่จัดส่ง
+          </Link>
+          <a
+            href="/api/admin/merch/orders/export"
+            className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
+          >
+            Export Excel
+          </a>
+          <Link href="/admin/merch/products" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
+            จัดการสินค้า
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -99,8 +144,43 @@ export default function AdminMerchOrdersPage() {
                     <div className="text-xs text-stone-400">{o.bookerPhone}</div>
                     <div className="text-xs text-stone-400">{o.bookerEmail}</div>
                   </td>
-                  <td className="p-3 max-w-[16rem] whitespace-pre-wrap text-xs text-stone-600">
-                    {o.shippingAddress}
+                  <td className="p-3 max-w-[16rem] text-xs text-stone-600">
+                    {editingId === o.id ? (
+                      <div className="space-y-1.5">
+                        <textarea
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          rows={3}
+                          className="w-full text-xs border border-stone-300 rounded-md p-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        />
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => saveAddress(o.id)}
+                            disabled={savingEdit || !editValue.trim()}
+                            className="text-xs px-2 py-1 rounded-md bg-primary-700 text-white hover:bg-primary-800 transition-colors disabled:opacity-50"
+                          >
+                            บันทึก
+                          </button>
+                          <button
+                            onClick={cancelEditAddress}
+                            disabled={savingEdit}
+                            className="text-xs px-2 py-1 rounded-md bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors"
+                          >
+                            ยกเลิก
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="whitespace-pre-wrap">{o.shippingAddress}</div>
+                        <button
+                          onClick={() => startEditAddress(o.id, o.shippingAddress)}
+                          className="text-primary-700 hover:text-primary-800 hover:underline"
+                        >
+                          แก้ไข
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="p-3">
                     {o.items.map((it: any, i: number) => (
