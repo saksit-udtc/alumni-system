@@ -99,6 +99,7 @@ const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; r
   { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF"] },
   { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box", roles: ["SUPER_ADMIN", "MERCH_STAFF"] },
   { href: "/admin/audit-log", label: "บันทึกการใช้งาน", icon: "log", roles: ["SUPER_ADMIN"] },
+  { href: "/admin/users", label: "จัดการผู้ใช้งาน", icon: "users", roles: ["SUPER_ADMIN"] },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -19,6 +19,7 @@ model AdminUser {
   username     String    @unique
   passwordHash String
   role         AdminRole @default(SUPER_ADMIN)
+  isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
 
   verifiedSlips     PaymentSlip[] @relation("VerifiedBy")

@@ -42,6 +42,8 @@ const ACTION_LABELS: Record<string, string> = {
   MERCH_ORDER_APPROVE: "อนุมัติคำสั่งซื้อ",
   MERCH_ORDER_REJECT: "ปฏิเสธคำสั่งซื้อ",
   MERCH_ORDER_EDIT_ADDRESS: "แก้ไขที่อยู่จัดส่ง",
+  ADMIN_USER_CREATE: "สร้างบัญชีผู้ใช้งาน",
+  ADMIN_USER_UPDATE: "แก้ไขบัญชีผู้ใช้งาน",
   PAGE_VIEW: "เปิดดูหน้าเว็บ (สาธารณะ)",
 };
 
