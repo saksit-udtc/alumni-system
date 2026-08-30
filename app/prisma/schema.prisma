@@ -13,6 +13,7 @@ enum AdminRole {
   CHECKIN_STAFF
   MERCH_STAFF
   FINANCE_STAFF
+  RESERVATION_STAFF
 }
 
 model AdminUser {

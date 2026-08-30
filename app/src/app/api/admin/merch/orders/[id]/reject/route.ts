@@ -10,7 +10,7 @@ import { logAdminAction } from "@/lib/auditLog";
  * releaseReservation.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"]);
   if (response) return response;
 
   const order = await prisma.merchOrder.findUnique({

@@ -88,15 +88,15 @@ function CloseIcon() {
   );
 }
 
-type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAFF";
+type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAFF" | "RESERVATION_STAFF";
 
 // roles: undefined = visible to every logged-in admin.
 const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; roles?: AdminRole[] }[] = [
   { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true, roles: ["SUPER_ADMIN"] },
-  { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "FINANCE_STAFF"] },
+  { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"] },
   { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"] },
   { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"] },
-  { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF"] },
+  { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"] },
   { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box", roles: ["SUPER_ADMIN", "MERCH_STAFF"] },
   { href: "/admin/audit-log", label: "บันทึกการใช้งาน", icon: "log", roles: ["SUPER_ADMIN"] },
   { href: "/admin/users", label: "จัดการผู้ใช้งาน", icon: "users", roles: ["SUPER_ADMIN"] },
@@ -116,11 +116,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     CHECKIN_STAFF: ["/admin/checkin"],
     MERCH_STAFF: ["/admin/merch"],
     FINANCE_STAFF: ["/admin/events", "/admin/merch/orders"],
+    RESERVATION_STAFF: ["/admin/events", "/admin/merch/orders"],
   };
   const ROLE_HOME: Record<string, string> = {
     CHECKIN_STAFF: "/admin/checkin",
     MERCH_STAFF: "/admin/merch/orders",
     FINANCE_STAFF: "/admin/events",
+    RESERVATION_STAFF: "/admin/events",
   };
 
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAFF";
+type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAFF" | "RESERVATION_STAFF";
 
 type AdminUserRow = {
   id: string;
@@ -17,6 +17,7 @@ const ROLE_LABELS: Record<AdminRole, string> = {
   CHECKIN_STAFF: "เจ้าหน้าที่เช็คอิน",
   MERCH_STAFF: "เจ้าหน้าที่ของที่ระลึก",
   FINANCE_STAFF: "เจ้าหน้าที่งานการเงิน",
+  RESERVATION_STAFF: "เจ้าหน้าที่ดูแลระบบจองโต๊ะ",
 };
 
 const inputClass =

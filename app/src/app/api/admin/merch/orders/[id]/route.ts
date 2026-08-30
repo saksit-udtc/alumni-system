@@ -9,7 +9,7 @@ import { logAdminAction } from "@/lib/auditLog";
  * no other field on the order should be patchable through this route.
  */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"]);
   if (response) return response;
 
   const body = await req.json().catch(() => null);

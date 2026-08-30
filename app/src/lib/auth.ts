@@ -10,7 +10,7 @@ const TOKEN_TTL = "12h";
 export interface AdminTokenPayload {
   adminId: string;
   username: string;
-  role: "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAFF";
+  role: "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAFF" | "RESERVATION_STAFF";
 }
 
 export function hashPassword(plain: string): Promise<string> {

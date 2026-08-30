@@ -11,7 +11,7 @@ import { sendConfirmationEmail } from "@/lib/mailer";
  * this endpoint.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"]);
   if (response) return response;
 
   const reservation = await prisma.reservation.findUnique({

@@ -4,7 +4,7 @@ import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { hashPassword } from "@/lib/auth";
 import { logAdminAction } from "@/lib/auditLog";
 
-const ROLES = ["SUPER_ADMIN", "CHECKIN_STAFF", "MERCH_STAFF", "FINANCE_STAFF"] as const;
+const ROLES = ["SUPER_ADMIN", "CHECKIN_STAFF", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"] as const;
 
 export async function GET(req: NextRequest) {
   const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
