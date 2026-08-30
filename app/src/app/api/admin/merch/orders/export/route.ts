@@ -14,7 +14,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export async function GET(req: NextRequest) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF"]);
   if (response) return response;
 
   const orders = await prisma.merchOrder.findMany({

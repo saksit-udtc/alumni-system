@@ -12,6 +12,7 @@ enum AdminRole {
   SUPER_ADMIN
   CHECKIN_STAFF
   MERCH_STAFF
+  FINANCE_STAFF
 }
 
 model AdminUser {

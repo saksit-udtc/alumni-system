@@ -9,7 +9,7 @@ import { releaseReservation, ReleaseError } from "@/lib/releaseReservation";
  * expiry job (requirement #2), passing newStatus='rejected'.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF"]);
   if (response) return response;
 
   const body = await req.json().catch(() => ({}));

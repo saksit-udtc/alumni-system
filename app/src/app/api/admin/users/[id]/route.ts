@@ -4,7 +4,7 @@ import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { hashPassword } from "@/lib/auth";
 import { logAdminAction } from "@/lib/auditLog";
 
-const ROLES = ["SUPER_ADMIN", "CHECKIN_STAFF", "MERCH_STAFF"] as const;
+const ROLES = ["SUPER_ADMIN", "CHECKIN_STAFF", "MERCH_STAFF", "FINANCE_STAFF"] as const;
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);

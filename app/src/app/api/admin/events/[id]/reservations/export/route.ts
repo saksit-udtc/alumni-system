@@ -9,7 +9,7 @@ function csvEscape(v: unknown): string {
 }
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF"]);
   if (response) return response;
 
   const reservations = await prisma.reservation.findMany({

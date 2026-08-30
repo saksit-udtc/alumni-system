@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF"]);
   if (response) return response;
 
   const tables = await prisma.table.findMany({
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 // Bulk-add tables, e.g. { count: 20, capacity: 10, zone: "A", zoneColor: "#f97316" }
 // or explicit { tables: [{tableNumber, capacity, zone, zoneColor}, ...] }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF"]);
   if (response) return response;
 
   const event = await prisma.event.findUnique({ where: { id: params.id } });

@@ -9,7 +9,7 @@ import { requireAdmin, jsonError } from "@/lib/apiHelpers";
  * before writing anything (anti-IDOR).
  */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF"]);
   if (response) return response;
 
   const body = await req.json().catch(() => null);

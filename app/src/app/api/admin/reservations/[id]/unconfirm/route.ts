@@ -11,7 +11,7 @@ const HOLD_MINUTES = 20;
  * immediately re-expire it. Does not touch seatsReserved.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF"]);
   if (response) return response;
 
   const reservation = await prisma.reservation.findUnique({ where: { id: params.id } });
