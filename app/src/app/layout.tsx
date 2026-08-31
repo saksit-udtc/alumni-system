@@ -17,7 +17,7 @@ const bodyFont = Sarabun({
 
 export const metadata: Metadata = {
   title: "งานคืนสู่เหย้า - ระบบจองโต๊ะศิษย์เก่า",
-  description: "ระบบจองโต๊ะงานคืนสู่เหย้าวิทยาลัยอาชีวศึกษา",
+  description: "ระบบจองโต๊ะงานคืนสู่เหย้าวิทยาลัยเทคนิคอุดรธานี",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
