@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { zoneColor } from "@/lib/zone-colors";
 
 type AlumniInfo = { department: string | null; graduationYear: string | null };
 
@@ -23,10 +24,12 @@ export type TableRow = {
 
 // Draws one table as a single plain circle — seat-level booking is
 // disabled system-wide (guests may only book a whole table), so there is
-// no per-seat chair ring to render any more. The circle is green when the
+// no per-seat chair ring to render any more. The fill is green when the
 // table is open for booking and red once someone has booked it (whole
 // table, since that is the only booking type left); clicking a green
-// (open) table books it.
+// (open) table books it. The outline ring uses the table's zone color
+// (same palette as the zone pills/legend elsewhere), so guests can still
+// tell zones apart at a glance even though the fill is now status-only.
 export default function TableGraphic({
   table,
   eventId,
@@ -52,6 +55,7 @@ export default function TableGraphic({
 
   const isBooked = table.isFullTableBooking || table.seatsReserved > 0;
   const canBook = !disableBooking && eventOpen && !isBooked;
+  const zoneStroke = zoneColor(table.zone).bg;
 
   function goToFullTable() {
     if (disableBooking) return onInfoClick?.();
@@ -66,8 +70,8 @@ export default function TableGraphic({
         cy={center}
         r={tableRadius}
         fill={isBooked ? "#ef4444" : "#22c55e"}
-        stroke={isBooked ? "#dc2626" : "#16a34a"}
-        strokeWidth={2}
+        stroke={zoneStroke}
+        strokeWidth={6}
         className={disableBooking || canBook ? "cursor-pointer" : ""}
         onClick={goToFullTable}
       >
