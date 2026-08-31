@@ -48,8 +48,6 @@ function PlacedTable({
         eventId={eventId}
         eventOpen={eventOpen}
         maxWidthPx={size}
-        chairDistance={45}
-        tableColor="zone"
         disableBooking={disableBooking}
         onInfoClick={onInfoClick}
       />
@@ -194,17 +192,12 @@ export default function FloorPlanMap({
               <span className="text-2xl font-display font-semibold text-maroon-700">{pricePerTable.toLocaleString()}</span>
               <span className="text-sm text-stone-500"> บาท/โต๊ะ (เหมา)</span>
             </div>
-            <div>
-              <span className="text-2xl font-display font-semibold text-maroon-700">{pricePerSeat.toLocaleString()}</span>
-              <span className="text-sm text-stone-500"> บาท/ที่นั่ง</span>
-            </div>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 text-xs text-stone-500 px-4 py-2">
-          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full" style={{ background: "#86efac", border: "1.5px solid #16a34a" }} />ที่นั่งว่าง</span>
-          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full" style={{ background: "#fca5a5", border: "1.5px solid #dc2626" }} />ที่นั่งจองแล้ว</span>
-          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-amber-400" />สีโต๊ะ = โซน (จางลง = เต็ม/เหมาแล้ว)</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full" style={{ background: "#22c55e", border: "1.5px solid #16a34a" }} />โต๊ะว่าง (คลิกเพื่อเหมาโต๊ะ)</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full" style={{ background: "#ef4444", border: "1.5px solid #dc2626" }} />โต๊ะจองแล้ว</span>
         </div>
 
         {zoneNames.length > 0 && (

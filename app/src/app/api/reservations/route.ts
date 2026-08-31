@@ -14,6 +14,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" }, { status: 400 });
   }
 
+  // Seat-level booking has been disabled — only whole-table bookings are accepted.
+  if (bookingType !== "full_table") {
+    return NextResponse.json({ error: "ขณะนี้เปิดให้จองเฉพาะแบบเหมาทั้งโต๊ะเท่านั้น" }, { status: 400 });
+  }
+
   try {
     const reservation = await bookTable({
       eventId,

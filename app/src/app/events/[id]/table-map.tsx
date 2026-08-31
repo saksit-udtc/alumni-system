@@ -34,11 +34,11 @@ function HowToGuide({ hasZones, onDismiss }: { hasZones: boolean; onDismiss: () 
     ? [
         { icon: "📍", text: "เลือกโซนที่ต้องการด้านบน" },
         { icon: "🔍", text: "ดูว่าโต๊ะไหนว่าง/เต็ม และมีศิษย์เก่าคนไหนจองไว้บ้าง" },
-        { icon: "🪑", text: "เลือกโซนก่อนแล้วจึงแตะที่โต๊ะหรือที่นั่งเพื่อจอง" },
+        { icon: "🪑", text: "เลือกโซนก่อนแล้วจึงแตะที่โต๊ะเพื่อเหมาทั้งโต๊ะ" },
       ]
     : [
         { icon: "🔍", text: "ดูว่าโต๊ะไหนว่าง/เต็ม และมีศิษย์เก่าคนไหนจองไว้บ้าง" },
-        { icon: "🪑", text: "แตะที่โต๊ะเพื่อเหมาทั้งโต๊ะ หรือแตะที่นั่งเพื่อจองเป็นที่นั่ง" },
+        { icon: "🪑", text: "แตะที่โต๊ะเพื่อเหมาทั้งโต๊ะ" },
         { icon: "🧾", text: "กรอกข้อมูลผู้จองแล้วแนบสลิปโอนเงิน" },
       ];
   return (
@@ -76,20 +76,12 @@ function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-4 text-xs text-primary-500 bg-white border border-cream-200 shadow-md rounded-lg px-3 py-2">
       <span className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#86efac", border: "1.5px solid #16a34a" }} />
-        ที่นั่งว่าง (คลิกเพื่อจองที่นั่ง)
+        <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#22c55e", border: "1.5px solid #16a34a" }} />
+        โต๊ะว่าง (คลิกเพื่อเหมาโต๊ะ)
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#fca5a5", border: "1.5px solid #dc2626" }} />
-        ที่นั่งถูกจองแล้ว
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#0f172a" }} />
-        โต๊ะว่างสนิท (คลิกเพื่อเหมาโต๊ะ)
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#94a3b8" }} />
-        โต๊ะเต็ม/เหมาแล้ว
+        <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#ef4444", border: "1.5px solid #dc2626" }} />
+        โต๊ะจองแล้ว
       </span>
     </div>
   );
@@ -143,10 +135,6 @@ export default function TableMap({
         <div>
           <span className="text-2xl font-display font-semibold text-maroon-700">{pricePerTable.toLocaleString()}</span>
           <span className="text-sm text-primary-500"> บาท/โต๊ะ (เหมา)</span>
-        </div>
-        <div>
-          <span className="text-2xl font-display font-semibold text-maroon-700">{pricePerSeat.toLocaleString()}</span>
-          <span className="text-sm text-primary-500"> บาท/ที่นั่ง</span>
         </div>
       </div>
       {eventOpen && <Legend />}

@@ -8,7 +8,9 @@ import SiteNav from "@/app/components/site-nav";
 export default function ReservePage() {
   const { id, tableId } = useParams<{ id: string; tableId: string }>();
   const searchParams = useSearchParams();
-  const bookingType = searchParams.get("type") === "full_table" ? "full_table" : "seats";
+  void searchParams;
+  // Seat-level booking has been disabled — every reservation is now a full-table booking.
+  const bookingType = "full_table" as const;
 
   const [event, setEvent] = useState<any>(null);
   const [table, setTable] = useState<any>(null);
@@ -36,10 +38,8 @@ export default function ReservePage() {
     content = <p className="text-stone-500">กำลังโหลด...</p>;
   } else if (event.status !== "open") {
     content = <p className="text-red-600">งานนี้ปิดรับจองแล้ว</p>;
-  } else if (bookingType === "full_table" && table.seatsReserved !== 0) {
-    content = <p className="text-red-600">โต๊ะนี้มีคนจองบางส่วนแล้ว ไม่สามารถเหมาได้</p>;
-  } else if (bookingType === "seats" && table.isFullTableBooking) {
-    content = <p className="text-red-600">โต๊ะนี้ถูกเหมาไปแล้ว</p>;
+  } else if (table.seatsReserved !== 0 || table.isFullTableBooking) {
+    content = <p className="text-red-600">โต๊ะนี้ถูกจองไปแล้ว</p>;
   } else {
     const seatsRemaining = table.seatsAvailable;
     content = (
@@ -49,7 +49,7 @@ export default function ReservePage() {
             ← กลับไปหน้าจองโต๊ะ
           </a>
           <h1 className="text-2xl font-display font-semibold text-stone-800 mt-1">
-            {bookingType === "full_table" ? "เหมาโต๊ะ" : "จองที่นั่ง"} — โต๊ะ {table.tableNumber}
+            เหมาโต๊ะ — โต๊ะ {table.tableNumber}
           </h1>
           <p className="text-stone-500 text-sm">{event.name}</p>
         </div>
