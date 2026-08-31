@@ -1,20 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { publicMerchProductUrl } from "@/lib/minio";
+import { getMerchShippingFee } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
 // Public: list active merch products for the shop page, with remaining
 // stock so the UI can disable out-of-stock sizes/products instead of
-// letting the guest hit an OUT_OF_STOCK error at checkout.
+// letting the guest hit an OUT_OF_STOCK error at checkout. Also returns the
+// current shipping fee so the shop page can show it in the order total
+// before checkout, alongside the per-item prices.
 export async function GET() {
-  const products = await prisma.merchProduct.findMany({
-    where: { active: true },
-    orderBy: { createdAt: "asc" },
-    include: { stocks: true },
-  });
+  const [products, shippingFee] = await Promise.all([
+    prisma.merchProduct.findMany({
+      where: { active: true },
+      orderBy: { createdAt: "asc" },
+      include: { stocks: true },
+    }),
+    getMerchShippingFee(),
+  ]);
 
   return NextResponse.json({
+    shippingFee,
     products: products.map((p) => ({
       id: p.id,
       name: p.name,

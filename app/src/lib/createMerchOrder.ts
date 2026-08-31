@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import crypto from "crypto";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
+import { getMerchShippingFee } from "./settings";
 
 export interface CreateMerchOrderItemInput {
   productId: string;
@@ -92,6 +93,10 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
   }[] = [];
   let totalAmount = 0;
 
+  // Snapshotted onto the order below so a later change to the configured
+  // fee never retroactively changes a past order's total.
+  const shippingFee = await getMerchShippingFee();
+
   for (const item of items) {
     const product = productMap.get(item.productId);
     if (!product) {
@@ -115,6 +120,8 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
       unitPrice,
     });
   }
+
+  totalAmount += shippingFee;
 
   let orderCode = generateOrderCode();
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -149,6 +156,7 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
         bookerPhone: bookerPhone.trim(),
         bookerEmail: email,
         shippingAddress: shippingAddress.trim(),
+        shippingFee,
         totalAmount,
         paymentStatus: slipFileKey ? "awaiting_verify" : "pending",
         items: { create: orderItemsData },

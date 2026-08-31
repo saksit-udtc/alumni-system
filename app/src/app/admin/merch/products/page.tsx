@@ -29,12 +29,54 @@ export default function AdminMerchProductsPage() {
   const [stockDrafts, setStockDrafts] = useState<Record<string, string>>({});
   const [savingStock, setSavingStock] = useState<string | null>(null);
 
+  // Shipping fee setting — separate load/save from the product list above.
+  const [shippingFee, setShippingFee] = useState<number | null>(null);
+  const [shippingFeeDraft, setShippingFeeDraft] = useState("");
+  const [savingShippingFee, setSavingShippingFee] = useState(false);
+  const [shippingFeeError, setShippingFeeError] = useState("");
+
   function load() {
     fetch("/api/admin/merch/products")
       .then((r) => r.json())
       .then((d) => setProducts(d.products || []));
   }
   useEffect(load, []);
+
+  function loadShippingFee() {
+    fetch("/api/admin/merch/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        setShippingFee(Number(d.shippingFee) || 0);
+        setShippingFeeDraft(String(d.shippingFee ?? 0));
+      });
+  }
+  useEffect(loadShippingFee, []);
+
+  async function saveShippingFee(e: React.FormEvent) {
+    e.preventDefault();
+    setShippingFeeError("");
+    const fee = Number(shippingFeeDraft);
+    if (!Number.isFinite(fee) || fee < 0) {
+      setShippingFeeError("กรุณากรอกค่าจัดส่งเป็นตัวเลขที่มากกว่าหรือเท่ากับ 0");
+      return;
+    }
+    setSavingShippingFee(true);
+    try {
+      const res = await fetch("/api/admin/merch/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shippingFee: fee }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setShippingFeeError(data.error || "บันทึกไม่สำเร็จ");
+        return;
+      }
+      setShippingFee(data.shippingFee);
+    } finally {
+      setSavingShippingFee(false);
+    }
+  }
 
   async function createProduct(e: React.FormEvent) {
     e.preventDefault();
@@ -149,6 +191,32 @@ export default function AdminMerchProductsPage() {
           ดูรายการสั่งซื้อ
         </Link>
       </div>
+
+      <form onSubmit={saveShippingFee} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
+        <h2 className="font-display font-semibold text-stone-800">ค่าจัดส่ง</h2>
+        <p className="text-sm text-stone-500">ค่าจัดส่งนี้จะถูกรวมเข้ากับยอดชำระของทุกคำสั่งซื้อใหม่โดยอัตโนมัติ (คำสั่งซื้อเก่าจะไม่เปลี่ยนแปลงตามค่าที่แก้ไขนี้)</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">ค่าจัดส่ง (บาท)</span>
+            <input
+              type="number"
+              min={0}
+              value={shippingFeeDraft}
+              onChange={(e) => setShippingFeeDraft(e.target.value)}
+              className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2 w-40"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={savingShippingFee}
+            className="bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg px-4 py-2 font-semibold disabled:opacity-50"
+          >
+            {savingShippingFee ? "กำลังบันทึก..." : "บันทึกค่าจัดส่ง"}
+          </button>
+          {shippingFee !== null && <span className="text-sm text-stone-500">ค่าจัดส่งปัจจุบัน: {shippingFee.toLocaleString()} บาท</span>}
+        </div>
+        {shippingFeeError && <p className="text-red-600 text-sm">{shippingFeeError}</p>}
+      </form>
 
       <form onSubmit={createProduct} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
         <h2 className="font-display font-semibold text-stone-800">+ เพิ่มสินค้าใหม่</h2>

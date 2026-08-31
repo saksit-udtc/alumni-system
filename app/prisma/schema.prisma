@@ -16,6 +16,16 @@ enum AdminRole {
   RESERVATION_STAFF
 }
 
+// Small generic key-value store for app-wide settings that don't warrant
+// their own dedicated table/columns — e.g. the merch shipping fee. One row
+// per setting, value stored as text and parsed by the reader (see
+// lib/settings.ts).
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model AdminUser {
   id           String    @id @default(cuid())
   username     String    @unique
@@ -224,6 +234,10 @@ model MerchOrder {
   bookerPhone     String
   bookerEmail     String
   shippingAddress String        @db.Text
+  // Snapshot of the shipping fee in effect at order time (same idea as
+  // MerchOrderItem.unitPrice below) — a later change to the configured fee
+  // in AppSetting must never retroactively change a past order's total.
+  shippingFee     Decimal       @default(50) @db.Decimal(10, 2)
   totalAmount     Decimal       @db.Decimal(10, 2)
   paymentStatus   PaymentStatus @default(pending)
   createdAt       DateTime      @default(now())

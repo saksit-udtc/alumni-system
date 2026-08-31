@@ -44,11 +44,15 @@ export default function MerchShopPage() {
   const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(null);
   const [done, setDone] = useState(false);
   const [orderCode, setOrderCode] = useState("");
+  const [shippingFee, setShippingFee] = useState(0);
 
   useEffect(() => {
     fetch("/api/merch/products")
       .then((r) => r.json())
-      .then((d) => setProducts(d.products || []))
+      .then((d) => {
+        setProducts(d.products || []);
+        setShippingFee(Number(d.shippingFee) || 0);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -100,7 +104,8 @@ export default function MerchShopPage() {
     setCart((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const total = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+  const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+  const total = cart.length > 0 ? subtotal + shippingFee : 0;
 
   async function checkout(e: React.FormEvent) {
     e.preventDefault();
@@ -294,9 +299,19 @@ export default function MerchShopPage() {
           ))}
         </div>
         {cart.length > 0 && (
-          <div className="flex justify-between font-semibold text-stone-800 pt-2">
-            <span>รวมทั้งหมด</span>
-            <span>{total.toLocaleString()} บาท</span>
+          <div className="pt-2 space-y-1">
+            <div className="flex justify-between text-sm text-stone-600">
+              <span>ยอดสินค้า</span>
+              <span>{subtotal.toLocaleString()} บาท</span>
+            </div>
+            <div className="flex justify-between text-sm text-stone-600">
+              <span>ค่าจัดส่ง</span>
+              <span>{shippingFee.toLocaleString()} บาท</span>
+            </div>
+            <div className="flex justify-between font-semibold text-stone-800 border-t border-cream-200 pt-1">
+              <span>รวมทั้งหมด</span>
+              <span>{total.toLocaleString()} บาท</span>
+            </div>
           </div>
         )}
       </div>

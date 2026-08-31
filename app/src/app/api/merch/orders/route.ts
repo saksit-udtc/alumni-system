@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
       bookerPhone: order.bookerPhone,
       orderCode: order.orderCode,
       shippingAddress: order.shippingAddress,
+      shippingFee: Number(order.shippingFee),
       totalAmount: Number(order.totalAmount),
       items: order.items.map((it) => ({
         productName: it.productName,

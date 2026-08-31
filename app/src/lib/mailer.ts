@@ -211,6 +211,7 @@ interface MerchOrderConfirmedEmailArgs {
   bookerName: string;
   orderCode: string;
   shippingAddress: string;
+  shippingFee: number;
   totalAmount: number;
   items: { productName: string; size: string | null; quantity: number }[];
 }
@@ -229,7 +230,8 @@ function buildMerchOrderConfirmedHtml(args: MerchOrderConfirmedEmailArgs) {
       <p>การสั่งซื้อของที่ระลึกของท่านได้รับการตรวจสอบและยืนยันเรียบร้อยแล้ว</p>
       <ul>
         <li>รหัสการสั่งซื้อ: <strong>${args.orderCode}</strong></li>
-        <li>ยอดชำระ: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
+        <li>ค่าจัดส่ง: <strong>${args.shippingFee.toLocaleString("th-TH")} บาท</strong></li>
+        <li>ยอดชำระรวม: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
       </ul>
       <p><strong>รายการสินค้า:</strong></p>
       <ul>${rows}</ul>
@@ -286,6 +288,7 @@ interface MerchOrderReceivedEmailArgs {
   bookerPhone: string;
   orderCode: string;
   shippingAddress: string;
+  shippingFee: number;
   totalAmount: number;
   items: { productName: string; size: string | null; quantity: number }[];
 }
@@ -310,7 +313,8 @@ function buildMerchOrderReceivedHtml(args: MerchOrderReceivedEmailArgs) {
       <p>เราได้รับคำสั่งซื้อของที่ระลึกพร้อมสลิปการโอนเงินของท่านเรียบร้อยแล้ว</p>
       <ul>
         <li>รหัสการสั่งซื้อ: <strong>${args.orderCode}</strong></li>
-        <li>ยอดชำระ: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
+        <li>ค่าจัดส่ง: <strong>${args.shippingFee.toLocaleString("th-TH")} บาท</strong></li>
+        <li>ยอดชำระรวม: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
       </ul>
       <p><strong>รายการสินค้า:</strong></p>
       <ul>${rows}</ul>
