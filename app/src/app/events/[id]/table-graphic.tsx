@@ -78,7 +78,7 @@ export default function TableGraphic({
         y={center}
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize="16"
+        fontSize="80"
         fontWeight="700"
         fill="white"
         className={disableBooking || canBook ? "cursor-pointer" : "pointer-events-none"}
