@@ -15,9 +15,36 @@ const bodyFont = Sarabun({
   variable: "--font-body",
 });
 
+const siteUrl = "https://homecoming.udontech.ac.th";
+const siteTitle = "งานคืนสู่เหย้า - ระบบจองโต๊ะศิษย์เก่า";
+const siteDescription = "ระบบจองโต๊ะงานคืนสู่เหย้าวิทยาลัยเทคนิคอุดรธานี";
+
 export const metadata: Metadata = {
-  title: "งานคืนสู่เหย้า - ระบบจองโต๊ะศิษย์เก่า",
-  description: "ระบบจองโต๊ะงานคืนสู่เหย้าวิทยาลัยเทคนิคอุดรธานี",
+  metadataBase: new URL(siteUrl),
+  title: siteTitle,
+  description: siteDescription,
+  openGraph: {
+    title: siteTitle,
+    description: siteDescription,
+    url: siteUrl,
+    siteName: siteTitle,
+    images: [
+      {
+        url: "/logo.jpg",
+        width: 800,
+        height: 800,
+        alt: siteTitle,
+      },
+    ],
+    locale: "th_TH",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteTitle,
+    description: siteDescription,
+    images: ["/logo.jpg"],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
