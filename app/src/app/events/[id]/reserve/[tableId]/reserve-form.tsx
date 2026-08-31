@@ -39,8 +39,11 @@ export default function ReserveForm({
   const [currentOccupation, setCurrentOccupation] = useState("");
   const [lineId, setLineId] = useState("");
 
+  const [slipFile, setSlipFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  const [bookingCode, setBookingCode] = useState("");
 
   // Max number of companion names = seats booked minus the booker's own
   // seat. Guests add one name at a time with a button, capped at this
@@ -76,21 +79,27 @@ export default function ReserveForm({
       setError("รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง");
       return;
     }
+    if (!slipFile) {
+      setError("กรุณาแนบไฟล์สลิปโอนเงิน");
+      return;
+    }
     setSubmitting(true);
     const partyNames = companions.map((c) => c.trim()).filter(Boolean);
+
+    const formData = new FormData();
+    formData.append("eventId", eventId);
+    formData.append("tableId", tableId);
+    formData.append("bookingType", bookingType);
+    formData.append("seatCount", String(seatCount));
+    formData.append("bookerName", bookerName);
+    formData.append("bookerPhone", bookerPhone);
+    if (bookerEmail) formData.append("bookerEmail", bookerEmail);
+    if (partyNames.length > 0) formData.append("partyNames", JSON.stringify(partyNames));
+    formData.append("file", slipFile);
+
     const res = await fetch("/api/reservations", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        eventId,
-        tableId,
-        bookingType,
-        seatCount,
-        bookerName,
-        bookerPhone,
-        bookerEmail: bookerEmail || undefined,
-        partyNames: partyNames.length > 0 ? partyNames : undefined,
-      }),
+      body: formData,
     });
     const data = await res.json();
 
@@ -125,13 +134,30 @@ export default function ReserveForm({
     }
 
     setSubmitting(false);
-    // This scaffold's booking API returns a bookingCode (the public
-    // booking-status identifier), not the reservation's internal id.
-    router.push(`/reservations/${data.bookingCode}/upload-slip?phone=${encodeURIComponent(bookerPhone)}`);
+    setBookingCode(data.bookingCode);
+    setDone(true);
   }
 
   const inputClass =
     "w-full border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow";
+
+  if (done) {
+    return (
+      <div className="max-w-md bg-white border border-cream-200 shadow-md rounded-xl p-6 text-center space-y-3">
+        <h2 className="text-xl font-display font-semibold text-emerald-600">จองโต๊ะและส่งสลิปสำเร็จ</h2>
+        <p className="text-stone-600">รหัสการจองของท่านคือ {bookingCode}</p>
+        <p className="text-sm text-stone-500">
+          เจ้าหน้าที่จะตรวจสอบสลิปการโอนเงินโดยเร็วที่สุด ท่านสามารถตรวจสอบสถานะได้ที่หน้าตรวจสอบการจอง
+        </p>
+        <button
+          onClick={() => router.push(`/status?bookingCode=${bookingCode}&phone=${encodeURIComponent(bookerPhone)}`)}
+          className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-4 py-2 font-medium"
+        >
+          เช็คสถานะการจอง
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 bg-white border border-cream-200 shadow-md rounded-xl p-5 max-w-md">
@@ -270,13 +296,26 @@ export default function ReserveForm({
       </div>
 
       <div className="text-sm font-medium text-stone-800">ยอดชำระ: {total.toLocaleString()} บาท</div>
+
+      <div className="border-t border-cream-200 pt-3">
+        <label className="block text-sm font-medium text-stone-700 mb-1">ไฟล์สลิปโอนเงิน *</label>
+        <p className="text-xs text-stone-400 mb-1">กรุณาโอนเงินตามยอดด้านบนแล้วแนบรูปสลิปที่นี่ ระบบจะบันทึกการจองและส่งสลิปให้เจ้าหน้าที่ตรวจสอบในขั้นตอนเดียวกัน</p>
+        <input
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={(e) => setSlipFile(e.target.files?.[0] || null)}
+          className={inputClass}
+          required
+        />
+      </div>
+
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={submitting}
         className="w-full rounded bg-maroon-700 hover:bg-maroon-800 text-white font-medium py-2.5 transition-colors disabled:opacity-50"
       >
-        {submitting ? "กำลังจอง..." : "ยืนยันการจอง"}
+        {submitting ? "กำลังส่งข้อมูล..." : "ยืนยันการจองและส่งสลิป"}
       </button>
     </form>
   );

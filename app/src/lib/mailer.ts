@@ -152,18 +152,15 @@ function buildBookingReceivedHtml(args: BookingReceivedEmailArgs) {
     <div style="font-family: sans-serif; line-height: 1.6;">
       <h2>จองโต๊ะสำเร็จ</h2>
       <p>เรียน คุณ${args.bookerName}</p>
-      <p>เราได้รับการจองของท่านสำหรับงาน <strong>${args.eventName}</strong> เรียบร้อยแล้ว</p>
+      <p>เราได้รับการจองพร้อมสลิปการโอนเงินของท่านสำหรับงาน <strong>${args.eventName}</strong> เรียบร้อยแล้ว</p>
       <ul>
         <li>รหัสการจอง: <strong>${args.bookingCode}</strong></li>
         ${args.tableNumber ? `<li>โต๊ะหมายเลข: <strong>${args.tableNumber}${args.zone ? ` (โซน ${args.zone})` : ""}</strong></li>` : ""}
         <li>${args.bookingType === "full_table" ? "เหมาโต๊ะ" : "จองที่นั่ง"} · ${args.seatCount} ที่นั่ง</li>
         <li>ยอดชำระ: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
       </ul>
-      <p>กรุณาชำระเงินและอัปโหลดสลิปการโอนเพื่อยืนยันการจอง เมื่อเจ้าหน้าที่ตรวจสอบสลิปเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันพร้อม QR Code สำหรับเช็คอินหน้างานให้อีกครั้ง</p>
-      <p style="margin: 20px 0;">
-        <a href="${slipUrl}" style="display:inline-block; background:#1e3a8a; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:6px;">อัปโหลดสลิปการโอนเงิน</a>
-      </p>
-      <p style="color:#64748b; font-size:12px;">หรือคัดลอกลิงก์นี้: ${slipUrl}</p>
+      <p>เจ้าหน้าที่กำลังตรวจสอบสลิปการโอนเงินของท่าน เมื่อตรวจสอบเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันพร้อม QR Code สำหรับเช็คอินหน้างานให้อีกครั้ง</p>
+      <p style="color:#64748b; font-size:12px;">หากยังไม่ได้แนบสลิป หรือต้องการแนบสลิปใหม่ สามารถอัปโหลดได้ที่ลิงก์นี้: ${slipUrl}</p>
     </div>
   `;
 }
@@ -310,7 +307,7 @@ function buildMerchOrderReceivedHtml(args: MerchOrderReceivedEmailArgs) {
     <div style="font-family: sans-serif; line-height: 1.6;">
       <h2>สั่งซื้อของที่ระลึกสำเร็จ</h2>
       <p>เรียน คุณ${args.bookerName}</p>
-      <p>เราได้รับคำสั่งซื้อของที่ระลึกของท่านเรียบร้อยแล้ว</p>
+      <p>เราได้รับคำสั่งซื้อของที่ระลึกพร้อมสลิปการโอนเงินของท่านเรียบร้อยแล้ว</p>
       <ul>
         <li>รหัสการสั่งซื้อ: <strong>${args.orderCode}</strong></li>
         <li>ยอดชำระ: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
@@ -318,11 +315,8 @@ function buildMerchOrderReceivedHtml(args: MerchOrderReceivedEmailArgs) {
       <p><strong>รายการสินค้า:</strong></p>
       <ul>${rows}</ul>
       <p><strong>จัดส่งไปที่:</strong><br/>${args.shippingAddress.replace(/\n/g, "<br/>")}</p>
-      <p>กรุณาชำระเงินและอัปโหลดสลิปการโอนเพื่อยืนยันการสั่งซื้อ เมื่อเจ้าหน้าที่ตรวจสอบสลิปเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันการสั่งซื้อให้อีกครั้ง</p>
-      <p style="margin: 20px 0;">
-        <a href="${slipUrl}" style="display:inline-block; background:#1e3a8a; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:6px;">อัปโหลดสลิปการโอนเงิน</a>
-      </p>
-      <p style="color:#64748b; font-size:12px;">หรือคัดลอกลิงก์นี้: ${slipUrl}</p>
+      <p>เราได้รับสลิปการโอนเงินของท่านแล้ว เจ้าหน้าที่กำลังตรวจสอบ เมื่อตรวจสอบเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันการสั่งซื้อให้อีกครั้ง</p>
+      <p style="color:#64748b; font-size:12px;">หากยังไม่ได้แนบสลิป หรือต้องการแนบสลิปใหม่ สามารถอัปโหลดได้ที่ลิงก์นี้: ${slipUrl}</p>
     </div>
   `;
 }

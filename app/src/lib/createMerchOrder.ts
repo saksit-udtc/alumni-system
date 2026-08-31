@@ -14,6 +14,12 @@ export interface CreateMerchOrderInput {
   bookerEmail: string;
   shippingAddress: string;
   items: CreateMerchOrderItemInput[];
+  /** Object-storage key of an already-uploaded payment slip (see
+   * lib/minio.ts's uploadObject) — attached in the same checkout step as
+   * the order form itself (one page, one submit), so when present the
+   * order is created directly in "awaiting_verify" status with its
+   * MerchPaymentSlip row, in the same transaction. */
+  slipFileKey?: string;
 }
 
 export class MerchOrderError extends Error {
@@ -45,7 +51,7 @@ function generateOrderCode(): string {
  * Prices are always taken from the DB, never trusted from the client.
  */
 export async function createMerchOrder(input: CreateMerchOrderInput) {
-  const { bookerName, bookerPhone, bookerEmail, shippingAddress, items } = input;
+  const { bookerName, bookerPhone, bookerEmail, shippingAddress, items, slipFileKey } = input;
 
   if (!bookerName?.trim() || !bookerPhone?.trim() || !bookerEmail?.trim()) {
     throw new MerchOrderError("MISSING_FIELDS", "กรุณากรอกชื่อ เบอร์โทรศัพท์ และอีเมล");
@@ -144,11 +150,18 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
         bookerEmail: email,
         shippingAddress: shippingAddress.trim(),
         totalAmount,
-        paymentStatus: "pending",
+        paymentStatus: slipFileKey ? "awaiting_verify" : "pending",
         items: { create: orderItemsData },
       },
       include: { items: true },
     });
+
+    if (slipFileKey) {
+      await tx.merchPaymentSlip.create({
+        data: { orderId: created.id, fileKey: slipFileKey },
+      });
+    }
+
     return created;
   });
 

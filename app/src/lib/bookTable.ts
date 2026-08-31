@@ -12,6 +12,13 @@ export interface BookTableInput {
   bookerPhone: string;
   bookerEmail?: string;
   partyNames?: string[];
+  /** Object-storage key of an already-uploaded payment slip (see
+   * lib/minio.ts's uploadObject) — the slip is now attached in the same
+   * step as the booking form itself (one page, one submit) rather than a
+   * separate upload-slip page, so when present the reservation is created
+   * directly in "awaiting_verify" status with its PaymentSlip row, in the
+   * same transaction. */
+  slipFileKey?: string;
 }
 
 export class BookingError extends Error {
@@ -43,6 +50,7 @@ export async function bookTable(input: BookTableInput) {
     bookerPhone,
     bookerEmail,
     partyNames,
+    slipFileKey,
   } = input;
 
   if (seatCount <= 0) {
@@ -147,12 +155,18 @@ export async function bookTable(input: BookTableInput) {
         bookerPhone: bookerPhone.trim(),
         bookerEmail: bookerEmail?.trim() || null,
         partyNames: partyNames && partyNames.length ? partyNames : Prisma.JsonNull,
-        paymentStatus: "pending",
+        paymentStatus: slipFileKey ? "awaiting_verify" : "pending",
         totalAmount,
         reservedUntil,
         qrCodeToken: generateQrToken(),
       },
     });
+
+    if (slipFileKey) {
+      await tx.paymentSlip.create({
+        data: { reservationId: reservation.id, fileKey: slipFileKey },
+      });
+    }
 
     await tx.table.update({
       where: { id: tableId },

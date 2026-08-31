@@ -38,9 +38,12 @@ export default function MerchShopPage() {
   const [bookerPhone, setBookerPhone] = useState("");
   const [bookerEmail, setBookerEmail] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
+  const [slipFile, setSlipFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(null);
+  const [done, setDone] = useState(false);
+  const [orderCode, setOrderCode] = useState("");
 
   useEffect(() => {
     fetch("/api/merch/products")
@@ -114,22 +117,32 @@ export default function MerchShopPage() {
       setError("กรุณากรอกที่อยู่สำหรับจัดส่ง");
       return;
     }
+    if (!slipFile) {
+      setError("กรุณาแนบไฟล์สลิปโอนเงิน");
+      return;
+    }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/merch/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookerName,
-          bookerPhone,
-          bookerEmail,
-          shippingAddress,
-          items: cart.map((line) => ({
+      const formData = new FormData();
+      formData.append("bookerName", bookerName);
+      formData.append("bookerPhone", bookerPhone);
+      formData.append("bookerEmail", bookerEmail);
+      formData.append("shippingAddress", shippingAddress);
+      formData.append(
+        "items",
+        JSON.stringify(
+          cart.map((line) => ({
             productId: line.productId,
             size: line.size,
             quantity: line.quantity,
-          })),
-        }),
+          }))
+        )
+      );
+      formData.append("file", slipFile);
+
+      const res = await fetch("/api/merch/orders", {
+        method: "POST",
+        body: formData,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -139,10 +152,32 @@ export default function MerchShopPage() {
         setError(data.error || "เกิดข้อผิดพลาด");
         return;
       }
-      router.push(`/merch/orders/${data.orderCode}/upload-slip?phone=${encodeURIComponent(bookerPhone)}`);
+      setOrderCode(data.orderCode);
+      setDone(true);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (done) {
+    return (
+      <div>
+        <SiteNav />
+        <main className="max-w-md mx-auto p-6 text-center bg-white border border-cream-200 rounded-xl shadow-md space-y-3 mt-4">
+          <h1 className="text-xl font-display font-semibold text-emerald-600 mb-2">สั่งซื้อและส่งสลิปสำเร็จ</h1>
+          <p className="text-stone-600 mb-1">รหัสการสั่งซื้อของท่านคือ {orderCode}</p>
+          <p className="text-sm text-stone-500 mb-4">
+            เจ้าหน้าที่จะตรวจสอบสลิปการโอนเงินโดยเร็วที่สุด ท่านสามารถตรวจสอบสถานะได้ที่หน้าตรวจสอบคำสั่งซื้อ
+          </p>
+          <button
+            onClick={() => router.push(`/merch/status?orderCode=${orderCode}&phone=${encodeURIComponent(bookerPhone)}`)}
+            className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-4 py-2 font-medium"
+          >
+            เช็คสถานะคำสั่งซื้อ
+          </button>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -309,6 +344,18 @@ export default function MerchShopPage() {
           />
         </label>
 
+        <label className="flex flex-col gap-1 text-sm border-t border-cream-200 pt-3">
+          <span className="font-medium text-stone-700">ไฟล์สลิปโอนเงิน *</span>
+          <span className="text-xs text-stone-400">กรุณาโอนเงินตามยอดรวมด้านบนแล้วแนบรูปสลิปที่นี่ ระบบจะบันทึกคำสั่งซื้อและส่งสลิปให้เจ้าหน้าที่ตรวจสอบในขั้นตอนเดียวกัน</span>
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={(e) => setSlipFile(e.target.files?.[0] || null)}
+            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
+            required
+          />
+        </label>
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <button
@@ -316,7 +363,7 @@ export default function MerchShopPage() {
           disabled={submitting || cart.length === 0}
           className="w-full bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg py-2.5 font-semibold disabled:opacity-50"
         >
-          {submitting ? "กำลังสั่งซื้อ..." : "สั่งซื้อ"}
+          {submitting ? "กำลังส่งข้อมูล..." : "สั่งซื้อและส่งสลิป"}
         </button>
       </form>
 
