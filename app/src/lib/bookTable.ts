@@ -10,7 +10,7 @@ export interface BookTableInput {
   seatCount: number;
   bookerName: string;
   bookerPhone: string;
-  bookerEmail?: string;
+  bookerEmail: string;
   partyNames?: string[];
   /** Object-storage key of an already-uploaded payment slip (see
    * lib/minio.ts's uploadObject) — the slip is now attached in the same
@@ -56,10 +56,10 @@ export async function bookTable(input: BookTableInput) {
   if (seatCount <= 0) {
     throw new BookingError("INVALID_SEAT_COUNT", "จำนวนที่นั่งต้องมากกว่า 0");
   }
-  if (!bookerName?.trim() || !bookerPhone?.trim()) {
-    throw new BookingError("MISSING_FIELDS", "กรุณากรอกชื่อและเบอร์โทรศัพท์");
+  if (!bookerName?.trim() || !bookerPhone?.trim() || !bookerEmail?.trim()) {
+    throw new BookingError("MISSING_FIELDS", "กรุณากรอกชื่อ เบอร์โทรศัพท์ และอีเมล");
   }
-  if (bookerEmail?.trim()) {
+  {
     const email = bookerEmail.trim();
     if (!isValidEmailFormat(email)) {
       throw new BookingError("INVALID_EMAIL", "รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง");

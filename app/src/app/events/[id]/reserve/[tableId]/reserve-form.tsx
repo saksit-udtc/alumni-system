@@ -75,7 +75,11 @@ export default function ReserveForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (bookerEmail.trim() && !EMAIL_FORMAT_RE.test(bookerEmail.trim())) {
+    if (!bookerEmail.trim()) {
+      setError("กรุณากรอกอีเมล");
+      return;
+    }
+    if (!EMAIL_FORMAT_RE.test(bookerEmail.trim())) {
       setError("รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง");
       return;
     }
@@ -93,7 +97,7 @@ export default function ReserveForm({
     formData.append("seatCount", String(seatCount));
     formData.append("bookerName", bookerName);
     formData.append("bookerPhone", bookerPhone);
-    if (bookerEmail) formData.append("bookerEmail", bookerEmail);
+    formData.append("bookerEmail", bookerEmail);
     if (partyNames.length > 0) formData.append("partyNames", JSON.stringify(partyNames));
     formData.append("file", slipFile);
 
@@ -195,12 +199,13 @@ export default function ReserveForm({
         <p className="text-xs text-stone-400 mt-1">ใช้เบอร์นี้เช็คสถานะการจองในภายหลัง</p>
       </div>
       <div>
-        <label className="block text-sm font-medium text-stone-700 mb-1">อีเมล</label>
+        <label className="block text-sm font-medium text-stone-700 mb-1">อีเมล *</label>
         <input
           type="email"
           value={bookerEmail}
           onChange={(e) => setBookerEmail(e.target.value)}
           className={inputClass}
+          required
         />
         <p className="text-xs text-stone-400 mt-1">ใช้ส่ง QR Code ยืนยันการจองให้ทางอีเมลนี้หลังตรวจสอบสลิปแล้ว</p>
       </div>

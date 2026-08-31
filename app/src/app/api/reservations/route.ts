@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
   const file = formData.get("file") as File | null;
 
-  if (!eventId || !tableId || !bookingType || !seatCount || !bookerName || !bookerPhone) {
+  if (!eventId || !tableId || !bookingType || !seatCount || !bookerName || !bookerPhone || !bookerEmail) {
     return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" }, { status: 400 });
   }
 
