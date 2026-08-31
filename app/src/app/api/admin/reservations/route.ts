@@ -3,14 +3,23 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/apiHelpers";
 import { presignedGetUrl, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "RESERVATION_STAFF"]);
+/**
+ * Global (all-events) reservations list — the FINANCE_STAFF-facing counterpart
+ * to /api/admin/events/[id]/reservations, which is scoped to one event and
+ * only reachable through the full events management pages (SUPER_ADMIN /
+ * RESERVATION_STAFF). FINANCE_STAFF doesn't get events access, so this route
+ * gives them (and RESERVATION_STAFF / SUPER_ADMIN, for a one-stop view) every
+ * reservation across every event in one list, mirroring the shape of
+ * /api/admin/merch/orders.
+ */
+export async function GET(req: NextRequest) {
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"]);
   if (response) return response;
 
   const reservations = await prisma.reservation.findMany({
-    where: { eventId: params.id },
     include: {
       table: { select: { tableNumber: true } },
+      event: { select: { name: true } },
       slips: { orderBy: { uploadedAt: "desc" }, take: 1 },
     },
     orderBy: { createdAt: "desc" },
@@ -23,6 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return {
         id: r.id,
         bookingCode: r.bookingCode,
+        eventName: r.event.name,
         tableNumber: r.table.tableNumber,
         bookingType: r.bookingType,
         seatCount: r.seatCount,

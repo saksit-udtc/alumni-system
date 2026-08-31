@@ -5,7 +5,7 @@ import { uploadObject, FLOOR_PLANS_BUCKET, publicFloorPlanUrl } from "@/lib/mini
 import crypto from "crypto";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "RESERVATION_STAFF"]);
   if (response) return response;
 
   const event = await prisma.event.findUnique({ where: { id: params.id } });
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 // default grid layout. Table positionX/positionY are left as-is (harmless
 // if unused) in case the admin re-uploads a plan later and wants them back.
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "RESERVATION_STAFF"]);
   if (response) return response;
 
   const existing = await prisma.event.findUnique({ where: { id: params.id } });

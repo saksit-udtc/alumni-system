@@ -55,7 +55,7 @@ export default function AdminReservationsPage() {
           href={`/api/admin/events/${id}/reservations/export`}
           className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
         >
-          ⬇️ ส่งออก CSV
+          Export Excel
         </a>
       </div>
 

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("คำสั่งซื้อของที่ระลึก");
 
-  sheet.columns = [
+  const columns = [
     { header: "รหัสคำสั่งซื้อ", key: "orderCode", width: 16 },
     { header: "ชื่อผู้สั่ง", key: "bookerName", width: 24 },
     { header: "เบอร์โทรศัพท์", key: "bookerPhone", width: 16 },
@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
     { header: "สถานะ", key: "status", width: 16 },
     { header: "วันที่สั่งซื้อ", key: "createdAt", width: 18 },
   ];
+  sheet.columns = columns;
   sheet.getRow(1).font = { bold: true };
   sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
 
@@ -69,6 +70,17 @@ export async function GET(req: NextRequest) {
   confirmedCountRow.font = { bold: true };
   const revenueRow = sheet.addRow({ orderCode: "ยอดขายที่ยืนยันแล้ว (บาท)", totalAmount: confirmedRevenue });
   revenueRow.font = { bold: true };
+
+  // Title row identifying the table, inserted above the header row that
+  // `sheet.columns` already wrote to row 1 — pushes everything down by one.
+  const lastColLetter = sheet.getColumn(columns.length).letter;
+  sheet.insertRow(1, [`ตารางคำสั่งซื้อของที่ระลึก — งานคืนสู่เหย้า (ส่งออกเมื่อ ${new Date().toLocaleString("th-TH")})`]);
+  sheet.mergeCells(`A1:${lastColLetter}1`);
+  const titleCell = sheet.getCell("A1");
+  titleCell.font = { bold: true, size: 13 };
+  titleCell.alignment = { vertical: "middle", horizontal: "center" };
+  sheet.getRow(2).font = { bold: true };
+  sheet.getRow(2).alignment = { vertical: "middle", horizontal: "center" };
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = `merch-orders-${new Date().toISOString().slice(0, 10)}.xlsx`;

@@ -93,7 +93,8 @@ type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAF
 // roles: undefined = visible to every logged-in admin.
 const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; roles?: AdminRole[] }[] = [
   { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true, roles: ["SUPER_ADMIN"] },
-  { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"] },
+  { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "RESERVATION_STAFF"] },
+  { href: "/admin/reservations", label: "รายการจอง", icon: "checkin", roles: ["SUPER_ADMIN", "FINANCE_STAFF"] },
   { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"] },
   { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"] },
   { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"] },
@@ -115,13 +116,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const ROLE_ALLOWED_PREFIXES: Record<string, string[]> = {
     CHECKIN_STAFF: ["/admin/checkin"],
     MERCH_STAFF: ["/admin/merch"],
-    FINANCE_STAFF: ["/admin/events", "/admin/merch/orders"],
+    FINANCE_STAFF: ["/admin/reservations", "/admin/merch/orders"],
     RESERVATION_STAFF: ["/admin/events", "/admin/merch/orders"],
   };
   const ROLE_HOME: Record<string, string> = {
     CHECKIN_STAFF: "/admin/checkin",
     MERCH_STAFF: "/admin/merch/orders",
-    FINANCE_STAFF: "/admin/events",
+    FINANCE_STAFF: "/admin/reservations",
     RESERVATION_STAFF: "/admin/events",
   };
 

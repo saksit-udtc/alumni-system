@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 
 export async function GET(req: NextRequest) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "RESERVATION_STAFF"]);
   if (response) return response;
 
   const events = await prisma.event.findMany({
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "RESERVATION_STAFF"]);
   if (response) return response;
 
   const body = await req.json().catch(() => null);

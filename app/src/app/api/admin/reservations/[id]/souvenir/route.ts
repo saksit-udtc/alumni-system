@@ -8,7 +8,7 @@ import { logAdminAction } from "@/lib/auditLog";
  * only allowed for confirmed reservations.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "CHECKIN_STAFF"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "CHECKIN_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"]);
   if (response) return response;
 
   const reservation = await prisma.reservation.findUnique({ where: { id: params.id } });

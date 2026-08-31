@@ -13,16 +13,13 @@ const STATUS_LABEL: Record<string, string> = {
   expired: "หมดเวลา",
 };
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "RESERVATION_STAFF"]);
+export async function GET(req: NextRequest) {
+  const { response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"]);
   if (response) return response;
 
-  const event = await prisma.event.findUnique({ where: { id: params.id }, select: { name: true } });
-
   const reservations = await prisma.reservation.findMany({
-    where: { eventId: params.id },
-    include: { table: { select: { tableNumber: true } } },
-    orderBy: { createdAt: "asc" },
+    include: { table: { select: { tableNumber: true } }, event: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
   });
 
   const workbook = new ExcelJS.Workbook();
@@ -30,6 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const columns = [
     { header: "รหัสการจอง", key: "bookingCode", width: 16 },
+    { header: "งานเลี้ยง", key: "eventName", width: 20 },
     { header: "โต๊ะ", key: "tableNumber", width: 10 },
     { header: "ประเภท", key: "bookingType", width: 12 },
     { header: "จำนวนที่นั่ง", key: "seatCount", width: 12 },
@@ -47,6 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   for (const r of reservations) {
     const row = sheet.addRow({
       bookingCode: r.bookingCode,
+      eventName: r.event.name,
       tableNumber: r.table.tableNumber,
       bookingType: r.bookingType === "full_table" ? "ทั้งโต๊ะ" : "รายที่นั่ง",
       seatCount: r.seatCount,
@@ -78,8 +77,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const checkedInRow = sheet.addRow({ bookingCode: "จำนวนที่เช็คอินแล้ว", totalAmount: checkedInCount });
   checkedInRow.font = { bold: true };
 
+  // Title row identifying the table, inserted above the header row that
+  // `sheet.columns` already wrote to row 1 — pushes everything down by one.
   const lastColLetter = sheet.getColumn(columns.length).letter;
-  sheet.insertRow(1, [`ตารางรายการจองโต๊ะ — ${event?.name || ""} (ส่งออกเมื่อ ${new Date().toLocaleString("th-TH")})`]);
+  sheet.insertRow(1, [`ตารางรายการจองโต๊ะ — งานคืนสู่เหย้า (ส่งออกเมื่อ ${new Date().toLocaleString("th-TH")})`]);
   sheet.mergeCells(`A1:${lastColLetter}1`);
   const titleCell = sheet.getCell("A1");
   titleCell.font = { bold: true, size: 13 };
@@ -88,7 +89,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   sheet.getRow(2).alignment = { vertical: "middle", horizontal: "center" };
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const filename = `reservations-${params.id}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const filename = `reservations-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
   return new NextResponse(buffer, {
     status: 200,
