@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AdminStatCard } from "@/app/components/admin-stat-card";
 
 const STATUS_LABEL: Record<string, string> = { draft: "ร่าง", open: "เปิดจอง", closed: "ปิดรับจอง" };
 
@@ -47,22 +48,10 @@ export default function AdminEventsPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">งานทั้งหมด</div>
-          <div className="text-2xl font-display font-semibold text-stone-800 mt-1">{events.length}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">เปิดจอง</div>
-          <div className="text-2xl font-display font-semibold text-emerald-600 mt-1">{openCount}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">ร่าง / ปิดรับจอง</div>
-          <div className="text-2xl font-display font-semibold text-stone-600 mt-1">{draftCount + closedCount}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">การจองรวม</div>
-          <div className="text-2xl font-display font-semibold text-maroon-700 mt-1">{totalReservations}</div>
-        </div>
+        <AdminStatCard icon="calendar" label="งานทั้งหมด" value={String(events.length)} tone="violet" />
+        <AdminStatCard icon="checkin" label="เปิดจอง" value={String(openCount)} tone="emerald" />
+        <AdminStatCard icon="clock" label="ร่าง / ปิดรับจอง" value={String(draftCount + closedCount)} tone="slate" />
+        <AdminStatCard icon="ticket" label="การจองรวม" value={String(totalReservations)} tone="rose" />
       </div>
 
       {events.length === 0 ? (

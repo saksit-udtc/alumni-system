@@ -6,6 +6,7 @@ import Link from "next/link";
 import StatusToggle from "./status-toggle";
 import { zoneColor } from "@/lib/zone-colors";
 import AdminFloorPlanOverview from "./admin-floor-plan-overview";
+import { AdminStatCard } from "@/app/components/admin-stat-card";
 
 type Table = {
   id: string;
@@ -29,16 +30,6 @@ function tableCardClasses(t: Table) {
   if (isFull) return "rounded-lg border-2 border-emerald-400 bg-emerald-50 p-3";
   if (isPartial) return "rounded-lg border-2 border-amber-300 bg-amber-50 p-3";
   return "rounded-lg border border-cream-200 bg-white p-3";
-}
-
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-xl border border-cream-200 shadow-md bg-white p-4">
-      <div className="text-xs text-stone-500">{label}</div>
-      <div className="text-2xl font-display font-semibold text-maroon-700 mt-1">{value}</div>
-      {sub && <div className="text-xs text-stone-400 mt-0.5">{sub}</div>}
-    </div>
-  );
 }
 
 export default function AdminEventDetailPage() {
@@ -102,14 +93,16 @@ export default function AdminEventDetailPage() {
       <section>
         <h2 className="text-lg font-display font-semibold text-stone-800 mb-3">ภาพรวม</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="โต๊ะที่ถูกจอง" value={`${bookedTables}/${totalTables}`} />
-          <StatCard label="ที่นั่งที่จองแล้ว" value={`${reservedSeats}/${totalSeats}`} />
-          <StatCard
+          <AdminStatCard icon="table" label="โต๊ะที่ถูกจอง" value={`${bookedTables}/${totalTables}`} tone="violet" />
+          <AdminStatCard icon="seat" label="ที่นั่งที่จองแล้ว" value={`${reservedSeats}/${totalSeats}`} tone="sky" />
+          <AdminStatCard
+            icon="coin"
             label="ยอดเงินยืนยันแล้ว"
             value={`${Number(stats.totalRevenue).toLocaleString()} บาท`}
             sub={`${stats.confirmedCount} รายการ`}
+            tone="emerald"
           />
-          <StatCard label="รอตรวจสอบ/รอชำระ" value={String(stats.pendingCount)} sub="รายการ" />
+          <AdminStatCard icon="clock" label="รอตรวจสอบ/รอชำระ" value={String(stats.pendingCount)} sub="รายการ" tone="amber" />
         </div>
       </section>
 

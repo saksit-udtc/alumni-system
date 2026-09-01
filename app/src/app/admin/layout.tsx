@@ -201,7 +201,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-cream-50 flex">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 border-r border-cream-200 bg-white">
+      <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 border-r border-cream-200 bg-white lg:sticky lg:top-0 lg:h-screen">
         {Brand}
         {NavList}
         {LogoutButton}

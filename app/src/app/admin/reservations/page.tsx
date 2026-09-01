@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AdminStatCard } from "@/app/components/admin-stat-card";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "รอชำระเงิน",
@@ -8,6 +9,13 @@ const STATUS_LABEL: Record<string, string> = {
   confirmed: "ยืนยันแล้ว",
   rejected: "ปฏิเสธ",
   expired: "หมดเวลา",
+};
+const STATUS_BADGE: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700",
+  awaiting_verify: "bg-amber-100 text-amber-700",
+  confirmed: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-red-100 text-red-700",
+  expired: "bg-stone-200 text-stone-600",
 };
 
 /**
@@ -73,22 +81,10 @@ export default function AdminAllReservationsPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">การจองทั้งหมด</div>
-          <div className="text-2xl font-display font-semibold text-stone-800 mt-1">{reservations.length}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">รอตรวจสอบ</div>
-          <div className="text-2xl font-display font-semibold text-amber-600 mt-1">{pendingCount}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">ยืนยันแล้ว</div>
-          <div className="text-2xl font-display font-semibold text-emerald-600 mt-1">{confirmedReservations.length}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">ยอดชำระยืนยันแล้ว</div>
-          <div className="text-2xl font-display font-semibold text-maroon-700 mt-1">{confirmedRevenue.toLocaleString()} บาท</div>
-        </div>
+        <AdminStatCard icon="ticket" label="การจองทั้งหมด" value={String(reservations.length)} tone="violet" />
+        <AdminStatCard icon="clock" label="รอตรวจสอบ" value={String(pendingCount)} tone="amber" />
+        <AdminStatCard icon="checkin" label="ยืนยันแล้ว" value={String(confirmedReservations.length)} tone="emerald" />
+        <AdminStatCard icon="coin" label="ยอดชำระยืนยันแล้ว" value={`${confirmedRevenue.toLocaleString()} บาท`} tone="sky" />
       </div>
 
       {reservations.length === 0 ? (
@@ -112,8 +108,11 @@ export default function AdminAllReservationsPage() {
               </tr>
             </thead>
             <tbody>
-              {reservations.map((r) => (
-                <tr key={r.id} className="border-t border-cream-100 hover:bg-cream-50/60 transition-colors align-top">
+              {reservations.map((r, idx) => (
+                <tr
+                  key={r.id}
+                  className={`border-t border-cream-100 hover:bg-primary-50/60 transition-colors align-top ${idx % 2 === 1 ? "bg-cream-100" : "bg-white"}`}
+                >
                   <td className="p-3 font-mono text-stone-700">{r.bookingCode}</td>
                   <td className="p-3 text-stone-600 text-xs">{r.eventName}</td>
                   <td className="p-3 text-stone-700">{r.tableNumber}</td>
@@ -121,23 +120,38 @@ export default function AdminAllReservationsPage() {
                     <div className="font-medium text-stone-800">{r.bookerName}</div>
                     <div className="text-xs text-stone-400">{r.bookerPhone}</div>
                   </td>
-                  <td className="p-3 text-stone-700">{STATUS_LABEL[r.paymentStatus] || r.paymentStatus}</td>
+                  <td className="p-3">
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_BADGE[r.paymentStatus] || "bg-stone-200 text-stone-600"}`}>
+                      {STATUS_LABEL[r.paymentStatus] || r.paymentStatus}
+                    </span>
+                  </td>
                   <td className="p-3">
                     {r.latestSlipUrl ? (
-                      <a href={r.latestSlipUrl} target="_blank" rel="noreferrer" className="text-primary-700 hover:text-primary-800 hover:underline">
+                      <a
+                        href={r.latestSlipUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs px-2.5 py-1 rounded-full font-medium bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors"
+                      >
                         ดูสลิป
                       </a>
                     ) : (
-                      <span className="text-stone-300">ไม่มี</span>
+                      <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-stone-100 text-stone-400">ไม่มี</span>
                     )}
                   </td>
-                  <td className="p-3">{r.checkedIn ? "✅" : "—"}</td>
+                  <td className="p-3">
+                    {r.checkedIn ? (
+                      <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-100 text-emerald-700">เช็คอินแล้ว</span>
+                    ) : (
+                      <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-stone-100 text-stone-400">ยังไม่เช็คอิน</span>
+                    )}
+                  </td>
                   <td className="p-3">
                     {r.paymentStatus === "confirmed" && (
                       <button
                         onClick={() => toggleSouvenir(r.id)}
                         disabled={busyId === r.id}
-                        className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${r.souvenirGiven ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}
+                        className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${r.souvenirGiven ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-stone-100 text-stone-500 hover:bg-stone-200"}`}
                       >
                         {r.souvenirGiven ? "รับแล้ว" : "ยังไม่รับ"}
                       </button>

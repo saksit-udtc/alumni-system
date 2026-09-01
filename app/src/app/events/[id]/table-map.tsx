@@ -113,9 +113,11 @@ export default function TableMap({
   const zoned = tables.some((t) => t.zone);
 
   if (floorPlanUrl) {
+    // "วิธีจองโต๊ะ" now renders inside FloorPlanMap's own zone-selector
+    // card (line 2, replacing the old single-line warning) instead of as
+    // a separate card here.
     return (
-      <div className="space-y-4">
-        {eventOpen && showGuide && <HowToGuide hasZones={zoned} onDismiss={() => setShowGuide(false)} />}
+      <div className="space-y-3">
         <FloorPlanMap
           floorPlanUrl={floorPlanUrl}
           tables={tables}
@@ -129,15 +131,11 @@ export default function TableMap({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {eventOpen && showGuide && <HowToGuide hasZones={zoned} onDismiss={() => setShowGuide(false)} />}
-      <div className="bg-white border border-cream-200 shadow-md rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-1">
-        <div>
-          <span className="text-2xl font-display font-semibold text-maroon-700">{pricePerTable.toLocaleString()}</span>
-          <span className="text-sm text-primary-500"> บาท/โต๊ะ (เหมา)</span>
-        </div>
-      </div>
-      {eventOpen && <Legend />}
+      {/* Price + status legend now live in the parent page's header
+          (line 2, right under event name/date/location) — not duplicated
+          here anymore. */}
       {!zoned ? (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {tables.map((t) => (

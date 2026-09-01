@@ -184,54 +184,55 @@ export default function FloorPlanMap({
   }, [scale, floorPlanUrl]);
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white border border-cream-200 shadow-md rounded-xl divide-y divide-cream-100">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex flex-wrap gap-x-6 gap-y-1">
-            <div>
-              <span className="text-2xl font-display font-semibold text-maroon-700">{pricePerTable.toLocaleString()}</span>
-              <span className="text-sm text-stone-500"> บาท/โต๊ะ (เหมา)</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4 text-xs text-stone-500 px-4 py-2">
-          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full" style={{ background: "#22c55e", border: "1.5px solid #16a34a" }} />โต๊ะว่าง (คลิกเพื่อเหมาโต๊ะ)</span>
-          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full" style={{ background: "#ef4444", border: "1.5px solid #dc2626" }} />โต๊ะจองแล้ว</span>
-        </div>
-
-        {zoneNames.length > 0 && (
-          <div className="px-4 py-2.5 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-stone-400 mr-1">
-                เลือกโซนเพื่อขยาย{!readOnly && requireZoneSelection && <span className="text-amber-600 font-medium">*จำเป็นก่อนจอง</span>}:
-              </span>
+    <div className="space-y-3">
+      {zoneNames.length > 0 && (
+        <div className="bg-white border border-cream-200 shadow-md rounded-xl px-4 py-4 space-y-2.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-base text-stone-500 mr-1">
+              เลือกโซนเพื่อขยาย{!readOnly && requireZoneSelection && <span className="text-amber-600 font-medium"> *จำเป็นก่อนจอง</span>}:
+            </span>
+            <button
+              onClick={() => setSelectedZone(null)}
+              className={`text-base px-4 py-2 rounded-full border transition-colors ${selectedZone === null ? "bg-maroon-700 text-white border-maroon-700" : "border-stone-300 text-stone-600 hover:bg-cream-50"}`}
+            >
+              ทั้งหมด
+            </button>
+            {zoneNames.map((z) => (
               <button
-                onClick={() => setSelectedZone(null)}
-                className={`text-xs px-3 py-1 rounded-full border transition-colors ${selectedZone === null ? "bg-maroon-700 text-white border-maroon-700" : "border-stone-300 text-stone-600 hover:bg-cream-50"}`}
+                key={z}
+                onClick={() => setSelectedZone(zoneKey(z))}
+                className={`text-base px-4 py-2 rounded-full border flex items-center gap-2 transition-colors ${selectedZone === zoneKey(z) ? "text-white border-transparent" : "border-stone-300 text-stone-600 hover:bg-cream-50"}`}
+                style={selectedZone === zoneKey(z) ? { background: zoneColor(z).bg } : undefined}
               >
-                ทั้งหมด
+                <span className="inline-block w-3 h-3 rounded-full" style={{ background: zoneColor(z).bg }} />
+                {z}
               </button>
-              {zoneNames.map((z) => (
-                <button
-                  key={z}
-                  onClick={() => setSelectedZone(zoneKey(z))}
-                  className={`text-xs px-3 py-1 rounded-full border flex items-center gap-1.5 transition-colors ${selectedZone === zoneKey(z) ? "text-white border-transparent" : "border-stone-300 text-stone-600 hover:bg-cream-50"}`}
-                  style={selectedZone === zoneKey(z) ? { background: zoneColor(z).bg } : undefined}
-                >
-                  <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: zoneColor(z).bg }} />
-                  {z}
-                </button>
-              ))}
-            </div>
-            {requireZoneSelection && (
-              <p className="text-xs text-amber-600">
-                กรุณาเลือกโซนก่อนจึงจะจองโต๊ะได้ — ระหว่างนี้แตะที่โต๊ะเพื่อดูว่ามีศิษย์เก่าจองไว้แล้วหรือยัง
-              </p>
-            )}
+            ))}
           </div>
-        )}
-      </div>
+          {/* "วิธีจองโต๊ะ" — moved here (line 2 of this same card, under
+              the zone selector) in place of the old single-line amber
+              warning, so the how-to steps and the zone picker read as one
+              unit instead of two separate cards. */}
+          {eventOpen && (
+            <div className="pt-2.5 border-t border-cream-100">
+              <div className="grid sm:grid-cols-3 gap-3">
+                {[
+                  { icon: "📍", text: "เลือกโซนที่ต้องการด้านบน" },
+                  { icon: "🔍", text: "ดูว่าโต๊ะไหนว่าง/เต็ม และมีศิษย์เก่าคนไหนจองไว้บ้าง" },
+                  { icon: "🪑", text: "เลือกโซนก่อนแล้วจึงแตะที่โต๊ะเพื่อเหมาทั้งโต๊ะ" },
+                ].map((s, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary-50 border border-primary-200 text-sm shrink-0">
+                      {s.icon}
+                    </span>
+                    <p className="text-sm text-stone-600 leading-snug">{s.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div
         ref={viewportRef}

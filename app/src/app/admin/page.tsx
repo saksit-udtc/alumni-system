@@ -73,26 +73,42 @@ function StatIcon({ name }: { name: string }) {
   );
 }
 
+type Tone = "indigo" | "rose" | "emerald" | "amber" | "sky" | "violet";
+
+const TONE_CLASSES: Record<Tone, string> = {
+  indigo: "bg-indigo-50 text-indigo-600",
+  rose: "bg-rose-50 text-rose-600",
+  emerald: "bg-emerald-50 text-emerald-600",
+  amber: "bg-amber-50 text-amber-600",
+  sky: "bg-sky-50 text-sky-600",
+  violet: "bg-violet-50 text-violet-600",
+};
+
+const TONE_BORDER: Record<Tone, string> = {
+  indigo: "border-t-indigo-400",
+  rose: "border-t-rose-400",
+  emerald: "border-t-emerald-400",
+  amber: "border-t-amber-400",
+  sky: "border-t-sky-400",
+  violet: "border-t-violet-400",
+};
+
 function StatCard({
   icon,
   label,
   value,
   sub,
-  tone = "primary",
+  tone = "indigo",
 }: {
   icon: string;
   label: string;
   value: string;
   sub?: string;
-  tone?: "primary" | "maroon";
+  tone?: Tone;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4 flex items-start gap-3">
-      <span
-        className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center ${
-          tone === "maroon" ? "bg-maroon-50 text-maroon-700" : "bg-primary-50 text-primary-700"
-        }`}
-      >
+    <div className={`bg-white rounded-xl border border-cream-200 border-t-4 ${TONE_BORDER[tone]} shadow-md p-4 flex items-start gap-3`}>
+      <span className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center ${TONE_CLASSES[tone]}`}>
         <StatIcon name={icon} />
       </span>
       <div className="min-w-0">
@@ -138,34 +154,36 @@ export default function AdminDashboardPage() {
           label="งานเลี้ยงทั้งหมด"
           value={String(data.events.total)}
           sub={`เปิดจอง ${data.events.open} · ร่าง ${data.events.draft} · ปิด ${data.events.closed}`}
+          tone="violet"
         />
         <StatCard
           icon="ticket"
           label="การจองโต๊ะทั้งหมด"
           value={String(data.reservations.total)}
           sub={`ยืนยันแล้ว ${data.reservations.confirmed} · รอตรวจสอบ ${data.reservations.pending}`}
-          tone="maroon"
+          tone="rose"
         />
         <StatCard
           icon="coin"
           label="ยอดเงินยืนยันแล้ว"
           value={`${totalRevenue.toLocaleString()} บาท`}
           sub={`จองโต๊ะ ${data.reservations.confirmedRevenue.toLocaleString()} · ของที่ระลึก ${data.merch.confirmedRevenue.toLocaleString()}`}
+          tone="emerald"
         />
         <StatCard
           icon="checkin"
           label="เช็คอินแล้ว"
           value={String(data.reservations.checkedIn)}
           sub={`จาก ${data.reservations.confirmed} รายการที่ยืนยันแล้ว`}
-          tone="maroon"
+          tone="sky"
         />
-        <StatCard icon="users" label="ศิษย์เก่าลงทะเบียน" value={String(data.alumni.total)} />
+        <StatCard icon="users" label="ศิษย์เก่าลงทะเบียน" value={String(data.alumni.total)} tone="indigo" />
         <StatCard
           icon="ticket"
           label="คำสั่งซื้อของที่ระลึก"
           value={String(data.merch.total)}
           sub={`ยืนยันแล้ว ${data.merch.confirmed} · รอตรวจสอบ ${data.merch.pending}`}
-          tone="maroon"
+          tone="amber"
         />
       </div>
 

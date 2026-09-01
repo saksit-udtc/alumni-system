@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AdminStatCard } from "@/app/components/admin-stat-card";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "รอชำระเงิน",
@@ -9,6 +10,13 @@ const STATUS_LABEL: Record<string, string> = {
   confirmed: "ยืนยันแล้ว",
   rejected: "ปฏิเสธ",
   expired: "หมดเวลา",
+};
+const STATUS_BADGE: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700",
+  awaiting_verify: "bg-amber-100 text-amber-700",
+  confirmed: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-red-100 text-red-700",
+  expired: "bg-stone-200 text-stone-600",
 };
 
 export default function AdminMerchOrdersPage() {
@@ -98,22 +106,10 @@ export default function AdminMerchOrdersPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">คำสั่งซื้อทั้งหมด</div>
-          <div className="text-2xl font-display font-semibold text-stone-800 mt-1">{orders.length}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">รอตรวจสอบ</div>
-          <div className="text-2xl font-display font-semibold text-amber-600 mt-1">{pendingCount}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">ยืนยันแล้ว</div>
-          <div className="text-2xl font-display font-semibold text-emerald-600 mt-1">{confirmedOrders.length}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-cream-200 shadow-md p-4">
-          <div className="text-xs text-stone-500">ยอดขายยืนยันแล้ว</div>
-          <div className="text-2xl font-display font-semibold text-maroon-700 mt-1">{confirmedRevenue.toLocaleString()} บาท</div>
-        </div>
+        <AdminStatCard icon="bag" label="คำสั่งซื้อทั้งหมด" value={String(orders.length)} tone="violet" />
+        <AdminStatCard icon="clock" label="รอตรวจสอบ" value={String(pendingCount)} tone="amber" />
+        <AdminStatCard icon="checkin" label="ยืนยันแล้ว" value={String(confirmedOrders.length)} tone="emerald" />
+        <AdminStatCard icon="coin" label="ยอดขายยืนยันแล้ว" value={`${confirmedRevenue.toLocaleString()} บาท`} tone="sky" />
       </div>
 
       {orders.length === 0 ? (
@@ -136,8 +132,11 @@ export default function AdminMerchOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => (
-                <tr key={o.id} className="border-t border-cream-100 hover:bg-cream-50/60 transition-colors align-top">
+              {orders.map((o, idx) => (
+                <tr
+                  key={o.id}
+                  className={`border-t border-cream-100 hover:bg-primary-50/60 transition-colors align-top ${idx % 2 === 1 ? "bg-cream-100" : "bg-white"}`}
+                >
                   <td className="p-3 font-mono text-stone-700">{o.orderCode}</td>
                   <td className="p-3">
                     <div className="font-medium text-stone-800">{o.bookerName}</div>
@@ -191,14 +190,23 @@ export default function AdminMerchOrdersPage() {
                     ))}
                   </td>
                   <td className="p-3 text-stone-700">{Number(o.totalAmount).toLocaleString()} บาท</td>
-                  <td className="p-3 text-stone-700">{STATUS_LABEL[o.paymentStatus] || o.paymentStatus}</td>
+                  <td className="p-3">
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_BADGE[o.paymentStatus] || "bg-stone-200 text-stone-600"}`}>
+                      {STATUS_LABEL[o.paymentStatus] || o.paymentStatus}
+                    </span>
+                  </td>
                   <td className="p-3">
                     {o.latestSlipUrl ? (
-                      <a href={o.latestSlipUrl} target="_blank" rel="noreferrer" className="text-primary-700 hover:text-primary-800 hover:underline">
+                      <a
+                        href={o.latestSlipUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs px-2.5 py-1 rounded-full font-medium bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors"
+                      >
                         ดูสลิป
                       </a>
                     ) : (
-                      <span className="text-stone-300">ไม่มี</span>
+                      <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-stone-100 text-stone-400">ไม่มี</span>
                     )}
                   </td>
                   <td className="p-3">

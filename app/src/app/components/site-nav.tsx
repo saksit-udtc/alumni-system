@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV_LINKS = [
-  { href: "/", label: "หน้าแรก" },
-  { href: "/status", label: "ตรวจสอบการจอง" },
-  { href: "/merch", label: "ของที่ระลึก" },
-  { href: "/merch/status", label: "ตรวจสอบคำสั่งซื้อ" },
+const STATIC_NAV_LINKS = [
+  { href: "/status", label: "เช็คสถานะการจองโต๊ะ" },
+  { href: "/merch", label: "สั่งซื้อของที่ระลึก" },
+  { href: "/merch/status", label: "เช็คสถานะการสั่งซื้อ" },
 ];
 
 function MenuIcon({ open }: { open: boolean }) {
@@ -30,11 +29,28 @@ function MenuIcon({ open }: { open: boolean }) {
 export default function SiteNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [bookingHref, setBookingHref] = useState("/");
+
+  // "จองโต๊ะงานเลี้ยง" jumps straight into the currently open event's
+  // booking page instead of going through the homepage.
+  useEffect(() => {
+    fetch("/api/events")
+      .then((r) => r.json())
+      .then((data) => {
+        const events = data.events || [];
+        const bookableEvent = events.find((e: any) => e.status === "open") || events[0];
+        if (bookableEvent) setBookingHref(`/events/${bookableEvent.id}`);
+      })
+      .catch(() => {});
+  }, []);
+
+  const NAV_LINKS = [{ href: bookingHref, label: "จองโต๊ะงานเลี้ยง" }, ...STATIC_NAV_LINKS];
 
   function isActive(href: string) {
     // "/merch" is checked with an exact match (not startsWith) so it
     // doesn't also light up on "/merch/status", which has its own link.
     if (href === "/" || href === "/merch") return pathname === href;
+    if (href.startsWith("/events/")) return pathname === href;
     return pathname?.startsWith(href);
   }
 
