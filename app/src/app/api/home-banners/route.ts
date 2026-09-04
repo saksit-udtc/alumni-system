@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { publicHomeBannerUrl } from "@/lib/minio";
 import { getHomeBannerIntervalSeconds } from "@/lib/settings";
 
+// Always dynamic: reads from the database on every request, and is
+// called with no DATABASE_URL available at Docker build time, so it
+// must never be statically prerendered/exported.
+export const dynamic = "force-dynamic";
+
 // Public — the homepage promotional slider reads only active banners,
 // ordered the way the admin arranged them, plus the admin-configured
 // autoplay interval.

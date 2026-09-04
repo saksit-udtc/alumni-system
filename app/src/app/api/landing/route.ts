@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getLandingContent } from "@/lib/settings";
 import { publicLandingGalleryUrl } from "@/lib/minio";
 
+// Always dynamic: reads from the database on every request, and is
+// called with no DATABASE_URL available at Docker build time, so it
+// must never be statically prerendered/exported.
+export const dynamic = "force-dynamic";
+
 // Public: everything the homepage (app/page.tsx) needs to render the 89th
 // anniversary landing page — the editable content JSON plus the active
 // gallery photos, in display order.
