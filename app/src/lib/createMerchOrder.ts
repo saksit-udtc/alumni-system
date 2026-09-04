@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import crypto from "crypto";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
+import { validateNamePart, validateThaiPhone, cleanPhoneForStorage } from "./formValidation";
 import { getMerchShippingFee } from "./settings";
 
 export interface CreateMerchOrderItemInput {
@@ -62,6 +63,21 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
   }
   if (!items || items.length === 0) {
     throw new MerchOrderError("EMPTY_CART", "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ");
+  }
+
+  {
+    const nameParts = bookerName.trim().split(/\s+/);
+    const namePartLabel = nameParts.length > 1 ? "ชื่อ-นามสกุล" : "ชื่อ";
+    const nameErr = validateNamePart(bookerName, namePartLabel);
+    if (nameErr) {
+      throw new MerchOrderError("INVALID_NAME", nameErr);
+    }
+  }
+  {
+    const phoneErr = validateThaiPhone(bookerPhone);
+    if (phoneErr) {
+      throw new MerchOrderError("INVALID_PHONE", phoneErr);
+    }
   }
 
   const email = bookerEmail.trim();
@@ -153,7 +169,7 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
       data: {
         orderCode,
         bookerName: bookerName.trim(),
-        bookerPhone: bookerPhone.trim(),
+        bookerPhone: cleanPhoneForStorage(bookerPhone),
         bookerEmail: email,
         shippingAddress: shippingAddress.trim(),
         shippingFee,

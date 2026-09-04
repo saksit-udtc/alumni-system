@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { generateBookingCode, generateQrToken } from "./qrcode";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
+import { validateNamePart, validateThaiPhone, cleanPhoneForStorage, normalizeEmail } from "./formValidation";
 
 export interface BookTableInput {
   eventId: string;
@@ -59,8 +60,25 @@ export async function bookTable(input: BookTableInput) {
   if (!bookerName?.trim() || !bookerPhone?.trim() || !bookerEmail?.trim()) {
     throw new BookingError("MISSING_FIELDS", "กรุณากรอกชื่อ เบอร์โทรศัพท์ และอีเมล");
   }
+  // Defense in depth: the client (reserve-form.tsx) already validates name/
+  // phone/email format and normalizes phone/email before sending, but a
+  // direct API call must not be able to bypass those checks.
   {
-    const email = bookerEmail.trim();
+    const nameParts = bookerName.trim().split(/\s+/);
+    const namePartLabel = nameParts.length > 1 ? "ชื่อ-นามสกุล" : "ชื่อ";
+    const nameErr = validateNamePart(bookerName, namePartLabel);
+    if (nameErr) {
+      throw new BookingError("INVALID_NAME", nameErr);
+    }
+  }
+  {
+    const phoneErr = validateThaiPhone(bookerPhone);
+    if (phoneErr) {
+      throw new BookingError("INVALID_PHONE", phoneErr);
+    }
+  }
+  {
+    const email = normalizeEmail(bookerEmail);
     if (!isValidEmailFormat(email)) {
       throw new BookingError("INVALID_EMAIL", "รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง");
     }
@@ -152,8 +170,8 @@ export async function bookTable(input: BookTableInput) {
         bookingType,
         seatCount,
         bookerName: bookerName.trim(),
-        bookerPhone: bookerPhone.trim(),
-        bookerEmail: bookerEmail?.trim() || null,
+        bookerPhone: cleanPhoneForStorage(bookerPhone),
+        bookerEmail: bookerEmail?.trim() ? normalizeEmail(bookerEmail) : null,
         partyNames: partyNames && partyNames.length ? partyNames : Prisma.JsonNull,
         paymentStatus: slipFileKey ? "awaiting_verify" : "pending",
         totalAmount,

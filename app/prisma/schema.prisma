@@ -199,6 +199,35 @@ model PaymentSlip {
 // table. Reuses the same PaymentStatus enum and slip-upload-then-admin-
 // approves flow as Reservation/PaymentSlip above.
 
+// Homepage promotional slide banners (schedule, guest artists, merch ads,
+// etc.) — admin-managed so staff can add/remove/reorder without a code
+// change. Public homepage shows only active=true rows, ordered by sortOrder.
+model HomeBanner {
+  id        String   @id @default(cuid())
+  imageKey  String
+  title     String?
+  linkUrl   String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}
+
+model LandingGalleryImage {
+  id        String   @id @default(cuid())
+  imageKey  String
+  caption   String?
+  category  String   @default("ทั่วไป")
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}
+
 model MerchProduct {
   id           String   @id @default(cuid())
   name         String

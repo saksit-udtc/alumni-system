@@ -55,6 +55,12 @@ services:
       mc anonymous set download local/floor-plans &&
       mc mb -p local/merch-products &&
       mc anonymous set download local/merch-products &&
+      mc mb -p local/home-banners &&
+      mc anonymous set download local/home-banners &&
+      mc mb -p local/landing-gallery &&
+      mc anonymous set download local/landing-gallery &&
+      mc mb -p local/landing-assets &&
+      mc anonymous set download local/landing-assets &&
       echo 'minio buckets ready'
       "
 
@@ -78,6 +84,9 @@ services:
       MINIO_SLIPS_BUCKET: payment-slips
       MINIO_FLOORPLANS_BUCKET: floor-plans
       MINIO_MERCH_BUCKET: merch-products
+      MINIO_HOMEBANNERS_BUCKET: home-banners
+      MINIO_LANDINGGALLERY_BUCKET: landing-gallery
+      MINIO_LANDINGASSETS_BUCKET: landing-assets
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

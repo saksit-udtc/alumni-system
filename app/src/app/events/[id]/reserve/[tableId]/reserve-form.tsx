@@ -1,6 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  validateNamePart,
+  validateThaiPhone,
+  formatThaiPhoneDisplay,
+  cleanPhoneForStorage,
+  isValidEmailFormat,
+  normalizeEmail,
+} from "@/lib/formValidation";
 
 export default function ReserveForm({
   eventId,
@@ -21,7 +30,11 @@ export default function ReserveForm({
 }) {
   const router = useRouter();
   const [seatCount, setSeatCount] = useState(bookingType === "full_table" ? capacity : 1);
-  const [bookerName, setBookerName] = useState("");
+  // Name kept as two fields in the UI (per PDPA form-UX guidelines) but
+  // combined into one "bookerName" string before it's sent — the
+  // Reservation table's schema is a single bookerName column, unchanged.
+  const [bookerFirstName, setBookerFirstName] = useState("");
+  const [bookerLastName, setBookerLastName] = useState("");
   const [bookerPhone, setBookerPhone] = useState("");
   const [bookerEmail, setBookerEmail] = useState("");
   // Companion names — one fewer than seatCount, since the booker themself
@@ -39,7 +52,9 @@ export default function ReserveForm({
   const [currentOccupation, setCurrentOccupation] = useState("");
   const [lineId, setLineId] = useState("");
 
+  const [consent, setConsent] = useState(false);
   const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -66,29 +81,44 @@ export default function ReserveForm({
 
   const total = bookingType === "full_table" ? pricePerTable : pricePerSeat * seatCount;
 
-  // Same pragmatic format check as the server (lib/bookTable.ts) — catches
-  // typos/garbage before a round-trip to the API. Not a deliverability
-  // check (no such thing without a paid verification service); the server
-  // is still the source of truth since this is only a UX nicety.
-  const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  function validate(): boolean {
+    const errs: Record<string, string> = {};
+
+    const firstErr = validateNamePart(bookerFirstName, "ชื่อ");
+    if (firstErr) errs.bookerFirstName = firstErr;
+    const lastErr = validateNamePart(bookerLastName, "นามสกุล");
+    if (lastErr) errs.bookerLastName = lastErr;
+
+    const phoneErr = validateThaiPhone(bookerPhone);
+    if (phoneErr) errs.bookerPhone = phoneErr;
+
+    if (!bookerEmail.trim()) {
+      errs.bookerEmail = "กรุณากรอกอีเมล";
+    } else if (!isValidEmailFormat(bookerEmail)) {
+      errs.bookerEmail = "รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง";
+    }
+
+    if (!slipFile) {
+      errs.slipFile = "กรุณาแนบไฟล์สลิปโอนเงิน";
+    }
+    if (!consent) {
+      errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนยืนยันการจอง";
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!bookerEmail.trim()) {
-      setError("กรุณากรอกอีเมล");
-      return;
-    }
-    if (!EMAIL_FORMAT_RE.test(bookerEmail.trim())) {
-      setError("รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง");
-      return;
-    }
-    if (!slipFile) {
-      setError("กรุณาแนบไฟล์สลิปโอนเงิน");
-      return;
-    }
+    if (!validate()) return;
+
     setSubmitting(true);
     const partyNames = companions.map((c) => c.trim()).filter(Boolean);
+    const bookerName = `${bookerFirstName.trim()} ${bookerLastName.trim()}`.trim();
+    const cleanedPhone = cleanPhoneForStorage(bookerPhone);
+    const cleanedEmail = normalizeEmail(bookerEmail);
 
     const formData = new FormData();
     formData.append("eventId", eventId);
@@ -96,10 +126,10 @@ export default function ReserveForm({
     formData.append("bookingType", bookingType);
     formData.append("seatCount", String(seatCount));
     formData.append("bookerName", bookerName);
-    formData.append("bookerPhone", bookerPhone);
-    formData.append("bookerEmail", bookerEmail);
+    formData.append("bookerPhone", cleanedPhone);
+    formData.append("bookerEmail", cleanedEmail);
     if (partyNames.length > 0) formData.append("partyNames", JSON.stringify(partyNames));
-    formData.append("file", slipFile);
+    formData.append("file", slipFile as File);
 
     const res = await fetch("/api/reservations", {
       method: "POST",
@@ -124,8 +154,8 @@ export default function ReserveForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             fullName: bookerName,
-            phone: bookerPhone,
-            email: bookerEmail || undefined,
+            phone: cleanedPhone,
+            email: cleanedEmail || undefined,
             graduationYear: graduationYear || undefined,
             department: department || undefined,
             currentOccupation: currentOccupation || undefined,
@@ -142,8 +172,12 @@ export default function ReserveForm({
     setDone(true);
   }
 
-  const inputClass =
-    "w-full border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow";
+  const inputClass = (field: string) =>
+    `w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-shadow ${
+      fieldErrors[field]
+        ? "border-red-400 focus:ring-red-300 focus:border-red-500"
+        : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"
+    }`;
 
   if (done) {
     return (
@@ -164,7 +198,7 @@ export default function ReserveForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 bg-white border border-cream-200 shadow-md rounded-xl p-5 max-w-md">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4 bg-white border border-cream-200 shadow-md rounded-xl p-5 max-w-md">
       {bookingType === "seats" && (
         <div>
           <label className="block text-sm font-medium text-stone-700 mb-1">จำนวนที่นั่ง (เหลือ {seatsRemaining} ที่)</label>
@@ -174,39 +208,72 @@ export default function ReserveForm({
             max={seatsRemaining}
             value={seatCount}
             onChange={(e) => setSeatCount(Number(e.target.value))}
-            className={inputClass}
+            className={inputClass("seatCount")}
             required
           />
         </div>
       )}
-      <div>
-        <label className="block text-sm font-medium text-stone-700 mb-1">ชื่อ-นามสกุลผู้จอง</label>
-        <input
-          value={bookerName}
-          onChange={(e) => setBookerName(e.target.value)}
-          className={inputClass}
-          required
-        />
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">
+            ชื่อผู้จอง <span className="text-red-600">*</span>
+          </label>
+          <input
+            value={bookerFirstName}
+            onChange={(e) => setBookerFirstName(e.target.value)}
+            autoComplete="given-name"
+            maxLength={100}
+            className={inputClass("bookerFirstName")}
+          />
+          {fieldErrors.bookerFirstName && <p className="text-xs text-red-600 mt-1">{fieldErrors.bookerFirstName}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">
+            นามสกุลผู้จอง <span className="text-red-600">*</span>
+          </label>
+          <input
+            value={bookerLastName}
+            onChange={(e) => setBookerLastName(e.target.value)}
+            autoComplete="family-name"
+            maxLength={100}
+            className={inputClass("bookerLastName")}
+          />
+          {fieldErrors.bookerLastName && <p className="text-xs text-red-600 mt-1">{fieldErrors.bookerLastName}</p>}
+        </div>
       </div>
+
       <div>
-        <label className="block text-sm font-medium text-stone-700 mb-1">เบอร์โทรศัพท์</label>
+        <label className="block text-sm font-medium text-stone-700 mb-1">
+          เบอร์โทรศัพท์ <span className="text-red-600">*</span>
+        </label>
         <input
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel"
           value={bookerPhone}
-          onChange={(e) => setBookerPhone(e.target.value)}
-          className={inputClass}
-          required
+          onChange={(e) => setBookerPhone(formatThaiPhoneDisplay(e.target.value))}
+          placeholder="08X-XXX-XXXX"
+          className={inputClass("bookerPhone")}
         />
+        {fieldErrors.bookerPhone && <p className="text-xs text-red-600 mt-1">{fieldErrors.bookerPhone}</p>}
         <p className="text-xs text-stone-400 mt-1">ใช้เบอร์นี้เช็คสถานะการจองในภายหลัง</p>
       </div>
       <div>
-        <label className="block text-sm font-medium text-stone-700 mb-1">อีเมล *</label>
+        <label className="block text-sm font-medium text-stone-700 mb-1">
+          อีเมล <span className="text-red-600">*</span>
+        </label>
         <input
           type="email"
+          autoComplete="email"
+          autoCapitalize="off"
+          autoCorrect="off"
           value={bookerEmail}
           onChange={(e) => setBookerEmail(e.target.value)}
-          className={inputClass}
-          required
+          onBlur={(e) => setBookerEmail(normalizeEmail(e.target.value))}
+          className={inputClass("bookerEmail")}
         />
+        {fieldErrors.bookerEmail && <p className="text-xs text-red-600 mt-1">{fieldErrors.bookerEmail}</p>}
         <p className="text-xs text-stone-400 mt-1">ใช้ส่ง QR Code ยืนยันการจองให้ทางอีเมลนี้หลังตรวจสอบสลิปแล้ว</p>
       </div>
 
@@ -303,15 +370,36 @@ export default function ReserveForm({
       <div className="text-sm font-medium text-stone-800">ยอดชำระ: {total.toLocaleString()} บาท</div>
 
       <div className="border-t border-cream-200 pt-3">
-        <label className="block text-sm font-medium text-stone-700 mb-1">ไฟล์สลิปโอนเงิน *</label>
+        <label className="block text-sm font-medium text-stone-700 mb-1">
+          ไฟล์สลิปโอนเงิน <span className="text-red-600">*</span>
+        </label>
         <p className="text-xs text-stone-400 mb-1">กรุณาโอนเงินตามยอดด้านบนแล้วแนบรูปสลิปที่นี่ ระบบจะบันทึกการจองและส่งสลิปให้เจ้าหน้าที่ตรวจสอบในขั้นตอนเดียวกัน</p>
         <input
           type="file"
           accept="image/*,application/pdf"
           onChange={(e) => setSlipFile(e.target.files?.[0] || null)}
-          className={inputClass}
-          required
+          className={inputClass("slipFile")}
         />
+        {fieldErrors.slipFile && <p className="text-xs text-red-600 mt-1">{fieldErrors.slipFile}</p>}
+      </div>
+
+      <div className="border-t border-cream-200 pt-3">
+        <label className="flex items-start gap-2 text-sm text-stone-700">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+            className="accent-maroon-700 mt-0.5"
+          />
+          <span>
+            ข้าพเจ้ายินยอมให้เก็บและใช้ข้อมูลตาม{" "}
+            <Link href="/privacy" target="_blank" className="text-maroon-700 underline hover:text-maroon-800">
+              นโยบายความเป็นส่วนตัว
+            </Link>{" "}
+            <span className="text-red-600">*</span>
+          </span>
+        </label>
+        {fieldErrors.consent && <p className="text-xs text-red-600 mt-1">{fieldErrors.consent}</p>}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

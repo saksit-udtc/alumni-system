@@ -52,6 +52,13 @@ const ICONS: Record<string, JSX.Element> = {
       <circle cx="20" cy="19" r="1.5" fill="currentColor" stroke="none" />
     </>
   ),
+  image: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="9" r="1.75" />
+      <path d="M21 16l-5.5-5.5L4 21" />
+    </>
+  ),
 };
 
 function NavIcon({ name }: { name: string }) {
@@ -94,6 +101,8 @@ type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAF
 const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; roles?: AdminRole[] }[] = [
   { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true, roles: ["SUPER_ADMIN"] },
   { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "RESERVATION_STAFF"] },
+  { href: "/admin/home-banners", label: "แบนเนอร์หน้าแรก", icon: "image", roles: ["SUPER_ADMIN"] },
+  { href: "/admin/landing", label: "จัดการหน้าแรก (Landing)", icon: "image", roles: ["SUPER_ADMIN"] },
   { href: "/admin/reservations", label: "รายการจอง", icon: "checkin", roles: ["SUPER_ADMIN", "FINANCE_STAFF"] },
   { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"] },
   { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"] },

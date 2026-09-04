@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "../components/site-nav";
+import {
+  validateNamePart,
+  validateThaiPhone,
+  formatThaiPhoneDisplay,
+  cleanPhoneForStorage,
+  isValidEmailFormat,
+  normalizeEmail,
+} from "@/lib/formValidation";
 
 interface Product {
   id: string;
@@ -34,11 +42,17 @@ export default function MerchShopPage() {
   const [selections, setSelections] = useState<Record<string, { size: string; quantity: number }>>({});
   const [cart, setCart] = useState<CartLine[]>([]);
 
-  const [bookerName, setBookerName] = useState("");
+  // Name kept as two fields in the UI (per PDPA form-UX guidelines) but
+  // combined into one "bookerName" string before it's sent — the
+  // MerchOrder table's schema is a single bookerName column, unchanged.
+  const [bookerFirstName, setBookerFirstName] = useState("");
+  const [bookerLastName, setBookerLastName] = useState("");
   const [bookerPhone, setBookerPhone] = useState("");
   const [bookerEmail, setBookerEmail] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
+  const [consent, setConsent] = useState(false);
   const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(null);
@@ -107,6 +121,37 @@ export default function MerchShopPage() {
   const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   const total = cart.length > 0 ? subtotal + shippingFee : 0;
 
+  function validate(): boolean {
+    const errs: Record<string, string> = {};
+
+    const firstErr = validateNamePart(bookerFirstName, "ชื่อ");
+    if (firstErr) errs.bookerFirstName = firstErr;
+    const lastErr = validateNamePart(bookerLastName, "นามสกุล");
+    if (lastErr) errs.bookerLastName = lastErr;
+
+    const phoneErr = validateThaiPhone(bookerPhone);
+    if (phoneErr) errs.bookerPhone = phoneErr;
+
+    if (!bookerEmail.trim()) {
+      errs.bookerEmail = "กรุณากรอกอีเมล";
+    } else if (!isValidEmailFormat(bookerEmail)) {
+      errs.bookerEmail = "รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง";
+    }
+
+    if (!shippingAddress.trim()) {
+      errs.shippingAddress = "กรุณากรอกที่อยู่สำหรับจัดส่ง";
+    }
+    if (!slipFile) {
+      errs.slipFile = "กรุณาแนบไฟล์สลิปโอนเงิน";
+    }
+    if (!consent) {
+      errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนสั่งซื้อ";
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
   async function checkout(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -114,24 +159,17 @@ export default function MerchShopPage() {
       setError("กรุณาเพิ่มสินค้าลงตะกร้าก่อนสั่งซื้อ");
       return;
     }
-    if (!bookerName.trim() || !bookerPhone.trim() || !bookerEmail.trim()) {
-      setError("กรุณากรอกชื่อผู้สั่ง เบอร์โทรศัพท์ และอีเมล");
-      return;
-    }
-    if (!shippingAddress.trim()) {
-      setError("กรุณากรอกที่อยู่สำหรับจัดส่ง");
-      return;
-    }
-    if (!slipFile) {
-      setError("กรุณาแนบไฟล์สลิปโอนเงิน");
-      return;
-    }
+    if (!validate()) return;
+
     setSubmitting(true);
     try {
+      const bookerName = `${bookerFirstName.trim()} ${bookerLastName.trim()}`.trim();
+      const cleanedPhone = cleanPhoneForStorage(bookerPhone);
+      const cleanedEmail = normalizeEmail(bookerEmail);
       const formData = new FormData();
       formData.append("bookerName", bookerName);
-      formData.append("bookerPhone", bookerPhone);
-      formData.append("bookerEmail", bookerEmail);
+      formData.append("bookerPhone", cleanedPhone);
+      formData.append("bookerEmail", cleanedEmail);
       formData.append("shippingAddress", shippingAddress);
       formData.append(
         "items",
@@ -143,7 +181,7 @@ export default function MerchShopPage() {
           }))
         )
       );
-      formData.append("file", slipFile);
+      formData.append("file", slipFile as File);
 
       const res = await fetch("/api/merch/orders", {
         method: "POST",
@@ -175,7 +213,7 @@ export default function MerchShopPage() {
             เจ้าหน้าที่จะตรวจสอบสลิปการโอนเงินโดยเร็วที่สุด ท่านสามารถตรวจสอบสถานะได้ที่หน้าตรวจสอบคำสั่งซื้อ
           </p>
           <button
-            onClick={() => router.push(`/merch/status?orderCode=${orderCode}&phone=${encodeURIComponent(bookerPhone)}`)}
+            onClick={() => router.push(`/merch/status?orderCode=${orderCode}&phone=${encodeURIComponent(cleanPhoneForStorage(bookerPhone))}`)}
             className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-4 py-2 font-medium"
           >
             เช็คสถานะคำสั่งซื้อ
@@ -316,60 +354,117 @@ export default function MerchShopPage() {
         )}
       </div>
 
-      <form onSubmit={checkout} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
+      <form onSubmit={checkout} noValidate className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
         <h2 className="font-display font-semibold text-stone-800">ข้อมูลผู้สั่งซื้อ</h2>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-stone-700">
+              ชื่อผู้สั่ง <span className="text-red-600">*</span>
+            </span>
+            <input
+              value={bookerFirstName}
+              onChange={(e) => setBookerFirstName(e.target.value)}
+              autoComplete="given-name"
+              maxLength={100}
+              className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-shadow ${fieldErrors.bookerFirstName ? "border-red-400 focus:ring-red-300 focus:border-red-500" : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"}`}
+            />
+            {fieldErrors.bookerFirstName && <span className="text-xs text-red-600">{fieldErrors.bookerFirstName}</span>}
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-stone-700">
+              นามสกุลผู้สั่ง <span className="text-red-600">*</span>
+            </span>
+            <input
+              value={bookerLastName}
+              onChange={(e) => setBookerLastName(e.target.value)}
+              autoComplete="family-name"
+              maxLength={100}
+              className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-shadow ${fieldErrors.bookerLastName ? "border-red-400 focus:ring-red-300 focus:border-red-500" : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"}`}
+            />
+            {fieldErrors.bookerLastName && <span className="text-xs text-red-600">{fieldErrors.bookerLastName}</span>}
+          </label>
+        </div>
+
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-stone-700">ชื่อผู้สั่ง *</span>
+          <span className="font-medium text-stone-700">
+            เบอร์โทรศัพท์ <span className="text-red-600">*</span>
+          </span>
           <input
-            value={bookerName}
-            onChange={(e) => setBookerName(e.target.value)}
-            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
-            required
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-stone-700">เบอร์โทรศัพท์ *</span>
-          <input
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
             value={bookerPhone}
-            onChange={(e) => setBookerPhone(e.target.value)}
-            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
-            required
+            onChange={(e) => setBookerPhone(formatThaiPhoneDisplay(e.target.value))}
+            placeholder="08X-XXX-XXXX"
+            className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-shadow ${fieldErrors.bookerPhone ? "border-red-400 focus:ring-red-300 focus:border-red-500" : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"}`}
           />
+          {fieldErrors.bookerPhone && <span className="text-xs text-red-600">{fieldErrors.bookerPhone}</span>}
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-stone-700">อีเมล *</span>
+          <span className="font-medium text-stone-700">
+            อีเมล <span className="text-red-600">*</span>
+          </span>
           <input
             type="email"
+            autoComplete="email"
+            autoCapitalize="off"
+            autoCorrect="off"
             value={bookerEmail}
             onChange={(e) => setBookerEmail(e.target.value)}
-            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
-            required
+            onBlur={(e) => setBookerEmail(normalizeEmail(e.target.value))}
+            className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-shadow ${fieldErrors.bookerEmail ? "border-red-400 focus:ring-red-300 focus:border-red-500" : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"}`}
           />
+          {fieldErrors.bookerEmail && <span className="text-xs text-red-600">{fieldErrors.bookerEmail}</span>}
           <p className="text-xs text-stone-400">ใช้แจ้งสถานะและติดต่อกลับเรื่องการสั่งซื้อ</p>
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-stone-700">ที่อยู่สำหรับจัดส่ง *</span>
+          <span className="font-medium text-stone-700">
+            ที่อยู่สำหรับจัดส่ง <span className="text-red-600">*</span>
+          </span>
           <textarea
             value={shippingAddress}
             onChange={(e) => setShippingAddress(e.target.value)}
-            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
+            autoComplete="street-address"
+            className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-shadow ${fieldErrors.shippingAddress ? "border-red-400 focus:ring-red-300 focus:border-red-500" : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"}`}
             rows={3}
             placeholder="บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์"
-            required
           />
+          {fieldErrors.shippingAddress && <span className="text-xs text-red-600">{fieldErrors.shippingAddress}</span>}
         </label>
 
         <label className="flex flex-col gap-1 text-sm border-t border-cream-200 pt-3">
-          <span className="font-medium text-stone-700">ไฟล์สลิปโอนเงิน *</span>
+          <span className="font-medium text-stone-700">
+            ไฟล์สลิปโอนเงิน <span className="text-red-600">*</span>
+          </span>
           <span className="text-xs text-stone-400">กรุณาโอนเงินตามยอดรวมด้านบนแล้วแนบรูปสลิปที่นี่ ระบบจะบันทึกคำสั่งซื้อและส่งสลิปให้เจ้าหน้าที่ตรวจสอบในขั้นตอนเดียวกัน</span>
           <input
             type="file"
             accept="image/*,application/pdf"
             onChange={(e) => setSlipFile(e.target.files?.[0] || null)}
-            className="border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
-            required
+            className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-shadow ${fieldErrors.slipFile ? "border-red-400 focus:ring-red-300 focus:border-red-500" : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"}`}
           />
+          {fieldErrors.slipFile && <span className="text-xs text-red-600">{fieldErrors.slipFile}</span>}
         </label>
+
+        <div className="border-t border-cream-200 pt-3">
+          <label className="flex items-start gap-2 text-sm text-stone-700">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="accent-maroon-700 mt-0.5"
+            />
+            <span>
+              ข้าพเจ้ายินยอมให้เก็บและใช้ข้อมูลตาม{" "}
+              <Link href="/privacy" target="_blank" className="text-maroon-700 underline hover:text-maroon-800">
+                นโยบายความเป็นส่วนตัว
+              </Link>{" "}
+              <span className="text-red-600">*</span>
+            </span>
+          </label>
+          {fieldErrors.consent && <p className="text-xs text-red-600 mt-1">{fieldErrors.consent}</p>}
+        </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
