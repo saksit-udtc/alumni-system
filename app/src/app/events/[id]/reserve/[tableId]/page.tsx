@@ -5,6 +5,72 @@ import { useParams, useSearchParams } from "next/navigation";
 import ReserveForm from "./reserve-form";
 import SiteNav from "@/app/components/site-nav";
 
+// One bundled item line for the package-selector card below (see
+// PackagePicker) — kept minimal, matches the shape /api/events/[id]/packages
+// returns.
+interface PackageOption {
+  id: string;
+  name: string;
+  description: string | null;
+  price: string;
+  items: { productName: string; size: string | null; quantity: number }[];
+}
+
+// Lets the guest pick a pre-configured package (table + bundled merch, one
+// price) instead of a plain table booking — Phase 2 of the package
+// feature. Entirely additive: when no active packages exist for this event
+// (the common case today), this renders nothing and the page behaves
+// exactly as it always has.
+function PackagePicker({
+  packages,
+  pricePerTable,
+  selected,
+  onSelect,
+}: {
+  packages: PackageOption[];
+  pricePerTable: number;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  return (
+    <div className="bg-white border border-cream-200 shadow-md rounded-xl p-4 space-y-2">
+      <div className="text-sm font-medium text-stone-700">เลือกรูปแบบการจอง</div>
+      <label className={`flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${selected === null ? "border-maroon-700 bg-primary-50" : "border-stone-200 hover:bg-cream-50"}`}>
+        <input type="radio" checked={selected === null} onChange={() => onSelect(null)} className="mt-1 accent-maroon-700" />
+        <span>
+          <span className="block font-medium text-stone-800">จองโต๊ะปกติ</span>
+          <span className="block text-sm text-stone-500">{pricePerTable.toLocaleString()} บาท</span>
+        </span>
+      </label>
+      {packages.map((p) => (
+        <label
+          key={p.id}
+          className={`flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${selected === p.id ? "border-maroon-700 bg-primary-50" : "border-stone-200 hover:bg-cream-50"}`}
+        >
+          <input type="radio" checked={selected === p.id} onChange={() => onSelect(p.id)} className="mt-1 accent-maroon-700" />
+          <span>
+            <span className="block font-medium text-stone-800">{p.name}</span>
+            <span className="block text-sm text-stone-500">{Number(p.price).toLocaleString()} บาท</span>
+            {p.description && <span className="block text-xs text-stone-400">{p.description}</span>}
+            {p.items.length > 0 && (
+              <span className="block text-xs text-stone-400 mt-0.5">
+                ของแถม:{" "}
+                {p.items.map((it, i) => (
+                  <span key={i}>
+                    {i > 0 && ", "}
+                    {it.productName}
+                    {it.size ? ` (${it.size})` : ""} x{it.quantity}
+                  </span>
+                ))}
+              </span>
+            )}
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 export default function ReservePage() {
   const { id, tableId } = useParams<{ id: string; tableId: string }>();
   const searchParams = useSearchParams();
@@ -15,6 +81,8 @@ export default function ReservePage() {
   const [event, setEvent] = useState<any>(null);
   const [table, setTable] = useState<any>(null);
   const [error, setError] = useState("");
+  const [packages, setPackages] = useState<PackageOption[]>([]);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/events/${id}`)
@@ -28,6 +96,12 @@ export default function ReservePage() {
         const t = d.tables?.find((x: any) => x.id === tableId);
         setTable(t);
       });
+    // Best-effort — an event with no packages configured (the common case)
+    // just gets an empty list here, and the picker below renders nothing.
+    fetch(`/api/events/${id}/packages`)
+      .then((r) => r.json())
+      .then((d) => setPackages(d.packages || []))
+      .catch(() => setPackages([]));
   }, [id, tableId]);
 
   let content: React.ReactNode;
@@ -42,6 +116,7 @@ export default function ReservePage() {
     content = <p className="text-red-600">โต๊ะนี้ถูกจองไปแล้ว</p>;
   } else {
     const seatsRemaining = table.seatsAvailable;
+    const selectedPackage = packages.find((p) => p.id === selectedPackageId) || null;
     content = (
       <div className="space-y-4">
         <div>
@@ -53,7 +128,16 @@ export default function ReservePage() {
           </h1>
           <p className="text-stone-500 text-sm">{event.name}</p>
         </div>
+        {packages.length > 0 && (
+          <PackagePicker
+            packages={packages}
+            pricePerTable={Number(event.pricePerTable)}
+            selected={selectedPackageId}
+            onSelect={setSelectedPackageId}
+          />
+        )}
         <ReserveForm
+          key={selectedPackageId ?? "plain"}
           eventId={id}
           tableId={tableId}
           bookingType={bookingType}
@@ -61,6 +145,11 @@ export default function ReservePage() {
           seatsRemaining={seatsRemaining}
           pricePerTable={Number(event.pricePerTable)}
           pricePerSeat={Number(event.pricePerSeat)}
+          packageId={selectedPackage?.id}
+          packagePrice={selectedPackage ? Number(selectedPackage.price) : undefined}
+          eventName={event.name}
+          tableNumber={table.tableNumber}
+          packageName={selectedPackage?.name}
         />
       </div>
     );

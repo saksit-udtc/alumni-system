@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -10,6 +10,8 @@ import {
   isValidEmailFormat,
   normalizeEmail,
 } from "@/lib/formValidation";
+import QrCode from "@/app/components/qr-code";
+import { generatePromptPayPayload } from "@/lib/promptpay";
 
 export default function ReserveForm({
   eventId,
@@ -19,6 +21,11 @@ export default function ReserveForm({
   seatsRemaining,
   pricePerTable,
   pricePerSeat,
+  packageId,
+  packagePrice,
+  eventName,
+  tableNumber,
+  packageName,
 }: {
   eventId: string;
   tableId: string;
@@ -27,6 +34,20 @@ export default function ReserveForm({
   seatsRemaining: number;
   pricePerTable: number;
   pricePerSeat: number;
+  /** When set (Phase 2 package purchase — see ../page.tsx's package
+   * selector), this booking is submitted to /api/reservations/package
+   * instead of /api/reservations, and packagePrice replaces the normal
+   * pricePerTable/pricePerSeat total. Everything else about the form
+   * (validation, alumni registration, slip upload, the "done" screen)
+   * stays exactly the same regardless of which mode this is. */
+  packageId?: string;
+  packagePrice?: number;
+  /** Display-only, for the "รายการ" line under the PromptPay QR so a
+   * scanning customer (or whoever reviews the payment later) can tell what
+   * the amount is for at a glance — never sent to the server. */
+  eventName?: string;
+  tableNumber?: string | number;
+  packageName?: string;
 }) {
   const router = useRouter();
   const [seatCount, setSeatCount] = useState(bookingType === "full_table" ? capacity : 1);
@@ -59,6 +80,19 @@ export default function ReserveForm({
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [bookingCode, setBookingCode] = useState("");
+  // PromptPay QR is purely a convenience for the customer (scan instead of
+  // manually opening their banking app and typing an account number) — the
+  // slip-upload + admin-verify flow below is unchanged either way. Same
+  // setting the POS payment screen uses (lib/settings.ts), fetched from a
+  // public endpoint since this is an unauthenticated page.
+  const [promptPayId, setPromptPayId] = useState("");
+
+  useEffect(() => {
+    fetch("/api/settings/promptpay")
+      .then((r) => r.json())
+      .then((d) => setPromptPayId(d.promptPayId || ""))
+      .catch(() => {});
+  }, []);
 
   // Max number of companion names = seats booked minus the booker's own
   // seat. Guests add one name at a time with a button, capped at this
@@ -79,7 +113,27 @@ export default function ReserveForm({
     setCompanions((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const total = bookingType === "full_table" ? pricePerTable : pricePerSeat * seatCount;
+  const total = packageId ? packagePrice ?? 0 : bookingType === "full_table" ? pricePerTable : pricePerSeat * seatCount;
+
+  // A fresh dynamic PromptPay QR pre-filled with the exact total, same
+  // generator the POS payment screen uses — this only displays a payment
+  // target, it doesn't confirm anything, so the customer still uploads a
+  // slip below exactly as before.
+  const promptPayPayload = useMemo(() => {
+    if (!promptPayId || total <= 0) return null;
+    try {
+      return generatePromptPayPayload(promptPayId, total);
+    } catch {
+      return null;
+    }
+  }, [promptPayId, total]);
+
+  // "รายการ" line shown under the QR — purely descriptive (never sent
+  // anywhere), so a customer or anyone reviewing the payment later can see
+  // what the amount is for without having to scroll back up the page.
+  const paymentLabel = packageId
+    ? `แพ็กเกจ "${packageName || ""}"${tableNumber != null ? ` — โต๊ะ ${tableNumber}` : ""}`
+    : `จองโต๊ะ${tableNumber != null ? ` ${tableNumber}` : ""}${eventName ? ` — ${eventName}` : ""}`;
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -130,8 +184,9 @@ export default function ReserveForm({
     formData.append("bookerEmail", cleanedEmail);
     if (partyNames.length > 0) formData.append("partyNames", JSON.stringify(partyNames));
     formData.append("file", slipFile as File);
+    if (packageId) formData.append("packageId", packageId);
 
-    const res = await fetch("/api/reservations", {
+    const res = await fetch(packageId ? "/api/reservations/package" : "/api/reservations", {
       method: "POST",
       body: formData,
     });
@@ -368,6 +423,14 @@ export default function ReserveForm({
       </div>
 
       <div className="text-sm font-medium text-stone-800">ยอดชำระ: {total.toLocaleString()} บาท</div>
+
+      {promptPayPayload && (
+        <div className="border border-cream-200 rounded-lg p-3 flex flex-col items-center text-center bg-cream-50">
+          <QrCode value={promptPayPayload} size={180} />
+          <div className="text-xs text-stone-500 mt-2">สแกนด้วยแอปธนาคารเพื่อจ่ายยอด {total.toLocaleString()} บาท แล้วแนบสลิปด้านล่าง</div>
+          <div className="text-xs text-stone-400 mt-1">รายการ: {paymentLabel}</div>
+        </div>
+      )}
 
       <div className="border-t border-cream-200 pt-3">
         <label className="block text-sm font-medium text-stone-700 mb-1">

@@ -39,11 +39,26 @@ const ICONS: Record<string, JSX.Element> = {
       <path d="M9 8a3 3 0 0 1 6 0" />
     </>
   ),
+  barcode: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="1.5" />
+      <path d="M6 7v10M9 7v10M11.5 7v10M14 7v10M16.5 7v10M19 7v10" />
+    </>
+  ),
   box: (
     <>
       <path d="M21 8l-9-5-9 5 9 5 9-5z" />
       <path d="M3 8v8l9 5 9-5V8" />
       <path d="M12 13v8" />
+    </>
+  ),
+  gift: (
+    <>
+      <rect x="3" y="9" width="18" height="4" rx="1" />
+      <rect x="5" y="13" width="14" height="8" rx="1" />
+      <path d="M12 9v12" />
+      <path d="M12 9c-1.5-4-6-4.5-6-1.5S9 9 12 9z" />
+      <path d="M12 9c1.5-4 6-4.5 6-1.5S15 9 12 9z" />
     </>
   ),
   log: (
@@ -108,6 +123,8 @@ const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; r
   { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"] },
   { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"] },
   { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box", roles: ["SUPER_ADMIN", "MERCH_STAFF"] },
+  { href: "/admin/pos", label: "ขายหน้างาน (POS)", icon: "barcode", roles: ["SUPER_ADMIN", "MERCH_STAFF"] },
+  { href: "/admin/packages", label: "จัดการแพ็กเกจ", icon: "gift", roles: ["SUPER_ADMIN", "MERCH_STAFF", "RESERVATION_STAFF"] },
   { href: "/admin/audit-log", label: "บันทึกการใช้งาน", icon: "log", roles: ["SUPER_ADMIN"] },
   { href: "/admin/users", label: "จัดการผู้ใช้งาน", icon: "users", roles: ["SUPER_ADMIN"] },
 ];
@@ -124,9 +141,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // calls are what actually protect the data.
   const ROLE_ALLOWED_PREFIXES: Record<string, string[]> = {
     CHECKIN_STAFF: ["/admin/checkin"],
-    MERCH_STAFF: ["/admin/merch"],
+    MERCH_STAFF: ["/admin/merch", "/admin/pos", "/admin/packages"],
     FINANCE_STAFF: ["/admin/reservations", "/admin/merch/orders"],
-    RESERVATION_STAFF: ["/admin/events", "/admin/merch/orders"],
+    RESERVATION_STAFF: ["/admin/events", "/admin/merch/orders", "/admin/packages", "/admin/pos/package"],
   };
   const ROLE_HOME: Record<string, string> = {
     CHECKIN_STAFF: "/admin/checkin",

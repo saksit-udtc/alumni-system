@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "../components/site-nav";
+import QrCode from "../components/qr-code";
+import { generatePromptPayPayload } from "@/lib/promptpay";
 import {
   validateNamePart,
   validateThaiPhone,
@@ -59,6 +61,10 @@ export default function MerchShopPage() {
   const [done, setDone] = useState(false);
   const [orderCode, setOrderCode] = useState("");
   const [shippingFee, setShippingFee] = useState(0);
+  // Same PromptPay setting the POS payment screen and table-booking form
+  // use (lib/settings.ts) — purely a convenience QR for the customer to
+  // scan-and-pay, the slip-upload + admin-verify flow is unchanged.
+  const [promptPayId, setPromptPayId] = useState("");
 
   useEffect(() => {
     fetch("/api/merch/products")
@@ -68,6 +74,10 @@ export default function MerchShopPage() {
         setShippingFee(Number(d.shippingFee) || 0);
       })
       .finally(() => setLoading(false));
+    fetch("/api/settings/promptpay")
+      .then((r) => r.json())
+      .then((d) => setPromptPayId(d.promptPayId || ""))
+      .catch(() => {});
   }, []);
 
   function stockFor(p: Product, size: string) {
@@ -120,6 +130,20 @@ export default function MerchShopPage() {
 
   const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   const total = cart.length > 0 ? subtotal + shippingFee : 0;
+
+  const promptPayPayload = useMemo(() => {
+    if (!promptPayId || total <= 0) return null;
+    try {
+      return generatePromptPayPayload(promptPayId, total);
+    } catch {
+      return null;
+    }
+  }, [promptPayId, total]);
+
+  // "รายการ" line shown under the QR — purely descriptive (never sent
+  // anywhere), so whoever is paying (or reviewing the payment later) can
+  // see what the amount covers without scrolling back up to the cart.
+  const cartSummary = cart.map((l) => `${l.name}${l.size ? ` (${l.size})` : ""} x${l.quantity}`).join(", ");
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -432,6 +456,14 @@ export default function MerchShopPage() {
           />
           {fieldErrors.shippingAddress && <span className="text-xs text-red-600">{fieldErrors.shippingAddress}</span>}
         </label>
+
+        {promptPayPayload && (
+          <div className="border border-cream-200 rounded-lg p-3 flex flex-col items-center text-center bg-cream-50 border-t-cream-200 mt-1">
+            <QrCode value={promptPayPayload} size={180} />
+            <div className="text-xs text-stone-500 mt-2">สแกนด้วยแอปธนาคารเพื่อจ่ายยอด {total.toLocaleString()} บาท แล้วแนบสลิปด้านล่าง</div>
+            <div className="text-xs text-stone-400 mt-1">รายการ: {cartSummary}</div>
+          </div>
+        )}
 
         <label className="flex flex-col gap-1 text-sm border-t border-cream-200 pt-3">
           <span className="font-medium text-stone-700">

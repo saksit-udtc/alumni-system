@@ -39,6 +39,8 @@ model AdminUser {
   souvenirReservs   Reservation[] @relation("SouvenirBy")
   merchVerifiedSlips MerchPaymentSlip[] @relation("MerchVerifiedBy")
   auditLogs         AuditLog[]
+  posSales          PosSale[] @relation("PosCashier")
+  posPackageSales   Reservation[] @relation("PosPackageCashier")
 }
 
 // Two kinds of entries, told apart by actorType:
@@ -110,6 +112,7 @@ model Event {
 
   tables       Table[]
   reservations Reservation[]
+  packages     Package[]
 }
 
 model Table {
@@ -172,12 +175,32 @@ model Reservation {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  // --- Package booking (ขายแบบแพ็กเกจ: จองโต๊ะ+แถมสินค้า) ---
+  // Set only when this reservation was created from a pre-configured
+  // Package (see the Package model below) rather than a plain table
+  // booking. packageItems is the snapshot of the merch items that came
+  // bundled with the package at the moment of purchase (same snapshot
+  // pattern as MerchOrderItem/PosSaleItem — a later edit to the Package's
+  // item list must never retroactively change a past sale's record).
+  packageId      String?
+  package        Package?      @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  packageItems   ReservationPackageItem[]
+  // Set only for a package reservation sold at the in-person POS counter
+  // (immediate cash/transfer payment, confirmed on the spot — see
+  // lib/bookPackage.ts's immediateConfirm path). Both stay null for a
+  // normal online booking, which keeps using slip-upload + paymentStatus
+  // instead.
+  paymentMethod  PosPaymentMethod?
+  cashierId      String?
+  cashierUser    AdminUser?    @relation("PosPackageCashier", fields: [cashierId], references: [id])
+
   slips PaymentSlip[]
 
   @@index([eventId])
   @@index([tableId])
   @@index([bookerPhone])
   @@index([paymentStatus, reservedUntil])
+  @@index([packageId])
 }
 
 model PaymentSlip {
@@ -238,8 +261,11 @@ model MerchProduct {
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
 
-  orderItems MerchOrderItem[]
-  stocks     MerchProductStock[]
+  orderItems   MerchOrderItem[]
+  stocks       MerchProductStock[]
+  posSaleItems PosSaleItem[]
+  packageItems PackageItem[]
+  reservationPackageItems ReservationPackageItem[]
 }
 
 // One row per (product, size) — size is null for products that don't
@@ -251,6 +277,12 @@ model MerchProductStock {
   product   MerchProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
   size      String?
   quantity  Int          @default(0)
+  // System-generated barcode printed on a sticker label for this exact
+  // (product, size) variant — scanned at the POS counter to add it to a
+  // sale. Null until an admin generates one from the product page (see
+  // lib/barcode.ts's ensureStockBarcode). Unique so a POS scan resolves to
+  // exactly one stock row.
+  barcode   String?      @unique
 
   @@unique([productId, size])
   @@index([productId])
@@ -309,4 +341,123 @@ model MerchPaymentSlip {
   note           String?
 
   @@index([orderId])
+}
+
+// --- Point of sale (ขายหน้างานด้วยการสแกนบาร์โค้ด) ---
+// A completely separate, in-person counterpart to MerchOrder above: a
+// staff member scans each item's printed barcode (see MerchProductStock.
+// barcode), takes payment on the spot (cash or bank transfer), and the
+// sale is recorded as confirmed immediately — there is no slip upload or
+// admin-verification wait, because payment is already settled at the
+// counter before this record is created (see lib/posSale.ts).
+enum PosPaymentMethod {
+  cash
+  transfer
+}
+
+model PosSale {
+  id            String           @id @default(cuid())
+  saleCode      String           @unique
+  cashierId     String
+  cashier       AdminUser        @relation("PosCashier", fields: [cashierId], references: [id])
+  paymentMethod PosPaymentMethod
+  totalAmount   Decimal          @db.Decimal(10, 2)
+  // Optional — a POS sale is normally a quick anonymous walk-up sale;
+  // unlike MerchOrder these are never required.
+  buyerName     String?
+  buyerPhone    String?
+  createdAt     DateTime         @default(now())
+
+  items PosSaleItem[]
+
+  @@index([cashierId])
+  @@index([createdAt])
+}
+
+model PosSaleItem {
+  id        String       @id @default(cuid())
+  saleId    String
+  sale      PosSale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  // productId/product optional so deleting a product later never blocks
+  // this sale's history — productName/unitPrice are snapshots taken at
+  // sale time, same pattern as MerchOrderItem above.
+  productId String?
+  product   MerchProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
+  size      String?
+  barcode   String
+  quantity  Int
+  unitPrice Decimal      @db.Decimal(10, 2)
+
+  @@index([saleId])
+}
+
+// --- Packages (ขายแบบแพ็กเกจ: จองโต๊ะ + แถมสินค้า) ---
+// A Package is an admin-configured fixed bundle: one table booking (same
+// full_table/seats shape as a plain Reservation) plus a fixed list of merch
+// items included for one bundle price. Sellable both at the POS counter
+// (Phase 1, immediate confirm) and — later — through the public online
+// booking flow (Phase 2, same pending/awaiting_verify slip flow as a plain
+// Reservation). Buying a package still produces exactly one Reservation
+// row (with packageId set) plus one ReservationPackageItem per bundled
+// item — see lib/bookPackage.ts.
+model Package {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  eventId     String
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookingType BookingType
+  // Seats consumed on the chosen table — for bookingType "full_table" this
+  // must equal the table's capacity (validated at booking time, same rule
+  // as plain bookTable()); for "seats" it's the number of seats reserved.
+  seatCount   Int
+  // Fixed bundle price (replaces the table's normal pricePerTable/
+  // pricePerSeat*seatCount calculation entirely for a package purchase).
+  price       Decimal     @db.Decimal(10, 2)
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  items        PackageItem[]
+  reservations Reservation[]
+
+  @@index([eventId])
+}
+
+// One row per merch item bundled into a Package (e.g. "เสื้อที่ระลึก, size L,
+// x1"). Live config, not a snapshot — edited directly as the admin changes
+// the package's contents. No onDelete override on productId: a product
+// still referenced by a package's item list can't be deleted until the
+// admin removes it from the package first (same "don't silently corrupt an
+// active bundle" reasoning as PackageItem being config rather than history).
+model PackageItem {
+  id        String       @id @default(cuid())
+  packageId String
+  package   Package      @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  productId String
+  product   MerchProduct @relation(fields: [productId], references: [id])
+  size      String?
+  quantity  Int          @default(1)
+
+  @@index([packageId])
+  @@index([productId])
+}
+
+// Snapshot of one bundled item as it existed at the moment a Package was
+// actually purchased (mirrors MerchOrderItem/PosSaleItem) — created inside
+// bookPackage()'s transaction alongside the Reservation, one row per
+// PackageItem on the Package that was bought. productId/product optional
+// so deleting a product later never blocks this reservation's history.
+model ReservationPackageItem {
+  id            String        @id @default(cuid())
+  reservationId String
+  reservation   Reservation   @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       MerchProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName   String
+  size          String?
+  quantity      Int
+
+  @@index([reservationId])
 }

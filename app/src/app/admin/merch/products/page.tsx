@@ -14,10 +14,21 @@ interface Product {
   stock: Record<string, number>;
 }
 
+// Barcode/stock-row-id info, keyed by `${productId}:${size}` (size "" for
+// non-sized products) — fetched separately from /api/admin/pos/products,
+// which is the one endpoint that exposes MerchProductStock row ids and
+// barcodes (the plain products list above only returns a size->qty map).
+interface BarcodeInfo {
+  stockId: string;
+  barcode: string | null;
+}
+
 const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 
 export default function AdminMerchProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [barcodes, setBarcodes] = useState<Record<string, BarcodeInfo>>({});
+  const [generatingBarcode, setGeneratingBarcode] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -35,12 +46,47 @@ export default function AdminMerchProductsPage() {
   const [savingShippingFee, setSavingShippingFee] = useState(false);
   const [shippingFeeError, setShippingFeeError] = useState("");
 
+  // POS PromptPay QR target — separate load/save, same pattern as shipping fee.
+  const [promptPayId, setPromptPayId] = useState<string | null>(null);
+  const [promptPayIdDraft, setPromptPayIdDraft] = useState("");
+  const [savingPromptPayId, setSavingPromptPayId] = useState(false);
+  const [promptPayIdError, setPromptPayIdError] = useState("");
+
   function load() {
     fetch("/api/admin/merch/products")
       .then((r) => r.json())
       .then((d) => setProducts(d.products || []));
+    loadBarcodes();
   }
   useEffect(load, []);
+
+  function loadBarcodes() {
+    fetch("/api/admin/pos/products")
+      .then((r) => r.json())
+      .then((d) => {
+        const map: Record<string, BarcodeInfo> = {};
+        for (const p of d.products || []) {
+          for (const s of p.stocks || []) {
+            map[draftKey(p.id, s.size || "")] = { stockId: s.id, barcode: s.barcode };
+          }
+        }
+        setBarcodes(map);
+      });
+  }
+
+  async function generateBarcode(stockId: string, regenerate: boolean) {
+    setGeneratingBarcode(stockId);
+    try {
+      const res = await fetch("/api/admin/pos/products/generate-barcode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stockId, regenerate }),
+      });
+      if (res.ok) loadBarcodes();
+    } finally {
+      setGeneratingBarcode(null);
+    }
+  }
 
   function loadShippingFee() {
     fetch("/api/admin/merch/settings")
@@ -51,6 +97,37 @@ export default function AdminMerchProductsPage() {
       });
   }
   useEffect(loadShippingFee, []);
+
+  function loadPromptPayId() {
+    fetch("/api/admin/pos/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        setPromptPayId(d.promptPayId ?? "");
+        setPromptPayIdDraft(d.promptPayId ?? "");
+      });
+  }
+  useEffect(loadPromptPayId, []);
+
+  async function savePromptPayId(e: React.FormEvent) {
+    e.preventDefault();
+    setPromptPayIdError("");
+    setSavingPromptPayId(true);
+    try {
+      const res = await fetch("/api/admin/pos/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promptPayId: promptPayIdDraft }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPromptPayIdError(data.error || "บันทึกไม่สำเร็จ");
+        return;
+      }
+      setPromptPayId(data.promptPayId);
+    } finally {
+      setSavingPromptPayId(false);
+    }
+  }
 
   async function saveShippingFee(e: React.FormEvent) {
     e.preventDefault();
@@ -187,9 +264,17 @@ export default function AdminMerchProductsPage() {
           <h1 className="text-2xl font-display font-semibold text-stone-800">สินค้าที่ระลึก</h1>
           <p className="text-sm text-stone-500 mt-0.5">จัดการสินค้าและสต๊อกของที่ระลึกที่เปิดขาย ({products.length} รายการ)</p>
         </div>
-        <Link href="/admin/merch/orders" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
-          ดูรายการสั่งซื้อ
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/admin/pos" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
+            ขายหน้างาน (POS)
+          </Link>
+          <Link href="/admin/merch/products/barcode-labels" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
+            พิมพ์ป้ายบาร์โค้ด
+          </Link>
+          <Link href="/admin/merch/orders" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
+            ดูรายการสั่งซื้อ
+          </Link>
+        </div>
       </div>
 
       <form onSubmit={saveShippingFee} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
@@ -216,6 +301,34 @@ export default function AdminMerchProductsPage() {
           {shippingFee !== null && <span className="text-sm text-stone-500">ค่าจัดส่งปัจจุบัน: {shippingFee.toLocaleString()} บาท</span>}
         </div>
         {shippingFeeError && <p className="text-red-600 text-sm">{shippingFeeError}</p>}
+      </form>
+
+      <form onSubmit={savePromptPayId} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
+        <h2 className="font-display font-semibold text-stone-800">QR พร้อมเพย์สำหรับขายหน้างาน (POS)</h2>
+        <p className="text-sm text-stone-500">
+          กรอกเบอร์โทร (หรือเลขบัตรประชาชน/นิติบุคคล) ที่ผูกพร้อมเพย์ไว้ — หน้าขายหน้างานจะสร้าง QR ระบุยอดเงินให้ลูกค้าสแกนจ่ายอัตโนมัติเมื่อเลือก
+          &quot;โอนเงิน&quot; (เจ้าหน้าที่ยังต้องตรวจสอบว่าเงินเข้าจริงก่อนกดยืนยันการขายเอง)
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">เบอร์พร้อมเพย์ / เลขบัตร ปชช. / เลขนิติบุคคล</span>
+            <input
+              value={promptPayIdDraft}
+              onChange={(e) => setPromptPayIdDraft(e.target.value)}
+              placeholder="เช่น 0812345678"
+              className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2 w-56"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={savingPromptPayId}
+            className="bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg px-4 py-2 font-semibold disabled:opacity-50"
+          >
+            {savingPromptPayId ? "กำลังบันทึก..." : "บันทึก"}
+          </button>
+          {promptPayId !== null && <span className="text-sm text-stone-500">{promptPayId ? `ปัจจุบัน: ${promptPayId}` : "ยังไม่ได้ตั้งค่า"}</span>}
+        </div>
+        {promptPayIdError && <p className="text-red-600 text-sm">{promptPayIdError}</p>}
       </form>
 
       <form onSubmit={createProduct} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
@@ -320,18 +433,45 @@ export default function AdminMerchProductsPage() {
                   </button>
                 </div>
                 <div className={p.requiresSize ? "grid grid-cols-4 sm:grid-cols-8 gap-3" : "flex"}>
-                  {sizes.map((size) => (
-                    <label key={size || "single"} className={`flex flex-col gap-1 text-xs ${p.requiresSize ? "" : "w-28"}`}>
-                      <span className="text-stone-500">{size || "จำนวน"}</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={stockValue(p, size)}
-                        onChange={(e) => updateDraft(p.id, size, e.target.value)}
-                        className="w-full border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-1.5 text-sm"
-                      />
-                    </label>
-                  ))}
+                  {sizes.map((size) => {
+                    const info = barcodes[draftKey(p.id, size)];
+                    return (
+                      <div key={size || "single"} className={p.requiresSize ? "" : "w-28"}>
+                        <label className="flex flex-col gap-1 text-xs">
+                          <span className="text-stone-500">{size || "จำนวน"}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={stockValue(p, size)}
+                            onChange={(e) => updateDraft(p.id, size, e.target.value)}
+                            className="w-full border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-1.5 text-sm"
+                          />
+                        </label>
+                        {info && (
+                          <div className="mt-1">
+                            {info.barcode ? (
+                              <button
+                                onClick={() => generateBarcode(info.stockId, true)}
+                                disabled={generatingBarcode === info.stockId}
+                                title="คลิกเพื่อสร้างบาร์โค้ดใหม่"
+                                className="w-full text-[10px] font-mono text-stone-500 hover:text-maroon-700 truncate text-left disabled:opacity-50"
+                              >
+                                {generatingBarcode === info.stockId ? "..." : info.barcode}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => generateBarcode(info.stockId, false)}
+                                disabled={generatingBarcode === info.stockId}
+                                className="w-full text-[10px] bg-stone-100 hover:bg-stone-200 text-stone-600 rounded px-1 py-0.5 disabled:opacity-50"
+                              >
+                                {generatingBarcode === info.stockId ? "..." : "+ บาร์โค้ด"}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
