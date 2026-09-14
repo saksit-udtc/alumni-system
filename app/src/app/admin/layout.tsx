@@ -116,7 +116,8 @@ type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAF
 const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; roles?: AdminRole[] }[] = [
   { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true, roles: ["SUPER_ADMIN"] },
   { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "RESERVATION_STAFF"] },
-  { href: "/admin/home-banners", label: "แบนเนอร์หน้าแรก", icon: "image", roles: ["SUPER_ADMIN"] },
+  // ซ่อนเมนู "แบนเนอร์หน้าแรก" ไว้ก่อนตามคำขอผู้ใช้ — หน้า /admin/home-banners
+  // และ API ที่เกี่ยวข้องยังทำงานอยู่ตามปกติ แค่ไม่แสดงลิงก์ในเมนูแอดมิน
   { href: "/admin/landing", label: "จัดการหน้าแรก (Landing)", icon: "image", roles: ["SUPER_ADMIN"] },
   { href: "/admin/reservations", label: "รายการจอง", icon: "checkin", roles: ["SUPER_ADMIN", "FINANCE_STAFF"] },
   { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"] },
