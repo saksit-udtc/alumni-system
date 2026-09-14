@@ -36,13 +36,11 @@ function EasySlipBadge({ status, message }: { status: string | null; message: st
   if (!status || status === "SKIPPED") return null;
   const style =
     status === "MATCH"
-      ? "bg-emerald-100 text-emerald-700"
-      : status === "ERROR"
-      ? "bg-stone-100 text-stone-500"
-      : "bg-red-100 text-red-700"; // AMOUNT_MISMATCH, INVALID_SLIP, DUPLICATE
+      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+      : "bg-red-50 text-red-700 border border-red-200"; // ERROR, AMOUNT_MISMATCH, INVALID_SLIP, DUPLICATE
   const label = status === "MATCH" ? "✓ ตรงกับธนาคาร" : status === "ERROR" ? "ตรวจสอบไม่สำเร็จ" : "⚠ ไม่ตรง/น่าสงสัย";
   return (
-    <span title={message || ""} className={`block mt-1.5 text-[11px] px-2 py-0.5 rounded-full font-medium w-fit ${style}`}>
+    <span title={message || ""} className={`inline-block whitespace-nowrap mt-1.5 text-[11px] px-2 py-0.5 rounded-lg font-medium w-fit ${style}`}>
       {label}
     </span>
   );

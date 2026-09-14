@@ -230,12 +230,12 @@ export default function AdminMerchOrdersPage() {
                         href={o.latestSlipUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-block text-xs px-2.5 py-1.5 rounded-lg font-medium bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors"
+                        className="inline-block whitespace-nowrap text-xs px-2.5 py-1.5 rounded-lg font-medium bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors"
                       >
                         ดูสลิป
                       </a>
                     ) : (
-                      <span className="inline-block text-xs px-2.5 py-1.5 rounded-lg font-medium bg-stone-100 text-stone-400 border border-stone-200">ไม่มี</span>
+                      <span className="inline-block whitespace-nowrap text-xs px-2.5 py-1.5 rounded-lg font-medium bg-stone-100 text-stone-400 border border-stone-200">ไม่มี</span>
                     )}
                     <EasySlipBadge status={o.latestSlipEasyslipStatus} message={o.latestSlipEasyslipMessage} />
                   </td>
