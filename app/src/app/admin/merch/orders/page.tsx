@@ -12,39 +12,22 @@ const STATUS_LABEL: Record<string, string> = {
   expired: "หมดเวลา",
 };
 const STATUS_BADGE: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700",
-  awaiting_verify: "bg-amber-100 text-amber-700",
-  confirmed: "bg-emerald-100 text-emerald-700",
-  rejected: "bg-red-100 text-red-700",
-  expired: "bg-stone-200 text-stone-600",
-};
-const STATUS_DOT: Record<string, string> = {
-  pending: "bg-amber-500",
-  awaiting_verify: "bg-amber-500",
-  confirmed: "bg-emerald-500",
-  rejected: "bg-red-500",
-  expired: "bg-stone-400",
+  pending: "bg-amber-50 text-amber-700 border border-amber-200",
+  awaiting_verify: "bg-amber-50 text-amber-700 border border-amber-200",
+  confirmed: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  rejected: "bg-red-50 text-red-700 border border-red-200",
+  expired: "bg-stone-100 text-stone-500 border border-stone-200",
 };
 
 function StatusBadge({ status }: { status: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${
-        STATUS_BADGE[status] || "bg-stone-200 text-stone-600"
+      className={`inline-block text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap ${
+        STATUS_BADGE[status] || "bg-stone-100 text-stone-500 border border-stone-200"
       }`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || "bg-stone-400"}`} />
       {STATUS_LABEL[status] || status}
     </span>
-  );
-}
-
-function Avatar({ name }: { name: string }) {
-  const initial = (name || "?").trim().charAt(0).toUpperCase();
-  return (
-    <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold shrink-0 ring-1 ring-primary-200/60">
-      {initial}
-    </div>
   );
 }
 
@@ -185,14 +168,9 @@ export default function AdminMerchOrdersPage() {
                     <span className="font-mono text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-md">{o.orderCode}</span>
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <Avatar name={o.bookerName} />
-                      <div>
-                        <div className="font-medium text-stone-800">{o.bookerName}</div>
-                        <div className="text-xs text-stone-400">{o.bookerPhone}</div>
-                        <div className="text-xs text-stone-400">{o.bookerEmail}</div>
-                      </div>
-                    </div>
+                    <div className="font-medium text-stone-800">{o.bookerName}</div>
+                    <div className="text-xs text-stone-400">{o.bookerPhone}</div>
+                    <div className="text-xs text-stone-400">{o.bookerEmail}</div>
                   </td>
                   <td className="px-4 py-3.5 max-w-[16rem] text-xs text-stone-600">
                     {editingId === o.id ? (
@@ -252,12 +230,12 @@ export default function AdminMerchOrdersPage() {
                         href={o.latestSlipUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors"
+                        className="inline-block text-xs px-2.5 py-1.5 rounded-lg font-medium bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors"
                       >
                         ดูสลิป
                       </a>
                     ) : (
-                      <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-stone-100 text-stone-400">ไม่มี</span>
+                      <span className="inline-block text-xs px-2.5 py-1.5 rounded-lg font-medium bg-stone-100 text-stone-400 border border-stone-200">ไม่มี</span>
                     )}
                     <EasySlipBadge status={o.latestSlipEasyslipStatus} message={o.latestSlipEasyslipMessage} />
                   </td>
