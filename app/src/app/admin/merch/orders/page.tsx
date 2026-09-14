@@ -18,6 +18,35 @@ const STATUS_BADGE: Record<string, string> = {
   rejected: "bg-red-100 text-red-700",
   expired: "bg-stone-200 text-stone-600",
 };
+const STATUS_DOT: Record<string, string> = {
+  pending: "bg-amber-500",
+  awaiting_verify: "bg-amber-500",
+  confirmed: "bg-emerald-500",
+  rejected: "bg-red-500",
+  expired: "bg-stone-400",
+};
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${
+        STATUS_BADGE[status] || "bg-stone-200 text-stone-600"
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || "bg-stone-400"}`} />
+      {STATUS_LABEL[status] || status}
+    </span>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  const initial = (name || "?").trim().charAt(0).toUpperCase();
+  return (
+    <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold shrink-0 ring-1 ring-primary-200/60">
+      {initial}
+    </div>
+  );
+}
 
 // EasySlip's automated check, shown next to "ดูสลิป" — purely advisory, the
 // admin can still approve regardless of this badge (see lib/easyslip.ts).
@@ -31,7 +60,7 @@ function EasySlipBadge({ status, message }: { status: string | null; message: st
       : "bg-red-100 text-red-700"; // AMOUNT_MISMATCH, INVALID_SLIP, DUPLICATE
   const label = status === "MATCH" ? "✓ ตรงกับธนาคาร" : status === "ERROR" ? "ตรวจสอบไม่สำเร็จ" : "⚠ ไม่ตรง/น่าสงสัย";
   return (
-    <span title={message || ""} className={`block mt-1 text-[11px] px-2 py-0.5 rounded-full font-medium w-fit ${style}`}>
+    <span title={message || ""} className={`block mt-1.5 text-[11px] px-2 py-0.5 rounded-full font-medium w-fit ${style}`}>
       {label}
     </span>
   );
@@ -131,37 +160,41 @@ export default function AdminMerchOrdersPage() {
       </div>
 
       {orders.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
+        <div className="bg-white rounded-2xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
           ยังไม่มีคำสั่งซื้อของที่ระลึกเข้ามาในระบบ
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-cream-200 shadow-md">
-          <table className="w-full bg-white text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-cream-200/80 shadow-sm bg-white">
+          <table className="w-full bg-white text-sm border-collapse">
             <thead>
-              <tr className="text-left bg-cream-100 text-stone-500 text-xs uppercase tracking-wide">
-                <th className="p-3 font-semibold">รหัส</th>
-                <th className="p-3 font-semibold">ผู้สั่ง</th>
-                <th className="p-3 font-semibold">ที่อยู่จัดส่ง</th>
-                <th className="p-3 font-semibold">รายการ</th>
-                <th className="p-3 font-semibold">ยอดรวม</th>
-                <th className="p-3 font-semibold">สถานะ</th>
-                <th className="p-3 font-semibold">สลิป</th>
-                <th className="p-3 font-semibold">การจัดการ</th>
+              <tr className="text-left bg-gradient-to-b from-cream-100 to-cream-50 text-stone-500 text-[11px] font-semibold uppercase tracking-wider">
+                <th className="px-4 py-3.5 sticky top-0">รหัส</th>
+                <th className="px-4 py-3.5 sticky top-0">ผู้สั่ง</th>
+                <th className="px-4 py-3.5 sticky top-0">ที่อยู่จัดส่ง</th>
+                <th className="px-4 py-3.5 sticky top-0">รายการ</th>
+                <th className="px-4 py-3.5 sticky top-0 text-right">ยอดรวม</th>
+                <th className="px-4 py-3.5 sticky top-0">สถานะ</th>
+                <th className="px-4 py-3.5 sticky top-0">สลิป</th>
+                <th className="px-4 py-3.5 sticky top-0">การจัดการ</th>
               </tr>
             </thead>
-            <tbody>
-              {orders.map((o, idx) => (
-                <tr
-                  key={o.id}
-                  className={`border-t border-cream-100 hover:bg-primary-50/60 transition-colors align-top ${idx % 2 === 1 ? "bg-cream-100" : "bg-white"}`}
-                >
-                  <td className="p-3 font-mono text-stone-700">{o.orderCode}</td>
-                  <td className="p-3">
-                    <div className="font-medium text-stone-800">{o.bookerName}</div>
-                    <div className="text-xs text-stone-400">{o.bookerPhone}</div>
-                    <div className="text-xs text-stone-400">{o.bookerEmail}</div>
+            <tbody className="divide-y divide-cream-100">
+              {orders.map((o) => (
+                <tr key={o.id} className="hover:bg-primary-50/50 transition-colors align-top">
+                  <td className="px-4 py-3.5">
+                    <span className="font-mono text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-md">{o.orderCode}</span>
                   </td>
-                  <td className="p-3 max-w-[16rem] text-xs text-stone-600">
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={o.bookerName} />
+                      <div>
+                        <div className="font-medium text-stone-800">{o.bookerName}</div>
+                        <div className="text-xs text-stone-400">{o.bookerPhone}</div>
+                        <div className="text-xs text-stone-400">{o.bookerEmail}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 max-w-[16rem] text-xs text-stone-600">
                     {editingId === o.id ? (
                       <div className="space-y-1.5">
                         <textarea
@@ -199,7 +232,7 @@ export default function AdminMerchOrdersPage() {
                       </div>
                     )}
                   </td>
-                  <td className="p-3">
+                  <td className="px-4 py-3.5">
                     {o.items.map((it: any, i: number) => (
                       <div key={i} className="text-xs text-stone-600">
                         {it.productName}
@@ -207,19 +240,19 @@ export default function AdminMerchOrdersPage() {
                       </div>
                     ))}
                   </td>
-                  <td className="p-3 text-stone-700">{Number(o.totalAmount).toLocaleString()} บาท</td>
-                  <td className="p-3">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_BADGE[o.paymentStatus] || "bg-stone-200 text-stone-600"}`}>
-                      {STATUS_LABEL[o.paymentStatus] || o.paymentStatus}
-                    </span>
+                  <td className="px-4 py-3.5 text-stone-800 font-medium text-right tabular-nums whitespace-nowrap">
+                    {Number(o.totalAmount).toLocaleString()} บาท
                   </td>
-                  <td className="p-3">
+                  <td className="px-4 py-3.5">
+                    <StatusBadge status={o.paymentStatus} />
+                  </td>
+                  <td className="px-4 py-3.5">
                     {o.latestSlipUrl ? (
                       <a
                         href={o.latestSlipUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs px-2.5 py-1 rounded-full font-medium bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors"
+                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors"
                       >
                         ดูสลิป
                       </a>
@@ -228,21 +261,21 @@ export default function AdminMerchOrdersPage() {
                     )}
                     <EasySlipBadge status={o.latestSlipEasyslipStatus} message={o.latestSlipEasyslipMessage} />
                   </td>
-                  <td className="p-3">
+                  <td className="px-4 py-3.5">
                     <div className="flex flex-wrap gap-1.5">
                       {["pending", "awaiting_verify"].includes(o.paymentStatus) && (
                         <>
                           <button
                             onClick={() => act(o.id, "approve")}
                             disabled={busyId === o.id}
-                            className="text-xs px-2.5 py-1.5 rounded-md bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors font-medium"
+                            className="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors font-medium disabled:opacity-50"
                           >
                             อนุมัติ
                           </button>
                           <button
                             onClick={() => act(o.id, "reject")}
                             disabled={busyId === o.id}
-                            className="text-xs px-2.5 py-1.5 rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition-colors font-medium"
+                            className="text-xs px-2.5 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors font-medium disabled:opacity-50"
                           >
                             ปฏิเสธ
                           </button>
