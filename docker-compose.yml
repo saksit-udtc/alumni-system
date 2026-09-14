@@ -102,6 +102,12 @@ services:
       # (no badge shown, nothing blocked). Set the real key in .env on the
       # server, never inline here.
       EASYSLIP_API_KEY: ${EASYSLIP_API_KEY:-}
+      # Resend (https://resend.com) is tried first for outgoing email if set;
+      # falls back to SMTP_* above, or skips silently if neither is set (see
+      # src/lib/mailer.ts). Set the real key in .env on the server, never
+      # inline here — RESEND_FROM_EMAIL must be a verified sender/domain.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
       NODE_ENV: production
     ports:
       - "127.0.0.1:3001:3000"
