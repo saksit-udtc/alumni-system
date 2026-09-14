@@ -39,6 +39,8 @@ export async function GET(req: NextRequest) {
         })),
         latestSlipUrl: slipUrl,
         latestSlipNote: latestSlip?.note || null,
+        latestSlipEasyslipStatus: latestSlip?.easyslipStatus || null,
+        latestSlipEasyslipMessage: latestSlip?.easyslipMessage || null,
       };
     })
   );

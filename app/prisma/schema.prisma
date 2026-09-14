@@ -214,6 +214,18 @@ model PaymentSlip {
   verifiedAt    DateTime?
   note          String?
 
+  // --- EasySlip auto-verification (see lib/easyslip.ts) ---
+  // Filled in fire-and-forget right after upload, fully independent of the
+  // admin's own verifiedBy/verifiedAt above — this is an automated second
+  // opinion the admin sees as a badge next to "ดูสลิป", never a gate on
+  // approval. easyslipStatus is one of "MATCH" | "AMOUNT_MISMATCH" |
+  // "INVALID_SLIP" | "DUPLICATE" | "ERROR" | "SKIPPED" (see SlipVerifyStatus
+  // in lib/easyslip.ts); null until the check has run at least once.
+  easyslipStatus    String?
+  easyslipMessage   String?
+  easyslipTransRef  String?
+  easyslipCheckedAt DateTime?
+
   @@index([reservationId])
 }
 
@@ -339,6 +351,12 @@ model MerchPaymentSlip {
   verifiedByUser AdminUser? @relation("MerchVerifiedBy", fields: [verifiedBy], references: [id])
   verifiedAt     DateTime?
   note           String?
+
+  // --- EasySlip auto-verification — mirrors PaymentSlip above exactly. ---
+  easyslipStatus    String?
+  easyslipMessage   String?
+  easyslipTransRef  String?
+  easyslipCheckedAt DateTime?
 
   @@index([orderId])
 }

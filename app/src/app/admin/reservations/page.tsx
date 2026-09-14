@@ -18,6 +18,24 @@ const STATUS_BADGE: Record<string, string> = {
   expired: "bg-stone-200 text-stone-600",
 };
 
+// EasySlip's automated check, shown next to "ดูสลิป" — purely advisory, the
+// admin can still approve regardless of this badge (see lib/easyslip.ts).
+function EasySlipBadge({ status, message }: { status: string | null; message: string | null }) {
+  if (!status || status === "SKIPPED") return null;
+  const style =
+    status === "MATCH"
+      ? "bg-emerald-100 text-emerald-700"
+      : status === "ERROR"
+      ? "bg-stone-100 text-stone-500"
+      : "bg-red-100 text-red-700"; // AMOUNT_MISMATCH, INVALID_SLIP, DUPLICATE
+  const label = status === "MATCH" ? "✓ ตรงกับธนาคาร" : status === "ERROR" ? "ตรวจสอบไม่สำเร็จ" : "⚠ ไม่ตรง/น่าสงสัย";
+  return (
+    <span title={message || ""} className={`block mt-1 text-[11px] px-2 py-0.5 rounded-full font-medium w-fit ${style}`}>
+      {label}
+    </span>
+  );
+}
+
 /**
  * All-events reservations view — mirrors /admin/merch/orders' shape
  * (dashboard summary cards + table + inline approve/reject actions) so
@@ -138,6 +156,7 @@ export default function AdminAllReservationsPage() {
                     ) : (
                       <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-stone-100 text-stone-400">ไม่มี</span>
                     )}
+                    <EasySlipBadge status={r.latestSlipEasyslipStatus} message={r.latestSlipEasyslipMessage} />
                   </td>
                   <td className="p-3">
                     {r.checkedIn ? (

@@ -3,6 +3,7 @@ import { bookPackage, PackageBookingError } from "@/lib/bookPackage";
 import { prisma } from "@/lib/prisma";
 import { sendBookingReceivedEmail } from "@/lib/mailer";
 import { uploadObject, deleteObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
+import { verifyReservationSlipAsync } from "@/lib/easyslip";
 import crypto from "crypto";
 
 // Public: create a package reservation (Phase 2 of the package feature).
@@ -97,6 +98,10 @@ export async function POST(req: NextRequest) {
         });
       })().catch((err) => console.error("[POST /api/reservations/package] booking-received email failed:", err));
     }
+
+    void verifyReservationSlipAsync(reservation.id, slipFileKey, Number(reservation.totalAmount)).catch((err) =>
+      console.error("[POST /api/reservations/package] easyslip verify failed:", err)
+    );
 
     return NextResponse.json({
       ok: true,

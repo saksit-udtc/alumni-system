@@ -3,6 +3,7 @@ import { bookTable, BookingError } from "@/lib/bookTable";
 import { prisma } from "@/lib/prisma";
 import { sendBookingReceivedEmail } from "@/lib/mailer";
 import { uploadObject, deleteObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
+import { verifyReservationSlipAsync } from "@/lib/easyslip";
 import crypto from "crypto";
 
 // Public: create a reservation (requirement #1 — atomic booking).
@@ -98,6 +99,13 @@ export async function POST(req: NextRequest) {
         });
       })().catch((err) => console.error("[POST /api/reservations] booking-received email failed:", err));
     }
+
+    // Fire-and-forget EasySlip check — never blocks the response and never
+    // throws (see lib/easyslip.ts's own try/catch). Result lands on the
+    // PaymentSlip row a moment later for the admin list to pick up.
+    void verifyReservationSlipAsync(reservation.id, slipFileKey, Number(reservation.totalAmount)).catch((err) =>
+      console.error("[POST /api/reservations] easyslip verify failed:", err)
+    );
 
     return NextResponse.json({
       ok: true,

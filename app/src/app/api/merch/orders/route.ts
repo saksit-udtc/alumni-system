@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createMerchOrder, MerchOrderError } from "@/lib/createMerchOrder";
 import { sendMerchOrderReceivedEmail } from "@/lib/mailer";
 import { uploadObject, deleteObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
+import { verifyMerchOrderSlipAsync } from "@/lib/easyslip";
 import crypto from "crypto";
 
 // Public: create a merch order. Fully independent of table booking.
@@ -83,6 +84,10 @@ export async function POST(req: NextRequest) {
         quantity: it.quantity,
       })),
     });
+
+    void verifyMerchOrderSlipAsync(order.id, slipFileKey, Number(order.totalAmount)).catch((err) =>
+      console.error("[POST /api/merch/orders] easyslip verify failed:", err)
+    );
 
     return NextResponse.json({
       ok: true,
