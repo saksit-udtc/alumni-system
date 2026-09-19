@@ -119,13 +119,12 @@ function CloseIcon() {
 type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAFF" | "RESERVATION_STAFF";
 
 // roles: undefined = visible to every logged-in admin.
-const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; roles?: AdminRole[]; section?: string }[] = [
+type NavChild = { href: string; label: string };
+const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; roles?: AdminRole[]; section?: string; children?: NavChild[] }[] = [
   { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true, roles: ["SUPER_ADMIN"] },
   { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "RESERVATION_STAFF"] },
-  // ซ่อนเมนู "แบนเนอร์หน้าแรก" ไว้ก่อนตามคำขอผู้ใช้ — หน้า /admin/home-banners
-  // และ API ที่เกี่ยวข้องยังทำงานอยู่ตามปกติ แค่ไม่แสดงลิงก์ในเมนูแอดมิน
-  { href: "/admin/landing", label: "จัดการหน้าแรก (Landing)", icon: "image", roles: ["SUPER_ADMIN"] },
   { href: "/admin/reservations", label: "รายการจอง", icon: "checkin", roles: ["SUPER_ADMIN", "FINANCE_STAFF"] },
+  { href: "/admin/support-registrations", label: "ศิษย์เก่าดีเด่น/ผู้สนับสนุน", icon: "users", roles: ["SUPER_ADMIN", "FINANCE_STAFF"] },
   { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"] },
   { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"] },
   { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"] },
@@ -134,7 +133,20 @@ const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; r
   { href: "/admin/packages", label: "จัดการแพ็กเกจ", icon: "gift", roles: ["SUPER_ADMIN", "MERCH_STAFF", "RESERVATION_STAFF"] },
   { href: "/admin/audit-log", label: "บันทึกการใช้งาน", icon: "log", roles: ["SUPER_ADMIN"], section: "Admin Action" },
   { href: "/admin/users", label: "จัดการผู้ใช้งาน", icon: "users", roles: ["SUPER_ADMIN"], section: "Admin Action" },
-  { href: "/admin/settings", label: "ตั้งค่าระบบ", icon: "gear", roles: ["SUPER_ADMIN"], section: "Admin Action" },
+  // เมนู "ตั้งค่า" เป็นกลุ่ม: รวมตั้งค่าระบบ + แบนเนอร์สไลด์ + โปสเตอร์ + จัดการหน้าแรก
+  {
+    href: "/admin/settings",
+    label: "ตั้งค่า",
+    icon: "gear",
+    roles: ["SUPER_ADMIN"],
+    section: "Admin Action",
+    children: [
+      { href: "/admin/settings", label: "ตั้งค่าระบบ" },
+      { href: "/admin/home-banners", label: "แบนเนอร์สไลด์หน้าแรก" },
+      { href: "/admin/poster", label: "โปสเตอร์งาน" },
+      { href: "/admin/landing", label: "จัดการหน้าแรก (Landing)" },
+    ],
+  },
 ];
 
 // ป้ายชื่อบทบาทภาษาไทย (ใช้ในตัวเลือก "มุมมองทดสอบ" และแบนเนอร์)
@@ -150,6 +162,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [role, setRole] = useState<AdminRole | null>(null);
   const [actualRole, setActualRole] = useState<AdminRole | null>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
@@ -259,9 +272,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const Brand = (
     <Link href="/admin" className="flex items-center gap-2.5 px-5 h-16 border-b border-cream-200 shrink-0">
-      <img src="/logo.jpg" alt="ตราสัญลักษณ์" className="w-9 h-9 rounded-full object-cover shrink-0" />
+      <img src="/logo-89.png" alt="โลโก้ 89 ปี วิทยาลัยเทคนิคอุดรธานี" className="w-9 h-9 object-contain shrink-0" />
       <span className="leading-tight">
-        <span className="block font-display font-semibold text-stone-800 text-sm">งานคืนสู่เหย้า</span>
+        <span className="block font-semibold text-stone-800 text-sm" style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }}>คืนสู่เหย้า วท.อุดรธานี</span>
         <span className="block text-xs text-stone-400">ระบบแอดมิน</span>
       </span>
     </Link>
@@ -280,10 +293,54 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {item.section}
               </div>
             )}
-            <Link href={item.href} className={itemClass(item.href, item.exact)} onClick={() => setMobileOpen(false)}>
-              <NavIcon name={item.icon} />
-              {item.label}
-            </Link>
+            {item.children ? (
+              (() => {
+                const groupActive = item.children.some((c) => pathname?.startsWith(c.href));
+                const open = settingsOpen || groupActive;
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setSettingsOpen((v) => !v)}
+                      aria-expanded={open}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors border-l-2 ${
+                        groupActive ? "text-maroon-700 font-semibold border-maroon-700" : "text-stone-600 hover:bg-cream-50 hover:text-maroon-700 border-transparent"
+                      }`}
+                    >
+                      <NavIcon name={item.icon} />
+                      <span className="flex-1 text-left">{item.label}</span>
+                      <svg viewBox="0 0 24 24" className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
+                    {open && (
+                      <div className="mt-1 ml-4 pl-3 border-l border-cream-200 space-y-0.5">
+                        {item.children.map((c) => {
+                          const active = pathname === c.href || (c.href !== "/admin/settings" && pathname?.startsWith(c.href));
+                          return (
+                            <Link
+                              key={c.href}
+                              href={c.href}
+                              onClick={() => setMobileOpen(false)}
+                              className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                                active ? "bg-primary-50 text-maroon-700 font-semibold" : "text-stone-600 hover:bg-cream-50 hover:text-maroon-700"
+                              }`}
+                            >
+                              {c.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()
+            ) : (
+              <Link href={item.href} className={itemClass(item.href, item.exact)} onClick={() => setMobileOpen(false)}>
+                <NavIcon name={item.icon} />
+                {item.label}
+              </Link>
+            )}
           </div>
         );
       })}
@@ -304,6 +361,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-cream-50 flex">
+      {/* ฟอนต์ชื่อแบรนด์เหมือนหน้าแรก */}
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" />
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 border-r border-cream-200 bg-white lg:sticky lg:top-0 lg:h-screen">
         {Brand}

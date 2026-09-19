@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { generateQrPngBuffer, checkinUrl } from "./qrcode";
 import { logEmail } from "./auditLog";
+import { supportReward } from "./supportConfig";
 
 function getTransport() {
   return nodemailer.createTransport({
@@ -513,4 +514,99 @@ export async function sendSlipReceivedEmail(args: SlipReceivedEmailArgs): Promis
     console.error("[mailer] failed to send slip-received email (non-fatal):", err);
     await logEmail({ type: "SLIP_RECEIVED", recipient: args.to, status: "FAILED", error: String(err) });
   }
+}
+
+// ---------------------------------------------------------------------------
+// ลงทะเบียนศิษย์เก่าดีเด่น / ผู้สนับสนุนงาน — อีเมล 2 ฉบับ (ได้รับสลิป, ยืนยันแล้ว)
+// Same fail-soft contract as every sender above: never throws.
+// ---------------------------------------------------------------------------
+
+interface SupportEmailArgs {
+  to: string;
+  name: string;
+  type: "distinguished_alumni" | "sponsor";
+  code: string;
+  amount: number;
+}
+
+const SUPPORT_LABEL = { distinguished_alumni: "ศิษย์เก่าดีเด่น", sponsor: "ผู้สนับสนุนงาน" } as const;
+
+// บรรทัด "สิ่งที่จะได้รับ" (เกียรติบัตร/โล่) ตามประเภทและยอดเงิน
+function rewardLi(args: SupportEmailArgs): string {
+  const reward = supportReward(args.type, args.amount);
+  return reward ? `\n        <li>สิ่งที่จะได้รับ: <strong>${reward}</strong></li>` : "";
+}
+
+function escapeHtml(v: string): string {
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+async function sendSupportEmail(logType: string, to: string, subject: string, html: string): Promise<void> {
+  try {
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        to,
+        subject,
+        html,
+      });
+      if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      await logEmail({ type: logType, recipient: to, status: "SUCCESS" });
+      return;
+    }
+    if (process.env.SMTP_HOST) {
+      const transport = getTransport();
+      await transport.sendMail({
+        from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
+        to,
+        subject,
+        html,
+      });
+      await logEmail({ type: logType, recipient: to, status: "SUCCESS" });
+      return;
+    }
+    console.warn(`[mailer] neither RESEND_API_KEY nor SMTP_HOST configured, skipping ${logType} email`);
+  } catch (err) {
+    console.error(`[mailer] failed to send ${logType} email (non-fatal):`, err);
+    await logEmail({ type: logType, recipient: to, status: "FAILED", error: String(err) });
+  }
+}
+
+export async function sendSupportRegistrationReceivedEmail(args: SupportEmailArgs): Promise<void> {
+  const label = SUPPORT_LABEL[args.type];
+  const html = `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>ได้รับการลงทะเบียน${label}แล้ว</h2>
+      <p>เรียน คุณ${escapeHtml(args.name)}</p>
+      <p>เราได้รับข้อมูลการลงทะเบียน${label} พร้อมสลิปการโอนเงินของท่านเรียบร้อยแล้ว</p>
+      <ul>
+        <li>รหัสลงทะเบียน: <strong>${args.code}</strong></li>
+        <li>ยอดชำระ: <strong>${args.amount.toLocaleString("th-TH")} บาท</strong></li>${rewardLi(args)}
+      </ul>
+      <p>เจ้าหน้าที่กำลังตรวจสอบสลิป เมื่อตรวจสอบเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันให้ท่านอีกครั้ง</p>
+    </div>
+  `;
+  await sendSupportEmail("SUPPORT_REG_RECEIVED", args.to, `ได้รับการลงทะเบียน${label} - ${args.code}`, html);
+}
+
+export async function sendSupportRegistrationConfirmedEmail(args: SupportEmailArgs): Promise<void> {
+  const label = SUPPORT_LABEL[args.type];
+  const thanks =
+    args.type === "sponsor"
+      ? "ขอบพระคุณที่ร่วมสนับสนุนงานคืนสู่เหย้า วิทยาลัยเทคนิคอุดรธานี"
+      : "ขอบคุณที่ร่วมลงทะเบียนศิษย์เก่าดีเด่นในงานคืนสู่เหย้า วิทยาลัยเทคนิคอุดรธานี";
+  const html = `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>ยืนยันการลงทะเบียน${label}สำเร็จ</h2>
+      <p>เรียน คุณ${escapeHtml(args.name)}</p>
+      <p>เจ้าหน้าที่ตรวจสอบการชำระเงินของท่านเรียบร้อยแล้ว การลงทะเบียน${label}ได้รับการยืนยัน</p>
+      <ul>
+        <li>รหัสลงทะเบียน: <strong>${args.code}</strong></li>
+        <li>ยอดชำระ: <strong>${args.amount.toLocaleString("th-TH")} บาท</strong></li>${rewardLi(args)}
+      </ul>
+      <p>${thanks}</p>
+    </div>
+  `;
+  await sendSupportEmail("SUPPORT_REG_CONFIRMED", args.to, `ยืนยันการลงทะเบียน${label} - ${args.code}`, html);
 }

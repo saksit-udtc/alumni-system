@@ -194,7 +194,7 @@ export default function AdminHomeBannersPage() {
           </label>
         </div>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">รูปแบนเนอร์ * (แนะนำอัตราส่วนแนวนอนกว้าง เช่น 1600x600)</span>
+          <span className="font-medium">รูปแบนเนอร์ * (แนะนำภาพแนวนอน 16:9 เช่น 1920x1080 หน้าเว็บจะแสดงเต็มภาพไม่ครอป)</span>
           <input
             ref={fileInputRef}
             type="file"
@@ -221,7 +221,7 @@ export default function AdminHomeBannersPage() {
         <div className="flex flex-col gap-3">
           {banners.map((b, idx) => (
             <div key={b.id} className="bg-white rounded-xl border border-cream-200 shadow-md p-4 flex flex-wrap items-center gap-4">
-              <img src={b.imageUrl} alt={b.title || "แบนเนอร์"} className="w-32 h-16 object-cover rounded-lg border border-cream-200 shrink-0" />
+              <img src={b.imageUrl} alt={b.title || "แบนเนอร์"} className="w-32 h-[72px] object-contain bg-stone-100 rounded-lg border border-cream-200 shrink-0" />
               <div className="flex-1 min-w-[160px]">
                 <div className="font-display font-semibold text-stone-800">{b.title || <span className="text-stone-400 font-normal">(ไม่มีหัวข้อ)</span>}</div>
                 {b.linkUrl && <div className="text-xs text-primary-700 truncate max-w-xs">{b.linkUrl}</div>}

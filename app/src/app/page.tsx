@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface EventItem {
   id: string;
@@ -41,6 +42,8 @@ interface LandingContent {
   sponsors: SponsorTier[];
   faq: FaqItem[];
 }
+
+interface HomeBannerItem { id: string; title: string | null; linkUrl: string | null; imageUrl: string }
 
 interface GalleryImage {
   id: string;
@@ -88,17 +91,75 @@ export default function HomePage() {
   const [content, setContent] = useState<LandingContent | null>(null);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [fabOpen, setFabOpen] = useState(false); // speed-dial ปุ่มลอย (เฉพาะมือถือ)
   const [openFaq, setOpenFaq] = useState(0);
   const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
   const [countdown, setCountdown] = useState({ d: "--", h: "--", m: "--", s: "--" });
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const router = useRouter();
+  const [banners, setBanners] = useState<HomeBannerItem[]>([]);
+  const [bannerSeconds, setBannerSeconds] = useState(5);
+  const [slide, setSlide] = useState(0);
+  // โปสเตอร์งาน (จัดการที่ /admin/poster) — ค่าเริ่มต้น = ภาพที่มากับแอป
+  const [poster, setPoster] = useState({ enabled: true, imageUrl: "/poster.jpg" });
+  // ข้อความแจ้งเตือนลอย (เช่น "ยังไม่มีงานที่เปิดให้จอง") — หายเองใน 4 วินาที
+  const [toast, setToast] = useState("");
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   useEffect(() => {
     fetch("/api/events")
       .then((r) => r.json())
       .then((data) => setEvents(data.events || []));
   }, []);
+
+  // สไลด์แบนเนอร์หน้าแรก (จัดการที่ /admin/home-banners)
+  useEffect(() => {
+    fetch("/api/home-banners")
+      .then((r) => r.json())
+      .then((data) => {
+        setBanners(data.banners || []);
+        if (Number(data.intervalSeconds) >= 1) setBannerSeconds(Number(data.intervalSeconds));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/poster")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && typeof data.imageUrl === "string") setPoster({ enabled: data.enabled !== false, imageUrl: data.imageUrl });
+      })
+      .catch(() => {});
+  }, []);
+
+  // ดาวน์โหลดโปสเตอร์เป็นไฟล์ (ถ้าดึงไฟล์ข้ามโดเมนไม่ได้ จะเปิดรูปในแท็บใหม่แทน)
+  async function downloadPoster() {
+    try {
+      const res = await fetch(poster.imageUrl);
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `poster-homecoming-89.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      window.open(poster.imageUrl, "_blank", "noopener");
+    }
+  }
+
+  useEffect(() => {
+    if (banners.length < 2) return;
+    const t = setInterval(() => setSlide((i) => (i + 1) % banners.length), bannerSeconds * 1000);
+    return () => clearInterval(t);
+  }, [banners.length, bannerSeconds, slide]);
 
   useEffect(() => {
     fetch("/api/landing")
@@ -138,6 +199,28 @@ export default function HomePage() {
   const bookableEvent = events.find((e) => e.status === "open") || events[0];
   const bookHref = bookableEvent ? `/events/${bookableEvent.id}` : "#tickets";
 
+  // ลิงก์/ปุ่ม "จองโต๊ะ" ทุกจุดในหน้านี้: ไปหน้าจองของงานโดยตรงเสมอ
+  // - ถ้ารู้งานแล้ว ลิงก์ปกติพาไป /events/[id] เอง
+  // - ถ้ารายการงานยังโหลดไม่เสร็จ/ยังว่าง จะดึงรายการงานตอนกด แล้วพาไปหน้าจองทันที
+  // - ถ้าไม่มีงานที่เปิดให้จองเลย แสดงข้อความแจ้ง แทนการเลื่อนหน้าเงียบๆ
+  async function goBook(e: React.MouseEvent) {
+    if (bookableEvent) return;
+    e.preventDefault();
+    try {
+      const d = await fetch("/api/events").then((r) => r.json());
+      const list: EventItem[] = d.events || [];
+      const ev = list.find((x) => x.status === "open") || list[0];
+      if (ev) {
+        router.push(`/events/${ev.id}`);
+        return;
+      }
+    } catch {
+      setToast("โหลดข้อมูลงานไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      return;
+    }
+    setToast("ยังไม่มีงานที่เปิดให้จอง");
+  }
+
   const categories = ["ทั้งหมด", ...Array.from(new Set(gallery.map((g) => g.category)))];
   const filteredGallery = activeCategory === "ทั้งหมด" ? gallery : gallery.filter((g) => g.category === activeCategory);
 
@@ -162,7 +245,6 @@ export default function HomePage() {
             <Link href="/status">ตรวจสอบการจอง</Link>
             <Link href="/admin/login" style={{ opacity: 0.6, fontSize: 12 }}>เจ้าหน้าที่</Link>
           </div>
-          <Link href={bookHref} className="nav-cta">จองโต๊ะ</Link>
           <button className="burger" onClick={() => setMobileOpen((v) => !v)} aria-label="เมนู">☰</button>
         </nav>
         <div className={`mobile-menu${mobileOpen ? " open" : ""}`}>
@@ -177,28 +259,82 @@ export default function HomePage() {
           ))}
           <Link href="/status" onClick={() => setMobileOpen(false)}>ตรวจสอบการจอง</Link>
           <Link href="/admin/login" onClick={() => setMobileOpen(false)}>เจ้าหน้าที่</Link>
-          <Link href={bookHref} onClick={() => setMobileOpen(false)}>จองโต๊ะ →</Link>
         </div>
       </header>
 
-      <div className="floating-menu">
-        <div className={`fab-actions${fabOpen ? " open" : ""}`}>
-          <Link href={bookHref} className="floating-btn floating-btn-primary">จองโต๊ะ</Link>
-          <Link href="/merch" className="floating-btn floating-btn-secondary">สินค้า</Link>
-          {/* ปุ่มลอยที่ 3: ศิษย์เก่า -> /register */}
-          <Link href="/register" className="floating-btn floating-btn-secondary">ศิษย์เก่า</Link>
+      {banners.length > 0 && (
+        <section className="promo-slider" aria-label="ประชาสัมพันธ์">
+          <div className="promo-track">
+            {banners.map((b, i) => {
+              const img = <img src={b.imageUrl} alt={b.title || "แบนเนอร์"} className="promo-img" draggable={false} />;
+              const external = !!b.linkUrl && /^https?:\/\//i.test(b.linkUrl);
+              return (
+                <div key={b.id} className={`promo-slide${i === slide ? " active" : ""}`} aria-hidden={i !== slide}>
+                  {b.linkUrl ? (
+                    external ? (
+                      <a href={b.linkUrl} target="_blank" rel="noreferrer" tabIndex={i === slide ? 0 : -1}>{img}</a>
+                    ) : (
+                      <Link href={b.linkUrl} tabIndex={i === slide ? 0 : -1}>{img}</Link>
+                    )
+                  ) : (
+                    img
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {banners.length > 1 && (
+            <>
+              <button type="button" className="promo-arrow left" aria-label="ภาพก่อนหน้า" onClick={() => setSlide((i) => (i - 1 + banners.length) % banners.length)}>‹</button>
+              <button type="button" className="promo-arrow right" aria-label="ภาพถัดไป" onClick={() => setSlide((i) => (i + 1) % banners.length)}>›</button>
+              <div className="promo-dots">
+                {banners.map((b, i) => (
+                  <button key={b.id} type="button" aria-label={`ภาพที่ ${i + 1}`} className={i === slide ? "on" : ""} onClick={() => setSlide(i)} />
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      <section className={`menu-cards${banners.length > 0 ? " after-slider" : ""}`} aria-label="เมนูหลัก">
+        <div className="wrap menu-grid">
+          {[
+            { href: bookHref, onClick: goBook, title: "จองโต๊ะงานเลี้ยง", tone: "green", icon: "M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM9 15l2 2 4-4" },
+            { href: "/merch", title: "สั่งซื้อของที่ระลึก", tone: "blue", icon: "M6 8h12l1 12H5L6 8zM9 8a3 3 0 016 0" },
+            { href: "/distinguished-alumni", title: "ลงทะเบียนศิษย์เก่าดีเด่น", tone: "pink", icon: "M2 9l10-5 10 5-10 5L2 9zM6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5" },
+            { href: "/sponsor", title: "ลงทะเบียนผู้สนับสนุนงาน", tone: "rose", icon: "M12 20s-7-4.5-7-10a4 4 0 017-2.5A4 4 0 0119 10c0 5.5-7 10-7 10z" },
+          ].map((c) => (
+            <Link key={c.title} href={c.href} onClick={c.onClick} className="menu-card">
+              <span className="menu-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="34" height="34">
+                  <path d={c.icon} />
+                </svg>
+              </span>
+              <span className="menu-title">{c.title}</span>
+              <span className="menu-btn">เข้าใช้งาน</span>
+            </Link>
+          ))}
         </div>
-        {/* ปุ่มรวม (speed-dial) — แสดงเฉพาะจอมือถือ (ดู CSS .fab-toggle) */}
-        <button
-          type="button"
-          className="fab-toggle"
-          onClick={() => setFabOpen((v) => !v)}
-          aria-expanded={fabOpen}
-          aria-label={fabOpen ? "ปิดเมนูลัด" : "เปิดเมนูลัด"}
-        >
-          {fabOpen ? "✕" : "•••"}
-        </button>
-      </div>
+      </section>
+
+      {poster.enabled && (
+        <section className="poster-section" id="poster" aria-label="โปสเตอร์งาน">
+          <div className="wrap">
+          <h2 className="poster-title">โปสเตอร์งาน</h2>
+          <button
+            type="button"
+            className="poster-frame"
+            onClick={() => setLightboxImage(poster.imageUrl)}
+            aria-label="แตะเพื่อขยายดูโปสเตอร์เต็มจอ"
+          >
+            <img src={poster.imageUrl} alt="โปสเตอร์ประเพณีคืนสู่เหย้า 89 ปี เทคนิคอุดร" loading="lazy" />
+          </button>
+          <p className="poster-hint">แตะที่รูปเพื่อขยายดูเต็มจอ</p>
+          <button type="button" className="poster-dl" onClick={downloadPoster}>ดาวน์โหลดโปสเตอร์</button>
+          </div>
+        </section>
+      )}
 
       <section
         className="hero"
@@ -222,7 +358,7 @@ export default function HomePage() {
             <h1>{content.heroTitleLine1}<br /><span className="accent accent-serif">{content.heroTitleLine2}</span></h1>
             <p className="lead">{content.heroLead}</p>
             <div className="hero-actions">
-              <Link href={bookHref} className="btn-primary">จองโต๊ะ / ลงทะเบียน</Link>
+              <Link href={bookHref} onClick={goBook} className="btn-primary">จองโต๊ะ / ลงทะเบียน</Link>
               <a href="#tickets" className="btn-ghost">ดูรายละเอียดบัตร</a>
             </div>
             <div className="countdown">
@@ -252,19 +388,19 @@ export default function HomePage() {
           <div className="ticket-wrap">
             <div className="ticket-left">
               <div className="perforation" />
-              <div className="mono" style={{ fontSize: 12, color: "var(--gold-bright)", letterSpacing: ".05em" }}>TABLE RESERVATION · 89th ANNIVERSARY</div>
+              <div className="mono" style={{ fontSize: 12, color: "var(--gold-text)", letterSpacing: ".05em" }}>TABLE RESERVATION · 89th ANNIVERSARY</div>
               <div className="price">{content.pricePerTable.toLocaleString("th-TH")}<sup>บาท</sup></div>
               <div className="note">ต่อโต๊ะ · จองโต๊ะ 1 โต๊ะ 8 ที่นั่ง</div>
             </div>
             <div className="ticket-right">
               <ul>
                 <li><span className="chk">✓</span> ร่วมงานคืนสู่เหย้าเต็มรูปแบบ</li>
-                <li><span className="chk">✓</span> รับประทานอาหารโต๊ะจีน พร้อมบูธบริการอาหารตลอดงาน</li>
+                <li><span className="chk">✓</span> รับประทานอาหารโต๊ะจีน พร้อมเครื่องดื่มตลอดงาน</li>
                 <li><span className="chk">✓</span> ร่วมพิธีบวงสรวงพระวิษณุ พิธีคลาสสิกประจำงาน</li>
                 <li><span className="chk">✓</span> ชมกิจกรรมและการแสดง</li>
                 <li><span className="chk">✓</span> ร่วมประมูลของที่ระลึก</li>
               </ul>
-              <Link href={bookHref} className="btn-primary" style={{ marginTop: 24, display: "inline-block", background: "var(--navy)", color: "var(--paper)" }}>จองโต๊ะการเลี้ยงเลย →</Link>
+              <Link href={bookHref} onClick={goBook} className="btn-primary" style={{ marginTop: 24, display: "inline-block", background: "var(--btn-dark-bg)", color: "var(--btn-dark-fg)" }}>จองโต๊ะการเลี้ยงเลย →</Link>
             </div>
           </div>
         </div>
@@ -275,7 +411,7 @@ export default function HomePage() {
           <div className="section-head">
             <div className="kicker">ของที่ระลึก</div>
             <h2>ของที่ระลึกงานคืนสู่เหย้า</h2>
-            <p>เลือกเสื้อที่ระลึก เหรียญที่ระลึกและแก้วเก็บความเย็น เปิดให้สั่งซื้อเพิ่มเติมได้</p>
+            <p>เสื้อคอโปโล เสื้อคอกลม แก้วที่ระลึก และเหรียญพระวิษณุกรรม เปิดให้สั่งซื้อเพิ่มเติมได้</p>
           </div>
           <div className="merch-items-grid">
             {content.merchItems.map((item, i) => (
@@ -300,7 +436,7 @@ export default function HomePage() {
             ))}
           </div>
           <div className="merch-size-block">
-            <div className="spec-label" style={{ color: "var(--gold)", marginBottom: 10 }}>ตารางไซซ์เสื้อ (นิ้ว) — ใช้ได้ทั้งคอปกและคอกลม</div>
+            <div className="spec-label" style={{ color: "var(--gold-ink)", marginBottom: 10 }}>ตารางไซซ์เสื้อ (นิ้ว) — ใช้ได้ทั้งคอปกและคอกลม</div>
             <table className="size-table">
               <tbody>
                 <tr><th>ไซซ์</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>2XL</th><th>3XL</th></tr>
@@ -309,12 +445,12 @@ export default function HomePage() {
               </tbody>
             </table>
             <p className="size-note">หน่วยเป็นนิ้ว วัดจากตัวเสื้อ อาจคลาดเคลื่อนได้เล็กน้อยตามการตัดเย็บ · เลือกแบบเสื้อและไซซ์ได้ตอนลงทะเบียน ส่วนเหรียญและแก้วสั่งซื้อเพิ่มเติมได้ในระบบเดียวกัน</p>
-            <Link href={bookHref} className="btn-primary" style={{ background: "var(--navy)", color: "var(--paper)", display: "inline-block" }}>จองโต๊ะการเลี้ยงพร้อมเลือกของที่ระลึก</Link>
+            <Link href={bookHref} onClick={goBook} className="btn-primary" style={{ background: "var(--btn-dark-bg)", color: "var(--btn-dark-fg)", display: "inline-block" }}>จองโต๊ะการเลี้ยงพร้อมเลือกของที่ระลึก</Link>
           </div>
         </div>
       </section>
 
-      <section id="schedule" style={{ background: "var(--paper-dim)" }}>
+      <section id="schedule" style={{ background: "var(--bg-alt)" }}>
         <div className="wrap">
           <div className="section-head">
             <div className="kicker">กำหนดการ</div>
@@ -337,9 +473,9 @@ export default function HomePage() {
       <section className="honor-band" id="honor">
         <div className="wrap">
           <div className="section-head">
-            <div className="kicker" style={{ color: "var(--gold-bright)" }}>แขกผู้มีเกียรติ</div>
-            <h2 style={{ color: "var(--paper)" }}>แด่ครูผู้สร้างช่างฝีมือ</h2>
-            <p style={{ color: "var(--paper-dim)" }}>แม้ออกจากรั้ววิทยาลัยไปนานเพียงใด บทเรียนของครูยังคงอยู่เสมอ</p>
+            <div className="kicker" style={{ color: "var(--gold-text)" }}>แขกผู้มีเกียรติ</div>
+            <h2 style={{ color: "var(--on-surf)" }}>แด่ครูผู้สร้างช่างฝีมือ</h2>
+            <p style={{ color: "var(--on-surf-dim)" }}>แม้ออกจากรั้ววิทยาลัยไปนานเพียงใด บทเรียนของครูยังคงอยู่เสมอ</p>
           </div>
           <div className="honor-grid">
             {content.honorGuests.map((g, i) => (
@@ -375,7 +511,7 @@ export default function HomePage() {
               <p>{content.parkingNote}</p>
             </div>
             {content.mapUrl ? (
-              <a href={content.mapUrl} target="_blank" rel="noopener" className="btn-ghost" style={{ borderColor: "var(--navy)", color: "var(--navy)", display: "inline-block" }}>ดูแผนที่ →</a>
+              <a href={content.mapUrl} target="_blank" rel="noopener" className="btn-ghost" style={{ borderColor: "var(--frame)", color: "var(--head)", display: "inline-block" }}>ดูแผนที่ →</a>
             ) : null}
           </div>
           <div className="venue-visual">
@@ -386,7 +522,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="gallery" style={{ background: "var(--paper-dim)" }}>
+      <section id="gallery" style={{ background: "var(--bg-alt)" }}>
         <div className="wrap">
           <div className="section-head">
             <div className="kicker">คลังภาพ</div>
@@ -424,7 +560,7 @@ export default function HomePage() {
           <div className="section-head">
             <div className="kicker">ร่วมเป็นส่วนหนึ่ง</div>
             <h2>เปิดรับผู้สนับสนุน</h2>
-            <p>การสนับสนุนของท่านช่วยให้ค่ำคืนนี้เกิดขึ้นได้ และสมทบทุนการศึกษาแก่นักศึกษาปัจจุบัน</p>
+            <p>การสนับสนุนของท่านช่วยให้ค่ำคืนนี้เกิดขึ้นได้ และสมทบทุนจัดซื้อรถมินิบัสสำหรับนักเรียน-นักศึกษา</p>
           </div>
           <div className="sponsor-grid">
             {content.sponsors.map((s, i) => (
@@ -442,7 +578,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="faq" style={{ background: "var(--paper-dim)" }}>
+      <section id="faq" style={{ background: "var(--bg-alt)" }}>
         <div className="wrap" style={{ maxWidth: 820 }}>
           <div className="section-head">
             <div className="kicker">คำถามที่พบบ่อย</div>
@@ -468,16 +604,20 @@ export default function HomePage() {
           <div className="eyebrow-tech" style={{ justifyContent: "center" }}>89 ปี วิทยาลัยเทคนิคอุดรธานี</div>
           <h2>มาเจอกันนะ.</h2>
           <p>{content.eventDateShortLabel} · {content.venueName} · โต๊ะละ {content.pricePerTable.toLocaleString("th-TH")} บาท (8 ที่นั่ง)</p>
-          <Link href={bookHref} className="btn-primary">จองโต๊ะการเลี้ยงตอนนี้</Link>
+          <Link href={bookHref} onClick={goBook} className="btn-primary">จองโต๊ะการเลี้ยงตอนนี้</Link>
         </div>
       </section>
 
       <footer>
         <div className="wrap foot-row">
           <span>© 2569 ทีมผู้จัดงานคืนสู่เหย้า วิทยาลัยเทคนิคอุดรธานี</span>
-          <span><Link href={bookHref}>ระบบจองโต๊ะออนไลน์ →</Link></span>
+          <span><Link href={bookHref} onClick={goBook}>ระบบจองโต๊ะออนไลน์ →</Link></span>
         </div>
       </footer>
+
+      {toast && (
+        <div className="book-toast" role="status" aria-live="polite">{toast}</div>
+      )}
 
       {lightboxImage && (
         <div className="lightbox-overlay" onClick={() => setLightboxImage(null)}>
@@ -495,31 +635,163 @@ export default function HomePage() {
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Trirong:ital,wght@0,500;0,600;0,700;1,600&family=Fraunces:ital,wght@0,500;0,600;1,500;1,600&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Space+Mono&display=swap');
-        body{ background: var(--paper, #F3EFE6); }
+        body{ background: rgb(var(--c-cream-100)); }
       `}</style>
       <style jsx>{`
         .landingRoot{
+          /* ค่าคงที่ (ใช้เหมือนกันทุกธีม เช่นซ้อนบนรูปภาพ) */
           --navy-deep:#0A1E33;
           --navy:#0E2A47;
           --navy-soft:#16385C;
           --gold:#C6A15B;
           --gold-bright:#DDBD7C;
+          --gold-rgb:198,161,91;  /* เท่ากับ --gold (ใช้ทำเส้น/กรอบโปร่งใส) */
           --paper:#F3EFE6;
           --paper-dim:#E7E1D2;
+          /* ตัวแปรตามบทบาท — ธีม กรมท่า-ทอง (ค่าเริ่มต้น) */
+          --bg-page:#F3EFE6;      /* พื้นหน้าเว็บ */
+          --bg-alt:#E7E1D2;       /* พื้นส่วนสลับสี */
+          --hairline:#E7E1D2;     /* เส้นคั่นบางๆ */
+          --surf-deep:#0A1E33;    /* พื้นเข้ม: header/hero/footer/แถบ */
+          --surf:#0E2A47;         /* พื้นเข้มรอง: บัตร/ภาพประกอบ */
+          --surf-soft:#16385C;
+          --on-surf:#F3EFE6;      /* ตัวอักษรบนพื้นเข้ม */
+          --on-surf-dim:#E7E1D2;
+          --head:#0E2A47;         /* หัวข้อบนพื้นสว่าง */
+          --frame:#0E2A47;        /* เส้นกรอบ */
+          --on-gold:#0A1E33;      /* ตัวอักษรบนปุ่มทอง */
+          --gold-text:#DDBD7C;    /* ตัวอักษรสีทองบนพื้นเข้ม */
+          --gold-ink:#C6A15B;     /* ตัวอักษรเล็กสีทองบนพื้นสว่าง */
+          --btn-dark-bg:#0E2A47;
+          --btn-dark-fg:#F3EFE6;
+          --header-bg:rgba(10,30,51,0.92);
+          --spec-bg:rgba(243,239,230,0.04);
+          --ghost-border:rgba(243,239,230,0.35);
+          --card-a:#16385C;
+          --card-b:#0E2A47;
+          --card-ink:#F3EFE6;
+          --card-shadow:rgba(0,0,0,.4);
           --slate:#5B6B80;
           --ink:#132132;
-          --line:rgba(198,161,91,0.28);
-          background:var(--paper);
+          --line:rgba(var(--gold-rgb),0.28);
+          background:var(--bg-page);
           color:var(--ink);
           font-family:'IBM Plex Sans Thai', sans-serif;
           line-height:1.7;
           overflow-x:hidden;
+        }
+        /* ธีม ขาว-ทอง */
+        :global([data-theme="white-gold"]) .landingRoot{
+          --bg-page:#FFFDF7;
+          --bg-alt:#FBF4E0;
+          --hairline:#EFE3C2;
+          --surf-deep:#FFF8E5;
+          --surf:#F6EBCB;
+          --surf-soft:#FFFFFF;
+          --on-surf:#2B2410;
+          --on-surf-dim:#6B5A2E;
+          --head:#2E2410;
+          --frame:#C6A15B;
+          --on-gold:#2B2005;
+          --gold-text:#8A6B28;
+          --gold-ink:#9A7628;
+          --btn-dark-bg:#8F6C22;
+          --btn-dark-fg:#FFFFFF;
+          --header-bg:rgba(255,253,247,0.94);
+          --spec-bg:rgba(255,255,255,0.75);
+          --ghost-border:rgba(143,108,34,0.5);
+          --card-a:#FFFFFF;
+          --card-b:#FFF8E5;
+          --card-ink:#33290F;
+          --card-shadow:rgba(143,108,34,.25);
+          --slate:#7A6A44;
+          --ink:#2B2410;
+          --line:rgba(var(--gold-rgb),0.45);
+        }
+        /* ธีม น้ำเงิน-ส้ม (อ้างอิงเว็บ FunRun) */
+        :global([data-theme="blue-orange"]) .landingRoot{
+          --gold:#D94F17;
+          --gold-bright:#F15A22;
+          --gold-rgb:29,99,196;   /* เส้น/กรอบบางๆ ใช้โทนน้ำเงิน */
+          --bg-page:#FFFFFF;
+          --bg-alt:#F4F6FA;
+          --hairline:#E2E8F2;
+          --surf-deep:#EEF4FB;
+          --surf:#E9F1FC;
+          --surf-soft:#FFFFFF;
+          --on-surf:#1E293B;
+          --on-surf-dim:#475569;
+          --head:#164A94;
+          --frame:#1D63C4;
+          --on-gold:#FFFFFF;
+          --gold-text:#C4460F;
+          --gold-ink:#C4460F;
+          --btn-dark-bg:#1D63C4;
+          --btn-dark-fg:#FFFFFF;
+          --header-bg:rgba(255,255,255,0.92);
+          --spec-bg:rgba(255,255,255,0.85);
+          --ghost-border:rgba(29,99,196,0.45);
+          --card-a:#FFFFFF;
+          --card-b:#EEF4FB;
+          --card-ink:#1E293B;
+          --card-shadow:rgba(29,99,196,.18);
+          --slate:#64748B;
+          --ink:#1E293B;
+          --line:rgba(29,99,196,0.22);
         }
         .landingRoot :global(h1),.landingRoot :global(h2),.landingRoot :global(h3),.landingRoot :global(h4){ font-family:'Trirong', serif; font-weight:600; line-height:1.3; }
         .accent-serif{ font-family:'Fraunces', serif; font-style:italic; font-weight:500; }
         .mono{ font-family:'Space Mono', monospace; }
         .landingRoot :global(a){ color:inherit; text-decoration:none; }
         .wrap{ max-width:1120px; margin:0 auto; padding:0 24px; }
+        /* ---- สไลด์แบนเนอร์ ---- */
+        .landingRoot .promo-slider{ position:relative; background:var(--surf-deep); overflow:hidden; padding:42px 0 0; }
+        /* กรอบ 16:9 และแสดงรูปเต็มภาพ (contain) ไม่ครอปขอบ — จอกว้างมากจะมีขอบสีกรมท่าสองข้าง */
+        .promo-track{ position:relative; width:100%; aspect-ratio:16/9; max-height:min(80vh,760px); margin:0 auto; }
+        .promo-slide{ position:absolute; inset:0; opacity:0; transition:opacity .7s ease; pointer-events:none; }
+        .promo-slide.active{ opacity:1; pointer-events:auto; }
+        .promo-slide :global(a){ display:block; width:100%; height:100%; }
+        .promo-slide :global(.promo-img){ width:100%; height:100%; object-fit:contain; display:block; }
+        .promo-arrow{ position:absolute; top:50%; transform:translateY(-50%); width:40px; height:40px; border-radius:50%; border:0; background:rgba(10,30,51,.55); color:#fff; font-size:26px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .promo-arrow:hover{ background:rgba(10,30,51,.8); }
+        .promo-arrow.left{ left:12px; } .promo-arrow.right{ right:12px; }
+        .promo-dots{ position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; gap:8px; }
+        .promo-dots button{ width:9px; height:9px; border-radius:50%; border:0; padding:0; background:rgba(255,255,255,.5); cursor:pointer; }
+        .promo-dots button.on{ background:var(--gold-bright); width:22px; border-radius:5px; }
+        /* ---- การ์ดเมนู 4 ใบ (โทนกรมท่า-ทอง เหมือนส่วนอื่นของเว็บ) ---- */
+        /* การ์ดอยู่ใต้สไลด์ (ไม่ซ้อนทับ) เว้นช่องว่างจากขอบล่างสไลด์ 8px (มือถือ 5px); ถ้าไม่มีสไลด์ให้เว้นที่ให้แถบเมนูบนสุด (fixed) */
+        .landingRoot .menu-cards{ position:relative; padding:70px 0 8px; background:var(--surf-deep); }
+        .landingRoot .menu-cards.after-slider{ padding-top:8px; }
+        @media (max-width:860px){ .landingRoot .menu-cards.after-slider{ padding-top:5px; } }
+        .landingRoot .poster-section{ padding:40px 0 8px; background:var(--surf-deep); text-align:center; }
+        .poster-title{ font-size:clamp(20px,2.6vw,26px); font-weight:700; color:var(--on-surf); margin:0 0 18px; }
+        .poster-frame{ display:block; width:100%; max-width:640px; margin:0 auto; padding:0; border:0; background:none; border-radius:18px; overflow:hidden; cursor:zoom-in; box-shadow:0 14px 34px var(--card-shadow); border-top:3px solid var(--gold); }
+        .poster-frame img{ display:block; width:100%; height:auto; }
+        .poster-hint{ margin:12px 0 0; font-size:13px; color:var(--on-surf-dim); }
+        .poster-dl{ display:inline-block; margin-top:14px; padding:12px 28px; border:0; cursor:pointer; font-family:inherit; background:var(--gold); color:var(--on-gold); font-weight:700; font-size:15px; border-radius:14px; transition:background .15s; }
+        .poster-dl:hover{ background:var(--gold-bright); }
+        @media (max-width:860px){
+          .landingRoot .poster-section{ padding:28px 0 4px; }
+          .poster-section .wrap{ padding:0; }
+          .poster-title, .poster-hint{ padding:0 16px; }
+          .poster-frame{ max-width:100%; border-radius:0; }
+        }
+        .poster-section + .hero{ padding-top:80px; }
+        @media (max-width:860px){ .poster-section + .hero{ padding-top:56px; } }
+        .menu-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+        @media (max-width:860px){ .menu-grid{ grid-template-columns:repeat(2,1fr); gap:12px; } }
+        .menu-cards :global(.menu-card){ display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; padding:24px 18px 18px; background:linear-gradient(160deg,var(--card-a) 0%,var(--card-b) 100%); border:1px solid var(--line); border-top:3px solid var(--gold); border-radius:24px; color:var(--card-ink); box-shadow:0 12px 28px var(--card-shadow); transition:transform .15s, border-color .2s, box-shadow .2s; }
+        .menu-cards :global(.menu-card:hover){ transform:translateY(-3px); border-color:var(--gold-bright); box-shadow:0 16px 34px var(--card-shadow); }
+        .menu-icon{ width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--gold-text); background:radial-gradient(circle at 30% 25%,rgba(221,189,124,.28),rgba(var(--gold-rgb),.08)); border:1.5px solid var(--gold); }
+        .menu-title{ font-weight:600; font-size:16px; line-height:1.4; min-height:2.8em; display:flex; align-items:center; color:var(--card-ink); }
+        .menu-btn{ width:100%; padding:12px 0; background:var(--gold); color:var(--on-gold); font-weight:700; font-size:14px; border-radius:14px; transition:background .15s; }
+        .menu-cards :global(.menu-card:hover) .menu-btn{ background:var(--gold-bright); }
+        @media (max-width:860px){
+          .menu-cards :global(.menu-card){ padding:16px 10px 12px; gap:8px; border-radius:20px; }
+          .menu-icon{ width:56px; height:56px; }
+          .menu-title{ font-size:14px; }
+          .menu-btn{ padding:9px 0; font-size:13px; border-radius:12px; }
+        }
         .landingRoot :global(section){ position:relative; padding:96px 0; }
         .landingRoot :global(img){ max-width:100%; display:block; }
 
@@ -540,25 +812,25 @@ export default function HomePage() {
 
         .landingRoot :global(header){
           position:fixed; top:0; left:0; right:0; z-index:100;
-          background:rgba(10,30,51,0.92);
+          background:var(--header-bg);
           backdrop-filter:blur(8px);
-          border-bottom:1px solid rgba(198,161,91,0.2);
+          border-bottom:1px solid rgba(var(--gold-rgb),0.2);
         }
-        .nav{ display:flex; align-items:center; justify-content:space-between; max-width:1120px; margin:0 auto; padding:16px 24px; gap:16px; }
-        .brand{ display:flex; align-items:center; gap:10px; color:var(--paper); }
-        .brand-logo{ width:44px; height:44px; object-fit:contain; }
-        .brand-text{ font-family:'IBM Plex Sans Thai', sans-serif; font-weight:600; font-size:15px; letter-spacing:0.02em; color: var(--paper); }
-        .nav-links{ display:flex; gap:22px; align-items:center; }
-        .nav-links :global(a){ color:var(--paper-dim); font-size:14px; transition:color .2s; white-space:nowrap; }
-        .nav-links :global(a:hover){ color:var(--gold-bright); }
-        :global(.nav-cta){ background:var(--gold); color:var(--navy-deep); padding:10px 20px; border-radius:2px; font-weight:600; font-size:14px; transition:background .2s; white-space:nowrap; }
+        .nav{ display:flex; align-items:center; justify-content:space-between; max-width:1120px; margin:0 auto; padding:5px 16px; gap:12px; }
+        .brand{ display:flex; align-items:center; gap:8px; color:var(--on-surf); }
+        .brand-logo{ width:30px; height:30px; object-fit:contain; }
+        .brand-text{ font-family:'IBM Plex Sans Thai', sans-serif; font-weight:600; font-size:13px; letter-spacing:0.01em; color: var(--on-surf); }
+        .nav-links{ display:flex; gap:16px; align-items:center; }
+        .nav-links :global(a){ color:var(--on-surf-dim); font-size:13px; transition:color .2s; white-space:nowrap; }
+        .nav-links :global(a:hover){ color:var(--gold-text); }
+        :global(.nav-cta){ background:var(--gold); color:var(--on-gold); padding:10px 20px; border-radius:2px; font-weight:600; font-size:14px; transition:background .2s; white-space:nowrap; }
         :global(.nav-cta:hover){ background:var(--gold-bright); }
 
         .floating-menu{ position:fixed; right:18px; bottom:18px; z-index:150; display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
         .fab-actions{ display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
         .fab-actions :global(a){ padding:13px 22px; border-radius:999px; font-weight:700; font-size:14px; text-align:center; white-space:nowrap; box-shadow:0 8px 22px rgba(10,30,51,.35); transition:opacity .2s ease, transform .2s ease, background .2s; }
         .fab-actions :global(a:hover){ transform:translateY(-2px); }
-        .fab-actions :global(.floating-btn-primary){ background:var(--gold); color:var(--navy-deep); }
+        .fab-actions :global(.floating-btn-primary){ background:var(--gold); color:var(--on-gold); }
         .fab-actions :global(.floating-btn-primary:hover){ background:var(--gold-bright); }
         .fab-actions :global(.floating-btn-secondary){ background:var(--navy-deep); color:var(--paper); border:1px solid var(--gold); }
         .fab-actions :global(.floating-btn-secondary:hover){ background:var(--navy); }
@@ -572,13 +844,13 @@ export default function HomePage() {
           .fab-actions.open :global(a:nth-child(1)){ transition-delay:.12s; }
           .fab-actions.open :global(a:nth-child(2)){ transition-delay:.07s; }
           .fab-actions.open :global(a:nth-child(3)){ transition-delay:.02s; }
-          .fab-toggle{ display:flex; width:54px; height:54px; border-radius:999px; background:var(--gold); color:var(--navy-deep); font-weight:800; font-size:18px; line-height:1; letter-spacing:1px; border:none; cursor:pointer; box-shadow:0 8px 22px rgba(10,30,51,.35); align-items:center; justify-content:center; transition:background .2s, transform .2s; }
+          .fab-toggle{ display:flex; width:54px; height:54px; border-radius:999px; background:var(--gold); color:var(--on-gold); font-weight:800; font-size:18px; line-height:1; letter-spacing:1px; border:none; cursor:pointer; box-shadow:0 8px 22px rgba(10,30,51,.35); align-items:center; justify-content:center; transition:background .2s, transform .2s; }
           .fab-toggle:hover{ background:var(--gold-bright); }
           .fab-toggle:active{ transform:scale(.94); }
         }
-        .burger{ display:none; color:var(--paper); font-size:22px; background:none; border:none; cursor:pointer; }
-        .mobile-menu{ display:none; flex-direction:column; gap:0; background:var(--navy-deep); border-top:1px solid rgba(198,161,91,0.2); }
-        .mobile-menu :global(a){ color:var(--paper-dim); padding:14px 24px; border-bottom:1px solid rgba(198,161,91,0.1); font-size:14px; display:block; }
+        .burger{ display:none; color:var(--on-surf); font-size:20px; line-height:1; padding:0; background:none; border:none; cursor:pointer; }
+        .mobile-menu{ display:none; flex-direction:column; gap:0; background:var(--surf-deep); border-top:1px solid rgba(var(--gold-rgb),0.2); }
+        .mobile-menu :global(a){ color:var(--on-surf-dim); padding:11px 20px; border-bottom:1px solid rgba(var(--gold-rgb),0.1); font-size:14px; display:block; }
         .mobile-menu.open{ display:flex; }
 
         @media(max-width:860px){
@@ -586,74 +858,76 @@ export default function HomePage() {
           .burger{ display:block; }
         }
 
-        .hero{ background: radial-gradient(ellipse at top right, var(--navy-soft) 0%, var(--navy-deep) 55%); color:var(--paper); padding:190px 0 120px; overflow:hidden; }
+        .hero{ background: radial-gradient(ellipse at top right, var(--surf-soft) 0%, var(--surf-deep) 55%); color:var(--on-surf); padding:150px 0 120px; overflow:hidden; }
         .hero-grid{ display:grid; grid-template-columns:1.1fr 0.9fr; gap:56px; align-items:center; }
-        .eyebrow-tech{ font-family:'Space Mono', monospace; font-size:12px; color:var(--gold); letter-spacing:0.06em; margin-bottom:18px; display:flex; align-items:center; gap:10px; }
+        .eyebrow-tech{ font-family:'Space Mono', monospace; font-size:12px; color:var(--gold-ink); letter-spacing:0.06em; margin-bottom:18px; display:flex; align-items:center; gap:10px; }
         .eyebrow-tech::before{ content:''; width:26px; height:1px; background:var(--gold); display:inline-block; }
         .hero-logo{ width:120px; height:120px; object-fit:contain; margin-bottom:22px; }
-        .hero :global(h1){ font-size:clamp(34px,5vw,56px); color:var(--paper); margin-bottom:22px; }
-        .hero :global(h1 .accent){ color:var(--gold-bright); font-weight:500; }
-        .hero :global(p.lead){ font-size:17px; color:var(--paper-dim); max-width:480px; margin-bottom:34px; }
+        .hero :global(h1){ font-size:clamp(34px,5vw,56px); color:var(--on-surf); margin-bottom:22px; }
+        .hero :global(h1 .accent){ color:var(--gold-text); font-weight:500; }
+        .hero :global(p.lead){ font-size:17px; color:var(--on-surf-dim); max-width:480px; margin-bottom:34px; }
         .hero-actions{ display:flex; gap:14px; flex-wrap:wrap; }
-        :global(.btn-primary){ background:var(--gold); color:var(--navy-deep); padding:15px 28px; font-weight:700; border-radius:2px; font-size:15px; transition:transform .15s, background .2s; display:inline-block; }
+        :global(.btn-primary){ background:var(--gold); color:var(--on-gold); padding:15px 28px; font-weight:700; border-radius:2px; font-size:15px; transition:transform .15s, background .2s; display:inline-block; }
         :global(.btn-primary:hover){ background:var(--gold-bright); transform:translateY(-1px); }
-        .btn-ghost{ border:1px solid rgba(243,239,230,0.35); color:var(--paper); padding:15px 28px; border-radius:2px; font-size:15px; }
-        .btn-ghost:hover{ border-color:var(--gold); color:var(--gold-bright); }
+        .btn-ghost{ border:1px solid var(--ghost-border); color:var(--on-surf); padding:15px 28px; border-radius:2px; font-size:15px; }
+        .btn-ghost:hover{ border-color:var(--gold); color:var(--gold-text); }
 
-        .spec-card{ background:rgba(243,239,230,0.04); border:1px solid rgba(198,161,91,0.35); padding:28px; position:relative; }
-        .spec-label{ font-family:'Space Mono', monospace; font-size:11px; color:var(--gold); margin-bottom:16px; letter-spacing:0.05em; }
-        .spec-row{ display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px dashed rgba(198,161,91,0.25); font-size:14px; }
+        .spec-card{ background:var(--spec-bg); border:1px solid rgba(var(--gold-rgb),0.35); padding:28px; position:relative; }
+        .spec-label{ font-family:'Space Mono', monospace; font-size:11px; color:var(--gold-ink); margin-bottom:16px; letter-spacing:0.05em; }
+        .spec-row{ display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px dashed rgba(var(--gold-rgb),0.25); font-size:14px; }
         .spec-row:last-child{ border-bottom:none; }
-        .spec-row span:first-child{ color:var(--paper-dim); }
-        .spec-row span:last-child{ font-family:'Space Mono', monospace; color:var(--paper); }
+        .spec-row span:first-child{ color:var(--on-surf-dim); }
+        .spec-row span:last-child{ font-family:'Space Mono', monospace; color:var(--on-surf); }
 
         .countdown{ display:flex; gap:14px; margin-top:36px; }
         .cd-unit{ text-align:center; }
-        .cd-num{ font-family:'Space Mono', monospace; font-size:30px; color:var(--gold-bright); border:1px solid rgba(198,161,91,0.3); padding:10px 14px; min-width:60px; }
-        .cd-label{ font-size:11px; color:var(--paper-dim); margin-top:6px; letter-spacing:0.04em; }
+        .cd-num{ font-family:'Space Mono', monospace; font-size:30px; color:var(--gold-text); border:1px solid rgba(var(--gold-rgb),0.3); padding:10px 14px; min-width:60px; }
+        .cd-label{ font-size:11px; color:var(--on-surf-dim); margin-top:6px; letter-spacing:0.04em; }
 
         @media(max-width:860px){
           .hero-grid{ grid-template-columns:1fr; }
-          .hero{ padding:150px 0 80px; }
+          .hero{ padding:110px 0 80px; }
         }
 
         .section-head{ margin-bottom:52px; max-width:600px; }
         .kicker{ font-family:'Space Mono', monospace; font-size:12px; color:var(--slate); display:flex; align-items:center; gap:10px; margin-bottom:14px; }
         .kicker::before{ content:''; width:22px; height:1px; background:var(--gold); display:inline-block; }
-        .section-head :global(h2){ font-size:clamp(26px,3.4vw,38px); color:var(--navy); }
+        .section-head :global(h2){ font-size:clamp(26px,3.4vw,38px); color:var(--head); }
         .section-head :global(p){ color:var(--slate); margin-top:14px; font-size:15.5px; }
 
-        .ticket-wrap{ display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--navy); background:var(--paper); }
-        .ticket-left{ background:var(--navy); color:var(--paper); padding:44px; position:relative; }
-        .ticket-left :global(.price){ font-family:'Space Mono', monospace; font-size:46px; color:var(--gold-bright); margin:10px 0; }
+        .ticket-wrap{ display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--frame); background:var(--bg-page); }
+        .ticket-left{ background:var(--surf); color:var(--on-surf); padding:44px; position:relative; }
+        .ticket-left :global(.price){ font-family:'Space Mono', monospace; font-size:46px; color:var(--gold-text); margin:10px 0; }
         .ticket-left :global(.price sup){ font-size:16px; }
-        .ticket-left :global(.note){ color:var(--paper-dim); font-size:14px; }
-        .perforation{ position:absolute; top:0; bottom:0; right:-1px; width:1px; background-image: linear-gradient(var(--paper) 50%, transparent 0%); background-size: 1px 14px; background-repeat:repeat-y; }
+        .ticket-left :global(.note){ color:var(--on-surf-dim); font-size:14px; }
+        .perforation{ position:absolute; top:0; bottom:0; right:-1px; width:1px; background-image: linear-gradient(var(--bg-page) 50%, transparent 0%); background-size: 1px 14px; background-repeat:repeat-y; }
         .ticket-right{ padding:44px; }
         .ticket-right :global(ul){ list-style:none; }
-        .ticket-right :global(li){ display:flex; gap:12px; padding:11px 0; border-bottom:1px solid var(--paper-dim); font-size:15px; }
+        .ticket-right :global(li){ display:flex; gap:12px; padding:11px 0; border-bottom:1px solid var(--hairline); font-size:15px; }
         .ticket-right :global(li:last-child){ border-bottom:none; }
-        .ticket-right :global(.chk){ color:var(--gold); font-family:'Space Mono',monospace; }
+        .ticket-right :global(.chk){ color:var(--gold-ink); font-family:'Space Mono',monospace; }
         @media(max-width:720px){ .ticket-wrap{ grid-template-columns:1fr; } }
 
         .merch-items-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:22px; margin-bottom:48px; }
-        .merch-item :global(h4){ font-size:15.5px; color:var(--navy); margin:16px 0 6px; }
+        .merch-item :global(h4){ font-size:15.5px; color:var(--head); margin:16px 0 6px; }
         .merch-item :global(p){ font-size:13px; color:var(--slate); }
-        .merch-visual{ background:var(--navy); aspect-ratio:1/1; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+        .merch-visual{ background:var(--surf); aspect-ratio:1/1; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; }
         .merch-visual :global(.blueprint){ opacity:0.4; }
-        .merch-visual :global(.shirt-mark){ z-index:1; color:var(--gold-bright); }
+        .merch-visual :global(.shirt-mark){ z-index:1; color:var(--gold-text); }
         .merch-visual :global(.merch-photo){ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; }
         .merch-visual :global(.merch-photo-clickable){ cursor:zoom-in; }
+        .book-toast{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:600; max-width:calc(100vw - 32px); padding:14px 24px; border-radius:14px; background:var(--gold); color:var(--on-gold); font-weight:700; font-size:15px; text-align:center; box-shadow:0 12px 30px rgba(0,0,0,.35); animation:toastIn .2s ease; }
+        @keyframes toastIn{ from{ opacity:0; transform:translate(-50%,10px); } to{ opacity:1; transform:translate(-50%,0); } }
         .lightbox-overlay{ position:fixed; inset:0; background:rgba(10,14,20,0.92); z-index:500; display:flex; align-items:center; justify-content:center; padding:40px; cursor:zoom-out; }
         .lightbox-image{ max-width:100%; max-height:100%; object-fit:contain; box-shadow:0 20px 60px rgba(0,0,0,0.5); cursor:default; }
         .lightbox-close{ position:absolute; top:20px; right:24px; background:none; border:none; color:var(--paper); font-size:36px; line-height:1; cursor:pointer; padding:6px 12px; }
-        .lightbox-close:hover{ color:var(--gold-bright); }
+        .lightbox-close:hover{ color:var(--gold-text); }
         @media(max-width:640px){ .lightbox-overlay{ padding:16px; } .lightbox-close{ top:10px; right:12px; font-size:30px; } }
-        .merch-price-badge{ position:absolute; top:12px; right:12px; background:var(--gold); color:var(--navy-deep); font-family:'Space Mono',monospace; font-size:10.5px; padding:5px 10px; font-weight:700; z-index:2; }
+        .merch-price-badge{ position:absolute; top:12px; right:12px; background:var(--gold); color:var(--on-gold); font-family:'Space Mono',monospace; font-size:10.5px; padding:5px 10px; font-weight:700; z-index:2; }
         .merch-size-block{ max-width:640px; }
         .size-table{ width:100%; border-collapse:collapse; margin-bottom:10px; font-size:13px; }
-        .size-table :global(th), .size-table :global(td){ border:1px solid var(--navy); padding:8px 6px; text-align:center; font-family:'Space Mono', monospace; color:var(--navy); }
-        .size-table :global(th){ background:var(--navy); color:var(--paper); font-weight:400; }
+        .size-table :global(th), .size-table :global(td){ border:1px solid var(--frame); padding:8px 6px; text-align:center; font-family:'Space Mono', monospace; color:var(--head); }
+        .size-table :global(th){ background:var(--btn-dark-bg); color:var(--btn-dark-fg); font-weight:400; }
         .size-note{ font-size:12.5px; color:var(--slate); margin-bottom:26px; }
         @media(max-width:860px){ .merch-items-grid{ grid-template-columns:repeat(2,1fr); } }
         @media(max-width:520px){ .merch-items-grid{ grid-template-columns:1fr; } }
@@ -661,9 +935,9 @@ export default function HomePage() {
         .timeline{ position:relative; padding-left:2px; }
         .tl-line{ position:absolute; left:64px; top:6px; bottom:6px; width:1px; background:var(--line); }
         .tl-item{ display:grid; grid-template-columns:64px 1fr; gap:28px; padding:22px 0; position:relative; }
-        .tl-time{ font-family:'Space Mono', monospace; font-size:14px; color:var(--gold); text-align:right; padding-top:2px; }
-        .tl-dot{ position:absolute; left:60px; top:8px; width:9px; height:9px; border-radius:50%; background:var(--gold); border:2px solid var(--paper); box-shadow:0 0 0 1px var(--gold); }
-        .tl-body :global(h4){ font-size:16px; color:var(--navy); margin-bottom:4px; }
+        .tl-time{ font-family:'Space Mono', monospace; font-size:14px; color:var(--gold-ink); text-align:right; padding-top:2px; }
+        .tl-dot{ position:absolute; left:60px; top:8px; width:9px; height:9px; border-radius:50%; background:var(--gold); border:2px solid var(--bg-page); box-shadow:0 0 0 1px var(--gold); }
+        .tl-body :global(h4){ font-size:16px; color:var(--head); margin-bottom:4px; }
         .tl-body :global(p){ font-size:14px; color:var(--slate); }
         @media(max-width:600px){
           .tl-line{ left:44px; } .tl-dot{ left:40px; }
@@ -671,59 +945,59 @@ export default function HomePage() {
           .tl-time{ font-size:11px; }
         }
 
-        .honor-band{ background:var(--navy-deep); color:var(--paper); }
-        .honor-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:rgba(198,161,91,0.25); margin-top:10px; }
-        .honor-card{ background:var(--navy-deep); padding:36px 28px; text-align:center; }
-        .honor-avatar{ width:74px; height:74px; margin:0 auto 18px; border-radius:50%; border:1px solid var(--gold); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Sans Thai',sans-serif; font-size:22px; color:var(--gold-bright); }
+        .honor-band{ background:var(--surf-deep); color:var(--on-surf); }
+        .honor-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:rgba(var(--gold-rgb),0.25); margin-top:10px; }
+        .honor-card{ background:var(--surf-deep); padding:36px 28px; text-align:center; }
+        .honor-avatar{ width:74px; height:74px; margin:0 auto 18px; border-radius:50%; border:1px solid var(--gold); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Sans Thai',sans-serif; font-size:22px; color:var(--gold-text); }
         .honor-avatar-photo{ object-fit:cover; }
-        .honor-card :global(h4){ color:var(--paper); font-size:16px; margin-bottom:6px; }
-        .honor-card :global(p){ color:var(--paper-dim); font-size:13px; }
+        .honor-card :global(h4){ color:var(--on-surf); font-size:16px; margin-bottom:6px; }
+        .honor-card :global(p){ color:var(--on-surf-dim); font-size:13px; }
         @media(max-width:720px){ .honor-grid{ grid-template-columns:1fr; } }
 
         .venue-grid{ display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center; }
-        .venue-visual{ background:var(--navy); aspect-ratio:4/3; position:relative; display:flex; align-items:center; justify-content:center; border:1px solid var(--navy); }
+        .venue-visual{ background:var(--surf); aspect-ratio:4/3; position:relative; display:flex; align-items:center; justify-content:center; border:1px solid var(--frame); }
         .venue-visual :global(.blueprint){ opacity:0.35; }
-        .venue-visual .pin{ font-family:'Space Mono',monospace; color:var(--gold-bright); font-size:13px; text-align:center; z-index:1; }
+        .venue-visual .pin{ font-family:'Space Mono',monospace; color:var(--gold-text); font-size:13px; text-align:center; z-index:1; }
         .venue-detail{ margin-bottom:26px; }
-        .venue-detail .label{ font-family:'Space Mono', monospace; font-size:11px; color:var(--gold); margin-bottom:6px; letter-spacing:0.05em; }
+        .venue-detail .label{ font-family:'Space Mono', monospace; font-size:11px; color:var(--gold-ink); margin-bottom:6px; letter-spacing:0.05em; }
         .venue-detail :global(p){ color:var(--ink); font-size:15px; }
         @media(max-width:860px){ .venue-grid{ grid-template-columns:1fr; } }
 
         .gallery-tabs{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:30px; }
-        .gtab{ font-size:13px; padding:8px 16px; border:1px solid var(--navy); color:var(--navy); cursor:pointer; background:transparent; font-family:'IBM Plex Sans Thai',sans-serif; }
-        .gtab.active{ background:var(--navy); color:var(--paper); }
+        .gtab{ font-size:13px; padding:8px 16px; border:1px solid var(--frame); color:var(--head); cursor:pointer; background:transparent; font-family:'IBM Plex Sans Thai',sans-serif; }
+        .gtab.active{ background:var(--btn-dark-bg); color:var(--btn-dark-fg); border-color:var(--btn-dark-bg); }
         .gallery-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-        .g-cell{ aspect-ratio:1; background:var(--navy-soft); position:relative; overflow:hidden; display:flex; align-items:flex-end; padding:12px; color:var(--paper-dim); font-size:12px; }
-        .g-cell:empty::before, .g-cell::before{ content:'◇'; position:absolute; top:50%; left:50%; transform:translate(-50%,-60%); font-size:22px; color:rgba(198,161,91,0.4); z-index:0; }
+        .g-cell{ aspect-ratio:1; background:var(--surf-soft); position:relative; overflow:hidden; display:flex; align-items:flex-end; padding:12px; color:var(--paper-dim); font-size:12px; }
+        .g-cell:empty::before, .g-cell::before{ content:'◇'; position:absolute; top:50%; left:50%; transform:translate(-50%,-60%); font-size:22px; color:rgba(var(--gold-rgb),0.4); z-index:0; }
         .g-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; }
         .g-caption{ position:relative; z-index:2; padding:6px 8px; background:linear-gradient(transparent, rgba(10,30,51,.85)); display:block; width:100%; }
         @media(max-width:720px){ .gallery-grid{ grid-template-columns:repeat(2,1fr); } }
 
         .sponsor-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
-        .sponsor-card{ border:1px solid var(--navy); padding:32px; }
+        .sponsor-card{ border:1px solid var(--frame); padding:32px; }
         .sponsor-logo{ display:block; max-width:120px; max-height:56px; object-fit:contain; margin-bottom:16px; }
-        .sponsor-card.gold{ border-color:var(--gold); background:linear-gradient(180deg, rgba(198,161,91,0.06), transparent); }
-        .sponsor-tier{ font-family:'Space Mono',monospace; font-size:11px; color:var(--gold); letter-spacing:0.05em; margin-bottom:10px; }
-        .sponsor-card :global(h3){ font-size:22px; color:var(--navy); margin-bottom:6px; }
+        .sponsor-card.gold{ border-color:var(--gold); background:linear-gradient(180deg, rgba(var(--gold-rgb),0.06), transparent); }
+        .sponsor-tier{ font-family:'Space Mono',monospace; font-size:11px; color:var(--gold-ink); letter-spacing:0.05em; margin-bottom:10px; }
+        .sponsor-card :global(h3){ font-size:22px; color:var(--head); margin-bottom:6px; }
         .sponsor-price{ font-family:'Space Mono',monospace; font-size:15px; color:var(--slate); margin-bottom:20px; }
         .sponsor-card :global(ul){ list-style:none; font-size:14px; color:var(--slate); }
         .sponsor-card :global(li){ padding:6px 0; }
-        .sponsor-card :global(li::before){ content:'— '; color:var(--gold); }
+        .sponsor-card :global(li::before){ content:'— '; color:var(--gold-ink); }
         @media(max-width:860px){ .sponsor-grid{ grid-template-columns:1fr; } }
 
-        .faq-item{ border-bottom:1px solid var(--paper-dim); }
-        .faq-q{ display:flex; justify-content:space-between; align-items:center; padding:22px 0; cursor:pointer; font-size:16px; color:var(--navy); font-weight:600; }
-        .faq-q :global(.plus){ font-family:'Space Mono',monospace; color:var(--gold); transition:transform .2s; font-size:18px; display:inline-block; }
+        .faq-item{ border-bottom:1px solid var(--hairline); }
+        .faq-q{ display:flex; justify-content:space-between; align-items:center; padding:22px 0; cursor:pointer; font-size:16px; color:var(--head); font-weight:600; }
+        .faq-q :global(.plus){ font-family:'Space Mono',monospace; color:var(--gold-ink); transition:transform .2s; font-size:18px; display:inline-block; }
         .faq-item.open .faq-q :global(.plus){ transform:rotate(45deg); }
         .faq-a{ max-height:0; overflow:hidden; transition:max-height .25s ease; }
         .faq-item.open .faq-a{ max-height:200px; }
         .faq-a :global(p){ padding-bottom:22px; color:var(--slate); font-size:14.5px; max-width:640px; }
 
-        .final-cta{ background:var(--navy-deep); color:var(--paper); text-align:center; padding:110px 0; }
-        .final-cta :global(h2){ color:var(--paper); font-size:clamp(28px,4vw,42px); margin-bottom:18px; }
-        .final-cta :global(p){ color:var(--paper-dim); margin-bottom:38px; }
+        .final-cta{ background:var(--surf-deep); color:var(--on-surf); text-align:center; padding:110px 0; }
+        .final-cta :global(h2){ color:var(--on-surf); font-size:clamp(28px,4vw,42px); margin-bottom:18px; }
+        .final-cta :global(p){ color:var(--on-surf-dim); margin-bottom:38px; }
 
-        .landingRoot :global(footer){ background:var(--navy-deep); color:var(--paper-dim); border-top:1px solid rgba(198,161,91,0.15); padding:40px 0; }
+        .landingRoot :global(footer){ background:var(--surf-deep); color:var(--on-surf-dim); border-top:1px solid rgba(var(--gold-rgb),0.15); padding:40px 0; }
         .foot-row{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:14px; font-size:13px; }
 
       `}</style>

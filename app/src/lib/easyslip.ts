@@ -185,3 +185,28 @@ export async function verifyMerchOrderSlipAsync(
     console.error("[easyslip] verifyMerchOrderSlipAsync failed:", err);
   }
 }
+
+/** Same as verifyReservationSlipAsync, for a ลงทะเบียนศิษย์เก่าดีเด่น/ผู้สนับสนุน slip
+ * (the slip file key lives directly on the SupportRegistration row). */
+export async function verifySupportRegistrationSlipAsync(
+  registrationId: string,
+  slipFileKey: string,
+  expectedAmount: number
+): Promise<void> {
+  try {
+    const imageUrl = await presignedGetUrl(PAYMENT_SLIPS_BUCKET, slipFileKey);
+    const result = await verifySlipByUrl(imageUrl, expectedAmount);
+
+    await prisma.supportRegistration.update({
+      where: { id: registrationId },
+      data: {
+        easyslipStatus: result.status,
+        easyslipMessage: result.message,
+        easyslipTransRef: result.transRef ?? null,
+        easyslipCheckedAt: new Date(),
+      },
+    });
+  } catch (err) {
+    console.error("[easyslip] verifySupportRegistrationSlipAsync failed:", err);
+  }
+}

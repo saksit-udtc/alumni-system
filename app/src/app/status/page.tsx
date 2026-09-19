@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import QrCode from "@/app/components/qr-code";
 import SiteNav from "@/app/components/site-nav";
+import PageTitle from "@/app/components/page-title";
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   pending: { label: "รอชำระเงิน", color: "bg-amber-100 text-amber-700" },
@@ -60,17 +61,7 @@ function StatusForm() {
     <div>
       <SiteNav />
 
-      <section className="relative overflow-hidden bg-maroon-700">
-        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
-          <span className="inline-block text-xs font-medium tracking-wide uppercase bg-white/10 text-primary-200 rounded-full px-3 py-1 mb-4 border border-primary-400/30">
-            ตรวจสอบการจอง
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-display font-semibold text-white leading-snug">เช็คสถานะการจอง</h1>
-          <p className="mt-3 text-cream-50/80 max-w-xl mx-auto">
-            กรอกเบอร์โทรศัพท์ที่ใช้จองเพื่อตรวจสอบสถานะและดู QR Code เช็คอิน
-          </p>
-        </div>
-      </section>
+      <PageTitle title="เช็คสถานะการจอง" />
 
       <main className="max-w-md mx-auto p-4 space-y-5">
       <form onSubmit={search} className="space-y-3 bg-white border border-cream-200 rounded-xl p-5 shadow-md">

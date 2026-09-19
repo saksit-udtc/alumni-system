@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import TableMap from "./table-map";
 import type { TableRow } from "./table-graphic";
 import SiteNav from "@/app/components/site-nav";
+import PageTitle from "@/app/components/page-title";
 
 // Always poll fresh event + table data — the floor plan image, table
 // positions, and booking counts can change any time (an admin edit, or
@@ -74,19 +75,7 @@ export default function EventDetailPage() {
   return (
     <div>
       <SiteNav />
-      <section className="relative overflow-hidden bg-maroon-700">
-        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
-          <span className="inline-block text-xs font-medium tracking-wide uppercase bg-white/10 text-primary-200 rounded-full px-3 py-1 mb-4 border border-primary-400/30">
-            จองโต๊ะงานเลี้ยง
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-display font-semibold text-white leading-snug">{event.name}</h1>
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-cream-50/80">
-            <span>{new Date(event.eventDate).toLocaleDateString("th-TH", { dateStyle: "long" })}</span>
-            <span>{new Date(event.eventDate).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.</span>
-            {event.location && <span>{event.location}</span>}
-          </div>
-        </div>
-      </section>
+      <PageTitle title={`จองโต๊ะงานเลี้ยง · ${event.name}`} />
 
       <main className="max-w-4xl mx-auto p-4 space-y-3">
 

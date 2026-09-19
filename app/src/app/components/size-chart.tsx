@@ -1,8 +1,10 @@
 // ตารางไซซ์เสื้อ + รูปวิธีวัด — แสดงเมื่อสินค้าตั้งค่า "ต้องเลือกไซส์" (requiresSize)
 // ปรับค่าตารางได้ที่ SIZES / CHEST / LENGTH (หน่วยนิ้ว)
-const SIZES = ["S", "M", "L", "XL", "2XL", "3XL"];
-const CHEST = [38, 40, 42, 44, 46, 48]; // รอบอก
-const LENGTH = [26, 27, 28, 29, 30, 31]; // ความยาว
+const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+// 4XL/5XL เป็นค่าประมาณต่อเนื่องจากลำดับเดิม (อก +2 นิ้ว, ยาว +1 นิ้ว ต่อไซส์)
+// — ควรตรวจสอบกับเสื้อจริงแล้วแก้ค่า 2 ตัวท้ายของแต่ละแถวให้ตรง
+const CHEST = [38, 40, 42, 44, 46, 48, 50, 52]; // รอบอก
+const LENGTH = [26, 27, 28, 29, 30, 31, 32, 33]; // ความยาว
 
 export default function SizeChart({ className = "" }: { className?: string }) {
   return (
@@ -27,16 +29,18 @@ export default function SizeChart({ className = "" }: { className?: string }) {
             strokeWidth="2.5"
             strokeLinejoin="round"
           />
+          <g className="text-maroon-800">
           {/* เส้นวัด "รอบอก" (แนวนอน) */}
-          <line x1="44" y1="60" x2="96" y2="60" stroke="#0d2f57" strokeWidth="1.5" />
-          <polygon points="44,60 51,56 51,64" fill="#0d2f57" />
-          <polygon points="96,60 89,56 89,64" fill="#0d2f57" />
-          <text x="70" y="74" textAnchor="middle" fontSize="9" fill="#0d2f57">รอบอก</text>
+          <line x1="44" y1="60" x2="96" y2="60" stroke="currentColor" strokeWidth="1.5" />
+          <polygon points="44,60 51,56 51,64" fill="currentColor" />
+          <polygon points="96,60 89,56 89,64" fill="currentColor" />
+          <text x="70" y="74" textAnchor="middle" fontSize="9" fill="currentColor">รอบอก</text>
           {/* เส้นวัด "ความยาว" (แนวตั้ง) */}
-          <line x1="106" y1="30" x2="106" y2="112" stroke="#0d2f57" strokeWidth="1.5" />
-          <polygon points="106,30 102,37 110,37" fill="#0d2f57" />
-          <polygon points="106,112 102,105 110,105" fill="#0d2f57" />
-          <text x="112" y="74" fontSize="9" fill="#0d2f57">ความยาว</text>
+          <line x1="106" y1="30" x2="106" y2="112" stroke="currentColor" strokeWidth="1.5" />
+          <polygon points="106,30 102,37 110,37" fill="currentColor" />
+          <polygon points="106,112 102,105 110,105" fill="currentColor" />
+          <text x="112" y="74" fontSize="9" fill="currentColor">ความยาว</text>
+          </g>
         </svg>
 
         {/* ตาราง */}

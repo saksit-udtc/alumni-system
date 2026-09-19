@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "@/app/components/site-nav";
+import PageTitle from "@/app/components/page-title";
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   pending: { label: "รอชำระเงิน", color: "bg-amber-100 text-amber-700" },
@@ -60,17 +61,7 @@ function MerchStatusForm() {
     <div>
       <SiteNav />
 
-      <section className="relative overflow-hidden bg-maroon-700">
-        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
-          <span className="inline-block text-xs font-medium tracking-wide uppercase bg-white/10 text-primary-200 rounded-full px-3 py-1 mb-4 border border-primary-400/30">
-            ของที่ระลึกงานคืนสู่เหย้า
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-display font-semibold text-white leading-snug">เช็คสถานะการสั่งซื้อ</h1>
-          <p className="mt-3 text-cream-50/80 max-w-xl mx-auto">
-            กรอกเบอร์โทรศัพท์ที่ใช้สั่งซื้อเพื่อตรวจสอบสถานะการชำระเงินและการจัดส่ง
-          </p>
-        </div>
-      </section>
+      <PageTitle title="เช็คสถานะการสั่งซื้อ" />
 
       <main className="max-w-md mx-auto p-4 space-y-4">
       <div className="flex justify-end">

@@ -109,13 +109,18 @@ export default function PayQr({
       PAD + titleBlock + 18 + DL_QR_PX + 26 + amountBlock + labelBlock + hintBlock + PAD;
     c.height = H; // การตั้งค่านี้จะล้าง canvas — วาดทุกอย่างหลังบรรทัดนี้
 
+    // สีตัวอักษรในรูปตามธีมปัจจุบัน (maroon-700 / maroon-800)
+    const themeRgb = (name: string, fallback: string) => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v ? `rgb(${v})` : fallback;
+    };
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, W, H);
     ctx.textAlign = "center";
 
     let y = PAD;
     // ชื่องาน
-    ctx.fillStyle = "#123f74"; // maroon-700
+    ctx.fillStyle = themeRgb("--c-maroon-700", "#123f74"); // maroon-700
     ctx.font = `700 34px ${CANVAS_FONT}`;
     titleLines.forEach((ln, i) => ctx.fillText(ln, W / 2, y + 34 + i * 44));
     y += titleBlock + 18;
@@ -123,7 +128,7 @@ export default function PayQr({
     ctx.drawImage(off, (W - DL_QR_PX) / 2, y);
     y += DL_QR_PX + 26;
     // ยอดเงิน (เด่น)
-    ctx.fillStyle = "#0d2f57"; // maroon-800
+    ctx.fillStyle = themeRgb("--c-maroon-800", "#0d2f57"); // maroon-800
     ctx.font = `700 44px ${CANVAS_FONT}`;
     ctx.fillText(`ยอดชำระ ${amount.toLocaleString()} บาท`, W / 2, y + 44);
     y += amountBlock;

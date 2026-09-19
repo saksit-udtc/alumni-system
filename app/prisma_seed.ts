@@ -23,7 +23,7 @@ async function main() {
   const merchSeeds = [
     { name: "เสื้อที่ระลึก", price: 250, requiresSize: true },
     { name: "เหรียญพระวิษณุ", price: 199, requiresSize: false },
-    { name: "แก้วเยติ", price: 350, requiresSize: false },
+    { name: "แก้วน้ำที่ระลึก", price: 350, requiresSize: false },
   ];
   for (const seedProduct of merchSeeds) {
     const existingProduct = await prisma.merchProduct.findFirst({ where: { name: seedProduct.name } });

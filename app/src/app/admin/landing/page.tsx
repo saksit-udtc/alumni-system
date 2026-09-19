@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { DEFAULT_LANDING_CONTENT } from "@/lib/landingContent";
 
 interface TimelineItem { time: string; title: string; description: string }
 interface HonorGuest { name: string; role: string; photoUrl: string }
@@ -175,6 +176,23 @@ export default function AdminLandingPage() {
     }
   }
 
+  // เติมฟอร์มด้วยข้อมูลตามโปสเตอร์ (ค่าเริ่มต้นในโค้ด) — ยังไม่บันทึกจนกว่าจะกด "บันทึกทั้งหมด"
+  // คงรูปภาพที่อัปโหลดไว้แล้ว (ภาพพื้นหลัง, รูปแขกผู้มีเกียรติ, รูปของที่ระลึก, โลโก้ผู้สนับสนุน)
+  function applyPosterDefaults() {
+    if (!content) return;
+    if (!window.confirm("เติมข้อมูลหน้าแรกตามโปสเตอร์งาน (วันที่ เวลา สถานที่ ราคา ของที่ระลึก ผู้สนับสนุน กำหนดการ FAQ)?\nข้อความที่แก้ไว้เดิมในฟอร์มจะถูกแทนที่ — รูปภาพที่อัปโหลดไว้จะคงเดิม และยังไม่บันทึกจนกว่าจะกด \"บันทึกทั้งหมด\"")) return;
+    const d = DEFAULT_LANDING_CONTENT;
+    setContent({
+      ...d,
+      heroImageUrl: content.heroImageUrl,
+      mapUrl: content.mapUrl || d.mapUrl,
+      honorGuests: content.honorGuests,
+      merchItems: d.merchItems.map((m, i) => ({ ...m, imageUrl: content.merchItems[i]?.imageUrl || "" })),
+      sponsors: d.sponsors.map((sp, i) => ({ ...sp, logoUrl: content.sponsors[i]?.logoUrl || "" })),
+    });
+    setSaveMsg("");
+  }
+
   async function uploadGalleryImage(e: React.FormEvent) {
     e.preventDefault();
     setGalError("");
@@ -250,6 +268,13 @@ export default function AdminLandingPage() {
         <p className="text-sm text-stone-500 mt-0.5">
           แก้ไขข้อมูลที่แสดงบนหน้าแรกของเว็บไซต์ — บันทึกด้วยปุ่ม &quot;บันทึกทั้งหมด&quot; ด้านล่างสุด ยกเว้นคลังภาพซึ่งบันทึกทันทีที่อัปโหลด/ลบ
         </p>
+        <button
+          type="button"
+          onClick={applyPosterDefaults}
+          className="mt-2 text-sm px-3 py-1.5 rounded-lg border border-primary-600 text-primary-700 hover:bg-primary-50"
+        >
+          เติมข้อมูลตามโปสเตอร์งาน
+        </button>
       </div>
 
       <form onSubmit={save} className="space-y-4">
@@ -272,7 +297,7 @@ export default function AdminLandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className={labelCls}>
               <span className="font-medium">วันที่-เวลาจัดงาน (ISO, ใช้นับถอยหลัง)</span>
-              <input className={inputCls} value={content.eventDateISO} onChange={(e) => setContent({ ...content, eventDateISO: e.target.value })} placeholder="2026-12-20T17:00:00+07:00" />
+              <input className={inputCls} value={content.eventDateISO} onChange={(e) => setContent({ ...content, eventDateISO: e.target.value })} placeholder="2026-12-27T18:00:00+07:00" />
             </label>
             <label className={labelCls}>
               <span className="font-medium">เวลาเริ่มลงทะเบียน (ข้อความแสดงผล)</span>

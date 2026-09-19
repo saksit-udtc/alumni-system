@@ -12,7 +12,7 @@ const STATIC_NAV_LINKS = [
 
 function MenuIcon({ open }: { open: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
       {open ? (
         <path d="M6 6l12 12M18 6L6 18" />
       ) : (
@@ -56,14 +56,22 @@ export default function SiteNav() {
 
   return (
     <>
+    {/* ฟอนต์เดียวกับหน้าแรก (หน้าแรกโหลดผ่าน @import ใน page.tsx) */}
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" />
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-cream-200">
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto px-4 h-10 flex items-center justify-between gap-3">
         <Link href="/" className="flex items-center gap-2 min-w-0">
-          <img src="/logo.jpg" alt="ตราสัญลักษณ์" className="w-9 h-9 rounded-full object-cover shrink-0" />
-          <span className="font-display font-semibold text-stone-800 text-sm sm:text-base truncate">งานคืนสู่เหย้า</span>
+          {/* โลโก้และชื่อเหมือนแถบเมนูหน้าแรก (.brand ใน app/page.tsx) */}
+          <img src="/logo-89.png" alt="โลโก้ 89 ปี วิทยาลัยเทคนิคอุดรธานี" className="w-[30px] h-[30px] object-contain shrink-0" />
+          <span
+            className="font-semibold text-stone-800 text-[13px] tracking-[0.01em] truncate"
+            style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }}
+          >
+            คืนสู่เหย้า วท.อุดรธานี
+          </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-7 text-sm">
+        <nav className="hidden md:flex items-center gap-4 text-[13px]">
           {NAV_LINKS.map((l) => (
             <Link
               key={l.href}
@@ -80,7 +88,7 @@ export default function SiteNav() {
         <div className="hidden md:flex items-center gap-3 shrink-0">
           <Link
             href="/admin/login"
-            className="text-sm font-medium bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-full px-4 py-2 shadow-sm"
+            className="text-xs font-medium bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-full px-3 py-1 shadow-sm"
           >
             สำหรับเจ้าหน้าที่
           </Link>
@@ -91,20 +99,20 @@ export default function SiteNav() {
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "ปิดเมนู" : "เปิดเมนู"}
           aria-expanded={open}
-          className="md:hidden p-2 -mr-2 text-stone-700 hover:text-maroon-700"
+          className="md:hidden p-1.5 -mr-1.5 text-stone-700 hover:text-maroon-700"
         >
           <MenuIcon open={open} />
         </button>
       </div>
 
       {open && (
-        <nav className="md:hidden border-t border-cream-200 bg-white px-4 py-3 flex flex-col gap-1">
+        <nav className="md:hidden border-t border-cream-200 bg-white px-4 py-2 flex flex-col gap-0.5">
           {NAV_LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
               onClick={() => setOpen(false)}
-              className={`px-2 py-2.5 rounded-lg text-sm transition-colors ${
+              className={`px-2 py-2 rounded-lg text-[13px] transition-colors ${
                 isActive(l.href) ? "bg-primary-50 text-maroon-700 font-semibold" : "text-stone-700 hover:bg-cream-50"
               }`}
             >

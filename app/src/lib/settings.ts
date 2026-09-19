@@ -88,3 +88,82 @@ export async function setLandingContent(content: LandingContent): Promise<Landin
   });
   return clean;
 }
+
+// ---- ธีมสีของเว็บไซต์ (ทั้งเว็บ รวมหน้าแรกและแอดมิน) ----
+// ค่าที่ใช้ได้: "navy-gold" (กรมท่า-ทอง เหมือนหน้าแรกเดิม) | "white-gold" (ขาว-ทอง) | "blue-orange" (น้ำเงิน-ส้ม แบบเว็บ FunRun)
+// layout.tsx อ่านค่านี้ใส่ data-theme ที่ <html> — นิยามสีอยู่ใน globals.css
+export const SITE_THEMES = ["navy-gold", "white-gold", "blue-orange"] as const;
+export type SiteTheme = (typeof SITE_THEMES)[number];
+export const DEFAULT_SITE_THEME: SiteTheme = "navy-gold";
+
+const SITE_THEME_KEY = "siteTheme";
+
+export function isSiteTheme(v: unknown): v is SiteTheme {
+  return typeof v === "string" && (SITE_THEMES as readonly string[]).includes(v);
+}
+
+/** Never throws — ถ้าอ่านฐานข้อมูลไม่ได้ (เช่นตอน build) จะใช้ธีมเริ่มต้น */
+export async function getSiteTheme(): Promise<SiteTheme> {
+  try {
+    const row = await prisma.appSetting.findUnique({ where: { key: SITE_THEME_KEY } });
+    return isSiteTheme(row?.value) ? row!.value as SiteTheme : DEFAULT_SITE_THEME;
+  } catch {
+    return DEFAULT_SITE_THEME;
+  }
+}
+
+export async function setSiteTheme(theme: SiteTheme): Promise<void> {
+  await prisma.appSetting.upsert({
+    where: { key: SITE_THEME_KEY },
+    update: { value: theme },
+    create: { key: SITE_THEME_KEY, value: theme },
+  });
+}
+
+// ---- โปสเตอร์งานบนหน้าแรก (อัปโหลดที่ /admin/poster) ----
+// เก็บ key ของไฟล์ใน bucket landing-assets (public) ที่ poster/<uuid>.<ext>
+// ถ้ายังไม่เคยอัปโหลด ใช้ภาพเริ่มต้น /poster.jpg ที่แนบมากับแอป (public/poster.jpg)
+export const DEFAULT_POSTER_URL = "/poster.jpg";
+const POSTER_IMAGE_KEY = "posterImageKey";
+const POSTER_ENABLED_KEY = "posterEnabled";
+
+export interface PosterSetting {
+  /** key ใน LANDING_ASSETS_BUCKET; null = ใช้ภาพเริ่มต้น */
+  imageKey: string | null;
+  /** false = ซ่อนส่วนโปสเตอร์จากหน้าแรก */
+  enabled: boolean;
+}
+
+/** Never throws — อ่านไม่ได้ (เช่นตอน build) จะใช้ภาพเริ่มต้น + แสดงผล */
+export async function getPosterSetting(): Promise<PosterSetting> {
+  try {
+    const rows = await prisma.appSetting.findMany({
+      where: { key: { in: [POSTER_IMAGE_KEY, POSTER_ENABLED_KEY] } },
+    });
+    const key = rows.find((r) => r.key === POSTER_IMAGE_KEY)?.value || null;
+    const enabledRow = rows.find((r) => r.key === POSTER_ENABLED_KEY)?.value;
+    return { imageKey: key, enabled: enabledRow !== "false" };
+  } catch {
+    return { imageKey: null, enabled: true };
+  }
+}
+
+export async function setPosterImageKey(key: string | null): Promise<void> {
+  if (key === null) {
+    await prisma.appSetting.deleteMany({ where: { key: POSTER_IMAGE_KEY } });
+    return;
+  }
+  await prisma.appSetting.upsert({
+    where: { key: POSTER_IMAGE_KEY },
+    update: { value: key },
+    create: { key: POSTER_IMAGE_KEY, value: key },
+  });
+}
+
+export async function setPosterEnabled(enabled: boolean): Promise<void> {
+  await prisma.appSetting.upsert({
+    where: { key: POSTER_ENABLED_KEY },
+    update: { value: String(enabled) },
+    create: { key: POSTER_ENABLED_KEY, value: String(enabled) },
+  });
+}

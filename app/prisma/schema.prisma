@@ -498,3 +498,38 @@ model ReservationPackageItem {
 
   @@index([reservationId])
 }
+
+enum SupportRegistrationType {
+  distinguished_alumni
+  sponsor
+}
+
+// ลงทะเบียนศิษย์เก่าดีเด่น (ค่าลงทะเบียนคงที่) และผู้สนับสนุนงาน (ผู้สนับสนุน
+// กำหนดวงเงินเอง) — ใช้ตารางเดียวกัน แยกด้วย type ชำระผ่าน PromptPay QR แล้วแนบ
+// สลิปในคำขอเดียวกัน (สถานะเริ่มต้น awaiting_verify) ให้แอดมินตรวจสอบภายหลัง
+model SupportRegistration {
+  id            String                  @id @default(cuid())
+  code          String                  @unique
+  type          SupportRegistrationType
+  name          String
+  // ศิษย์เก่า: รุ่น/ปีที่จบ + แผนก | ผู้สนับสนุน: ชื่อบริษัท/หน่วยงาน (ถ้ามี)
+  detail        String?
+  phone         String
+  email         String
+  amount        Decimal                 @db.Decimal(12, 2)
+  paymentStatus PaymentStatus           @default(awaiting_verify)
+  slipFileKey   String
+  adminNote     String?                 @db.Text
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  // --- EasySlip auto-verification (advisory only; admin still approves) —
+  // same fields as PaymentSlip / MerchPaymentSlip. ---
+  easyslipStatus    String?
+  easyslipMessage   String?
+  easyslipTransRef  String?
+  easyslipCheckedAt DateTime?
+
+  @@index([type, paymentStatus])
+  @@index([createdAt])
+}

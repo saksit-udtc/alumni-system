@@ -2,6 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---- ธีมสีของเว็บ ----
+   ค่าสีเป็น "R G B" ให้ Tailwind (tailwind.config.ts) ใช้ผ่าน rgb(var(--c-...) / alpha)
+   ตั้งธีมที่ /admin/settings -> เก็บใน AppSetting "siteTheme" -> layout.tsx ใส่ data-theme ที่ <html>
+   - navy-gold : กรมท่า-ทอง (เหมือนหน้าแรกเดิม)  เป็นค่าเริ่มต้น
+   - white-gold: ขาว-ทอง
+   primary = สีเน้น/ปุ่มรอง (ทอง) | maroon = พื้นผิวเข้ม/ปุ่มหลัก | cream = พื้นหลัง/เส้นขอบ */
+:root,
+:root[data-theme="navy-gold"] {
+  --c-primary-50: 251 246 234;
+  --c-primary-100: 245 234 208;
+  --c-primary-200: 234 214 164;
+  --c-primary-300: 221 189 124;
+  --c-primary-400: 208 174 101;
+  --c-primary-500: 198 161 91;
+  --c-primary-600: 138 107 40;
+  --c-primary-700: 111 84 32;
+  --c-primary-800: 85 63 24;
+  --c-primary-900: 58 43 16;
+  --c-maroon-50: 232 238 245;
+  --c-maroon-100: 203 216 231;
+  --c-maroon-200: 157 180 208;
+  --c-maroon-300: 107 141 181;
+  --c-maroon-400: 63 101 146;
+  --c-maroon-500: 34 73 122;
+  --c-maroon-600: 22 56 92;
+  --c-maroon-700: 14 42 71;
+  --c-maroon-800: 10 30 51;
+  --c-maroon-900: 6 18 31;
+  --c-cream-50: 255 255 255;
+  --c-cream-100: 243 239 230;
+  --c-cream-200: 231 225 210;
+  --c-selection-bg: 234 214 164;
+  --c-selection-fg: 10 30 51;
+  --c-focus: 198 161 91;
+}
+
+:root[data-theme="white-gold"] {
+  --c-primary-50: 255 251 239;
+  --c-primary-100: 250 240 210;
+  --c-primary-200: 240 220 162;
+  --c-primary-300: 228 198 116;
+  --c-primary-400: 214 178 90;
+  --c-primary-500: 192 154 74;
+  --c-primary-600: 143 108 34;
+  --c-primary-700: 116 85 27;
+  --c-primary-800: 90 66 20;
+  --c-primary-900: 66 48 14;
+  --c-maroon-50: 255 251 239;
+  --c-maroon-100: 250 240 210;
+  --c-maroon-200: 240 220 162;
+  --c-maroon-300: 228 198 116;
+  --c-maroon-400: 201 162 78;
+  --c-maroon-500: 169 131 48;
+  --c-maroon-600: 164 125 43;
+  --c-maroon-700: 143 108 34;
+  --c-maroon-800: 116 86 25;
+  --c-maroon-900: 90 66 20;
+  --c-cream-50: 255 255 255;
+  --c-cream-100: 255 252 244;
+  --c-cream-200: 240 230 203;
+  --c-selection-bg: 240 220 162;
+  --c-selection-fg: 66 48 14;
+  --c-focus: 192 154 74;
+}
+
+/* น้ำเงิน-ส้ม: อ้างอิงเว็บ FunRun (น้ำเงิน #1D63C4 / ส้ม #F15A22 / พื้นขาว-ฟ้าอ่อน)
+   maroon = น้ำเงิน (หัวข้อ ปุ่มหลัก เมนู), primary = ส้ม (ปุ่มเน้น ตัวเน้น), cream = พื้นขาว-เทาฟ้า */
+:root[data-theme="blue-orange"] {
+  --c-primary-50: 255 245 237;
+  --c-primary-100: 254 232 216;
+  --c-primary-200: 252 208 184;
+  --c-primary-300: 249 166 122;
+  --c-primary-400: 245 128 80;
+  --c-primary-500: 241 90 34;
+  --c-primary-600: 196 70 15;
+  --c-primary-700: 160 55 10;
+  --c-primary-800: 125 42 8;
+  --c-primary-900: 90 30 6;
+  --c-maroon-50: 238 244 251;
+  --c-maroon-100: 226 237 251;
+  --c-maroon-200: 205 224 247;
+  --c-maroon-300: 163 198 242;
+  --c-maroon-400: 120 170 232;
+  --c-maroon-500: 77 138 220;
+  --c-maroon-600: 45 116 208;
+  --c-maroon-700: 29 99 196;
+  --c-maroon-800: 22 74 148;
+  --c-maroon-900: 15 50 100;
+  --c-cream-50: 255 255 255;
+  --c-cream-100: 244 246 250;
+  --c-cream-200: 226 232 242;
+  --c-selection-bg: 252 208 184;
+  --c-selection-fg: 22 74 148;
+  --c-focus: 29 99 196;
+}
+
 body {
   font-family: var(--font-body), "Sarabun", "Noto Sans Thai", system-ui, sans-serif;
 }
@@ -13,12 +109,12 @@ h3 {
 }
 
 ::selection {
-  background-color: #9fc7fb;
-  color: #081f3a;
+  background-color: rgb(var(--c-selection-bg));
+  color: rgb(var(--c-selection-fg));
 }
 
 :focus-visible {
-  outline: 2px solid #2580fa;
+  outline: 2px solid rgb(var(--c-focus));
   outline-offset: 2px;
 }
 

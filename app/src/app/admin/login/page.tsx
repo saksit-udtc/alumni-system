@@ -73,7 +73,7 @@ function AdminLoginForm() {
       <div className="w-full max-w-sm">
         <div className="bg-white rounded-2xl shadow-lg shadow-stone-900/5 border border-cream-200 px-8 pt-10 pb-8">
           <div className="flex flex-col items-center text-center mb-7">
-            <img src="/logo.jpg" alt="ตราสัญลักษณ์" className="w-14 h-14 rounded-full object-cover shadow-sm" />
+            <img src="/logo-89.png" alt="โลโก้ 89 ปี วิทยาลัยเทคนิคอุดรธานี" className="w-16 h-16 object-contain" />
             <h1 className="mt-4 text-xl font-display font-semibold text-stone-800">เข้าสู่ระบบเจ้าหน้าที่</h1>
             <p className="text-sm text-stone-500 mt-1">ระบบจองโต๊ะงานคืนสู่เหย้า — สำหรับเจ้าหน้าที่เท่านั้น</p>
           </div>

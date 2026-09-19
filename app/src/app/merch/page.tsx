@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "../components/site-nav";
+import PageTitle from "@/app/components/page-title";
 import PayQr from "../components/pay-qr";
 import { ShopProduct, SIZES, StockBadge, ProductModal, totalStock } from "./shop-parts";
 import { generatePromptPayPayload } from "@/lib/promptpay";
@@ -271,21 +272,13 @@ export default function MerchShopPage() {
     <div>
       <SiteNav />
 
-      <section className="relative overflow-hidden bg-maroon-700">
-        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
-          <span className="inline-block text-xs font-medium tracking-wide uppercase bg-white/10 text-primary-200 rounded-full px-3 py-1 mb-4 border border-primary-400/30">
-            ของที่ระลึกงานคืนสู่เหย้า
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-display font-semibold text-white leading-snug">สั่งซื้อของที่ระลึก</h1>
-          <p className="mt-3 text-cream-50/80 max-w-xl mx-auto">เลือกซื้อเสื้อ เหรียญ และของที่ระลึกอื่นๆ ของศิษย์เก่า พร้อมจัดส่งถึงบ้าน</p>
-        </div>
-      </section>
+      <PageTitle title="สั่งซื้อของที่ระลึก" />
 
-      <main className={`max-w-3xl mx-auto p-4 space-y-6 ${cart.length > 0 ? "pb-28" : ""}`}>
+      <main className={`max-w-5xl mx-auto p-4 space-y-6 ${cart.length > 0 ? "pb-28" : ""}`}>
       {loading && <p className="text-stone-500">กำลังโหลด...</p>}
       {!loading && products.length === 0 && <p className="text-stone-500">ยังไม่มีสินค้าเปิดขายในขณะนี้</p>}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-4 gap-2 sm:gap-4">
         {products.map((p) => {
           const soldOut = totalStock(p) <= 0;
           const quickRemaining = remainingForSize(p, "");
@@ -306,21 +299,21 @@ export default function MerchShopPage() {
                   <StockBadge product={p} />
                 </div>
               </button>
-              <div className="p-3 flex flex-col gap-1 flex-1">
+              <div className="p-2 sm:p-3 flex flex-col gap-1 flex-1">
                 <button
                   type="button"
                   onClick={() => setDetailId(p.id)}
-                  className="text-left font-display font-semibold text-stone-800 hover:text-maroon-700 transition-colors"
+                  className="text-left text-xs sm:text-base leading-snug font-display font-semibold text-stone-800 hover:text-maroon-700 transition-colors"
                 >
                   {p.name}
                 </button>
-                {p.description && <p className="text-xs text-stone-500 line-clamp-2">{p.description}</p>}
-                <p className="font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
+                {p.description && <p className="hidden sm:block text-xs text-stone-500 line-clamp-2">{p.description}</p>}
+                <p className="text-xs sm:text-base font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
                 <div className="mt-auto pt-2 flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
                     onClick={() => setDetailId(p.id)}
-                    className="flex-1 border border-stone-300 hover:border-maroon-700 hover:text-maroon-700 transition-colors text-stone-600 rounded-lg py-2 text-sm font-medium"
+                    className="hidden sm:block flex-1 border border-stone-300 hover:border-maroon-700 hover:text-maroon-700 transition-colors text-stone-600 rounded-lg py-2 text-sm font-medium"
                   >
                     รายละเอียด
                   </button>
@@ -329,7 +322,7 @@ export default function MerchShopPage() {
                       <button
                         type="button"
                         onClick={() => setDetailId(p.id)}
-                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 text-sm font-semibold"
+                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-1.5 sm:py-2 text-xs sm:text-sm font-semibold"
                       >
                         เลือกไซส์
                       </button>
@@ -338,7 +331,7 @@ export default function MerchShopPage() {
                         type="button"
                         onClick={() => addToCart(p)}
                         disabled={quickRemaining <= 0}
-                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-1.5 sm:py-2 text-xs sm:text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {quickRemaining > 0 ? "+ ตะกร้า" : "ครบแล้ว"}
                       </button>
@@ -350,7 +343,7 @@ export default function MerchShopPage() {
         })}
       </div>
 
-      <div className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-2">
+      <div className="max-w-3xl mx-auto w-full bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-2">
         <h2 className="font-display font-semibold text-stone-800">ตะกร้าสินค้า</h2>
         {cart.length === 0 && <p className="text-sm text-stone-400">ยังไม่มีสินค้าในตะกร้า</p>}
         <div className="flex flex-col gap-2">
@@ -388,7 +381,7 @@ export default function MerchShopPage() {
         )}
       </div>
 
-      <form ref={formRef} id="checkout-form" onSubmit={checkout} noValidate className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
+      <form ref={formRef} id="checkout-form" onSubmit={checkout} noValidate className="max-w-3xl mx-auto w-full bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
         <h2 className="font-display font-semibold text-stone-800">ข้อมูลผู้สั่งซื้อ</h2>
 
         <div className="grid grid-cols-2 gap-3">

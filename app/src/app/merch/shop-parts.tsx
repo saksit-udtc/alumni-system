@@ -310,15 +310,18 @@ export function ProductModal({
               onQty={onQty}
               onAdd={onAdd}
             />
+          </div>
+        </div>
 
-            {product.requiresSize && (
-              <div className="border-t border-cream-200 pt-3">
-                {!product.sizeGuideUrl ? (
-                  // No custom chart uploaded by admin -> built-in shirt size table.
-                  <SizeChart />
-                ) : (
-                  <>
-                <div className="text-sm font-medium text-stone-700 mb-1.5">ตารางขนาด</div>
+        {/* Size chart spans the full width of the panel (below both columns). */}
+        {product.requiresSize && (
+          <div className="px-4 sm:px-6 pb-5 sm:pb-6">
+            {!product.sizeGuideUrl ? (
+              // No custom chart uploaded by admin -> built-in shirt size table.
+              <SizeChart />
+            ) : (
+              <div className="rounded-xl border border-cream-200 bg-cream-50 p-3 sm:p-4">
+                <div className="text-sm font-display font-semibold text-stone-800 mb-2">ตารางขนาด</div>
                 <button
                   type="button"
                   onClick={() => onZoom(product.sizeGuideUrl!, `ตารางขนาด ${product.name}`)}
@@ -328,12 +331,10 @@ export function ProductModal({
                   <img src={product.sizeGuideUrl} alt={`ตารางขนาด ${product.name}`} className="w-full rounded-lg border border-cream-200" />
                 </button>
                 <p className="text-xs text-stone-400 mt-1">แตะที่รูปเพื่อขยาย</p>
-                  </>
-                )}
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
