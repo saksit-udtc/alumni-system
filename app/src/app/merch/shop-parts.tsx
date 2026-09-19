@@ -217,7 +217,7 @@ export function ProductModal({
 
   return (
     <div
-      className="fixed inset-0 z-40 bg-black/60 flex items-end sm:items-center justify-center sm:p-4"
+      className="fixed inset-0 z-[55] bg-black/60 flex items-end sm:items-center justify-center sm:p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"

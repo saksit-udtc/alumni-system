@@ -555,7 +555,7 @@ export default function MerchShopPage() {
       {lightbox && (
         <div
           onClick={() => setLightbox(null)}
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out overflow-auto"
+          className="fixed inset-0 z-[58] bg-black/80 flex items-center justify-center p-4 cursor-zoom-out overflow-auto"
         >
           <img
             src={lightbox.url}
