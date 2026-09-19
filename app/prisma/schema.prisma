@@ -276,6 +276,8 @@ model MerchProduct {
   sizeGuideKey String?
   requiresSize Boolean  @default(false)
   active       Boolean  @default(true)
+  // ลำดับแสดงในหน้าร้าน (น้อย = ขึ้นก่อน) — ตรงกับคอลัมน์ในมิเกรชัน 20260919120000
+  sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
 
   orderItems   MerchOrderItem[]
