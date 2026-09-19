@@ -7,7 +7,7 @@ import { getMerchShippingFee, setMerchShippingFee } from "@/lib/settings";
 // management — MERCH_STAFF handles day-to-day product/stock upkeep and
 // this fee lives right alongside it in "จัดการสินค้า".
 export async function GET(req: NextRequest) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const shippingFee = await getMerchShippingFee();
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
+  const { response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (response) return response;
 
   const body = await req.json().catch(() => null);

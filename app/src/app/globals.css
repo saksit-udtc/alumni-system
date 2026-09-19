@@ -21,3 +21,26 @@ h3 {
   outline: 2px solid #2580fa;
   outline-offset: 2px;
 }
+
+/* ---- Page transition ----
+   เฟดเข้าเนียน ๆ ทุกครั้งที่เปลี่ยนหน้า (เล่นผ่าน app/template.tsx ที่ remount ทุก navigation)
+   ใช้เฉพาะ opacity + blur เล็กน้อยที่ไม่สร้าง containing block กับ position:fixed
+   (ไม่ใช้ transform บน wrapper เพราะจะทำให้ header/ปุ่มลอยที่เป็น fixed กระตุก) */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.page-transition {
+  animation: pageEnter 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center top;
+}
+/* ผู้ใช้ที่ตั้งค่าลดการเคลื่อนไหว — ปิดอนิเมชัน */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: none;
+  }
+}

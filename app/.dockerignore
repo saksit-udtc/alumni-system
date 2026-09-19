@@ -1,0 +1,6 @@
+node_modules
+.next
+_tmp_read
+tmp_check_admin.js
+*.tsbuildinfo
+.env*

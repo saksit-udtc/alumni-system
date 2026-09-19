@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const { admin, response } = requireAdmin(req, ["MERCH_STAFF"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (!admin) return response;
 
   const body = await req.json().catch(() => null);

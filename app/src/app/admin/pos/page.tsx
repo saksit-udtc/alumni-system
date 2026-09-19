@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import QrCode from "@/app/components/qr-code";
+import SizeChart from "@/app/components/size-chart";
 import { generatePromptPayPayload } from "@/lib/promptpay";
 
 interface StockRow {
@@ -45,6 +46,11 @@ export default function PosTerminalPage() {
   const [promptPayId, setPromptPayId] = useState("");
   const scanInputRef = useRef<HTMLInputElement>(null);
 
+  // Modal เลือกไซส์/ปรับจำนวนก่อนเพิ่มลงตะกร้า
+  const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [modalStockId, setModalStockId] = useState<string>("");
+  const [modalQty, setModalQty] = useState(1);
+
   function loadProducts() {
     fetch("/api/admin/pos/products")
       .then((r) => r.json())
@@ -82,6 +88,12 @@ export default function PosTerminalPage() {
     }
     return map;
   }, [products]);
+
+  // สินค้าที่มีสต๊อก (อย่างน้อย 1 ไซส์ที่ยังเหลือ) — แสดง 1 การ์ด/สินค้า
+  const inStockProducts = useMemo(
+    () => products.filter((p) => p.stocks.some((s) => s.quantity > 0)),
+    [products],
+  );
 
   function addToCart(product: Product, stock: StockRow) {
     if (!stock.barcode) return;
@@ -173,6 +185,51 @@ export default function PosTerminalPage() {
 
   function removeLine(stockId: string) {
     setCart((prev) => prev.filter((l) => l.stockId !== stockId));
+  }
+
+  // เพิ่มสินค้าจำนวนที่ระบุลงตะกร้าในครั้งเดียว (คุมสต๊อก + รวมกับที่มีอยู่)
+  function addToCartQty(product: Product, stock: StockRow, qty: number) {
+    if (!stock.barcode || qty < 1) return;
+    setCart((prev) => {
+      const existing = prev.find((l) => l.stockId === stock.id);
+      const already = existing?.quantity || 0;
+      const capped = Math.min(qty, stock.quantity - already);
+      if (capped <= 0) {
+        setScanError(`สินค้า "${product.name}${stock.size ? ` (ไซส์ ${stock.size})` : ""}" เหลือไม่พอ (คงเหลือ ${stock.quantity})`);
+        return prev;
+      }
+      setScanError("");
+      if (existing) {
+        return prev.map((l) => (l.stockId === stock.id ? { ...l, quantity: l.quantity + capped } : l));
+      }
+      return [
+        ...prev,
+        {
+          barcode: stock.barcode!,
+          stockId: stock.id,
+          productName: product.name,
+          size: stock.size,
+          unitPrice: Number(product.price),
+          quantity: capped,
+          maxQuantity: stock.quantity,
+        },
+      ];
+    });
+  }
+
+  // เปิด modal — เลือกไซส์ที่ยังมีของเป็นค่าเริ่มต้น จำนวนเริ่ม 1
+  function openProductModal(product: Product) {
+    const first =
+      product.stocks.find((s) => s.quantity > 0 && s.barcode) ||
+      product.stocks.find((s) => s.quantity > 0) ||
+      null;
+    setModalProduct(product);
+    setModalStockId(first ? first.id : "");
+    setModalQty(1);
+    setScanError("");
+  }
+  function closeModal() {
+    setModalProduct(null);
   }
 
   const total = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
@@ -308,6 +365,38 @@ export default function PosTerminalPage() {
           </form>
 
           <div className="bg-white rounded-xl border border-cream-200 shadow-md p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display font-semibold text-stone-800">สินค้าในสต๊อก — แตะเพื่อเพิ่ม</h2>
+              <span className="text-xs text-stone-400">{inStockProducts.length} รายการ</span>
+            </div>
+            {inStockProducts.length === 0 ? (
+              <div className="text-sm text-stone-400 text-center py-6">ยังไม่มีสินค้าที่มีสต๊อก</div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                {inStockProducts.map((product) => {
+                  const remaining = product.stocks.reduce((n, x) => n + (x.quantity > 0 ? x.quantity : 0), 0);
+                  const sizeCount = product.stocks.filter((x) => x.quantity > 0).length;
+                  return (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => openProductModal(product)}
+                      className="border border-cream-200 rounded-lg p-3 flex flex-col text-left bg-cream-50 hover:border-primary-400 hover:shadow-sm transition-all"
+                    >
+                      <div className="font-medium text-stone-800 text-sm leading-snug">{product.name}</div>
+                      <div className="text-xs text-stone-500 mt-0.5">
+                        {product.requiresSize ? `${sizeCount} ไซส์ · ` : ""}คงเหลือ {remaining}
+                      </div>
+                      <div className="text-maroon-700 font-semibold text-sm mt-1">{Number(product.price).toLocaleString()} บาท</div>
+                      <div className="mt-2 text-xs text-primary-700 font-medium">แตะเพื่อเลือก →</div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-cream-200 shadow-md p-5">
             <h2 className="font-display font-semibold text-stone-800 mb-3">ตะกร้าสินค้า ({cart.length} รายการ)</h2>
             {cart.length === 0 ? (
               <div className="text-sm text-stone-400 text-center py-8">ยังไม่มีสินค้าในตะกร้า — สแกนบาร์โค้ดเพื่อเริ่มขาย</div>
@@ -410,6 +499,136 @@ export default function PosTerminalPage() {
           </div>
         </div>
       </div>
+
+      {modalProduct &&
+        (() => {
+          const p = modalProduct;
+          const stock = p.stocks.find((x) => x.id === modalStockId) || null;
+          const inCart = stock ? cart.find((l) => l.stockId === stock.id)?.quantity || 0 : 0;
+          const maxAddable = stock ? Math.max(0, stock.quantity - inCart) : 0;
+          const canAdd = !!stock && !!stock.barcode && modalQty >= 1 && modalQty <= maxAddable;
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+              <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
+              <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-display font-semibold text-stone-800 text-lg">{p.name}</h3>
+                    <div className="text-maroon-700 font-semibold">{Number(p.price).toLocaleString()} บาท/ชิ้น</div>
+                  </div>
+                  <button type="button" onClick={closeModal} className="text-stone-400 hover:text-stone-600 text-xl leading-none">
+                    ✕
+                  </button>
+                </div>
+
+                {p.requiresSize && (
+                  <div>
+                    <div className="text-sm font-medium text-stone-700 mb-1">เลือกไซส์</div>
+                    <div className="flex flex-wrap gap-2">
+                      {p.stocks.map((x) => {
+                        const disabled = x.quantity <= 0 || !x.barcode;
+                        const active = x.id === modalStockId;
+                        return (
+                          <button
+                            key={x.id}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              setModalStockId(x.id);
+                              setModalQty(1);
+                            }}
+                            className={`rounded-lg px-3 py-2 text-sm border transition-colors ${
+                              active
+                                ? "bg-maroon-700 text-white border-maroon-700"
+                                : "bg-white text-stone-700 border-stone-300 hover:bg-cream-50"
+                            } disabled:opacity-40 disabled:cursor-not-allowed`}
+                          >
+                            {x.size || "-"} <span className="text-xs opacity-70">({x.quantity})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {p.requiresSize && (
+                  <details className="text-sm">
+                    <summary className="cursor-pointer select-none text-primary-700 font-medium">ดูตารางไซซ์</summary>
+                    <div className="mt-2">
+                      <SizeChart />
+                    </div>
+                  </details>
+                )}
+
+                <div>
+                  <div className="text-sm font-medium text-stone-700 mb-1">จำนวน</div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setModalQty((q) => Math.max(1, q - 1))}
+                      className="w-10 h-10 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-lg font-bold"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={maxAddable || 1}
+                      value={modalQty}
+                      onChange={(e) =>
+                        setModalQty(Math.max(1, Math.min(maxAddable || 1, Number(e.target.value) || 1)))
+                      }
+                      className="w-20 text-center border border-stone-300 rounded-lg px-2 py-2 text-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setModalQty((q) => Math.min(maxAddable || 1, q + 1))}
+                      className="w-10 h-10 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-lg font-bold"
+                    >
+                      +
+                    </button>
+                    <span className="text-sm text-stone-500">
+                      คงเหลือ {stock ? stock.quantity : 0}
+                      {inCart > 0 ? ` · ในตะกร้าแล้ว ${inCart}` : ""}
+                    </span>
+                  </div>
+                </div>
+
+                {stock && !stock.barcode && (
+                  <p className="text-sm text-amber-600">ไซส์นี้ยังไม่มีบาร์โค้ด เพิ่มไม่ได้ (สร้างบาร์โค้ดในหน้าจัดการสินค้าก่อน)</p>
+                )}
+                {p.requiresSize && !stock && <p className="text-sm text-stone-500">กรุณาเลือกไซส์</p>}
+                {stock && !!stock.barcode && maxAddable === 0 && (
+                  <p className="text-sm text-amber-600">เพิ่มครบจำนวนคงเหลือแล้ว</p>
+                )}
+
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <div className="text-sm text-stone-500">
+                    รวม: <span className="font-semibold text-maroon-700">{(Number(p.price) * modalQty).toLocaleString()} บาท</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeModal} className="rounded-lg px-4 py-2 text-sm border border-stone-300 text-stone-700 hover:bg-cream-50">
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canAdd}
+                      onClick={() => {
+                        if (stock) {
+                          addToCartQty(p, stock, modalQty);
+                          closeModal();
+                        }
+                      }}
+                      className="rounded-lg px-5 py-2 text-sm font-semibold bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-50"
+                    >
+                      เพิ่มลงตะกร้า
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
     </div>
   );
 }

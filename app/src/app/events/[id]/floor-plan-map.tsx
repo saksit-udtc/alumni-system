@@ -14,7 +14,7 @@ import { zoneKey, computeZoomFrame } from "@/lib/floor-plan-zoom";
 // tiny screens and don't get comically large on a huge desktop canvas.
 function markerSizeForCanvas(canvasWidthPx: number) {
   if (canvasWidthPx <= 0) return 75;
-  return Math.round(Math.min(150, Math.max(26, canvasWidthPx / 12)));
+  return Math.round(Math.min(150, Math.max(26, canvasWidthPx / 16)));
 }
 
 function PlacedTable({

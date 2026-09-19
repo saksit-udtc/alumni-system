@@ -7,10 +7,21 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 export const ADMIN_COOKIE_NAME = "alumni_admin_token";
 const TOKEN_TTL = "12h";
 
+export type AdminRole =
+  | "SUPER_ADMIN"
+  | "CHECKIN_STAFF"
+  | "MERCH_STAFF"
+  | "FINANCE_STAFF"
+  | "RESERVATION_STAFF";
+
 export interface AdminTokenPayload {
   adminId: string;
   username: string;
-  role: "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAFF" | "RESERVATION_STAFF";
+  role: AdminRole;
+  /** เมื่อ SUPER_ADMIN สลับ "มุมมองทดสอบ (View as)" เป็นบทบาทอื่น:
+   * role = บทบาทที่กำลังสวมอยู่, actualRole = บทบาทจริง (เป็น SUPER_ADMIN เสมอ)
+   * ไม่มีค่านี้ = session ปกติ */
+  actualRole?: AdminRole;
 }
 
 export function hashPassword(plain: string): Promise<string> {

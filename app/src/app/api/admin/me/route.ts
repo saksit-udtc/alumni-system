@@ -5,5 +5,5 @@ import { requireAdmin } from "@/lib/apiHelpers";
 export async function GET(req: NextRequest) {
   const { admin, response } = requireAdmin(req);
   if (response) return response;
-  return NextResponse.json({ username: admin.username, role: admin.role });
+  return NextResponse.json({ username: admin.username, role: admin.role, actualRole: admin.actualRole ?? null });
 }

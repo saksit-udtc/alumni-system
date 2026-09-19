@@ -26,7 +26,11 @@ const ROLE_HOME: Record<string, string> = {
 function isPathAllowedForRole(pathname: string, role: string): boolean {
   if (role === "SUPER_ADMIN") return true;
   // Logout and the "who am I" check are always allowed for any logged-in admin.
-  if (pathname === "/api/admin/logout" || pathname === "/api/admin/me") {
+  if (
+    pathname === "/api/admin/logout" ||
+    pathname === "/api/admin/me" ||
+    pathname === "/api/admin/impersonate"
+  ) {
     return true;
   }
   const allowedPrefixes = ROLE_ALLOWED_PREFIXES[role];

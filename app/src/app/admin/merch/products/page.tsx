@@ -40,17 +40,7 @@ export default function AdminMerchProductsPage() {
   const [stockDrafts, setStockDrafts] = useState<Record<string, string>>({});
   const [savingStock, setSavingStock] = useState<string | null>(null);
 
-  // Shipping fee setting — separate load/save from the product list above.
-  const [shippingFee, setShippingFee] = useState<number | null>(null);
-  const [shippingFeeDraft, setShippingFeeDraft] = useState("");
-  const [savingShippingFee, setSavingShippingFee] = useState(false);
-  const [shippingFeeError, setShippingFeeError] = useState("");
-
-  // POS PromptPay QR target — separate load/save, same pattern as shipping fee.
-  const [promptPayId, setPromptPayId] = useState<string | null>(null);
-  const [promptPayIdDraft, setPromptPayIdDraft] = useState("");
-  const [savingPromptPayId, setSavingPromptPayId] = useState(false);
-  const [promptPayIdError, setPromptPayIdError] = useState("");
+  // การตั้งค่าค่าจัดส่ง/พร้อมเพย์ ย้ายไปเมนู "ตั้งค่าระบบ" (แก้ได้เฉพาะ SUPER_ADMIN)
 
   function load() {
     fetch("/api/admin/merch/products")
@@ -85,73 +75,6 @@ export default function AdminMerchProductsPage() {
       if (res.ok) loadBarcodes();
     } finally {
       setGeneratingBarcode(null);
-    }
-  }
-
-  function loadShippingFee() {
-    fetch("/api/admin/merch/settings")
-      .then((r) => r.json())
-      .then((d) => {
-        setShippingFee(Number(d.shippingFee) || 0);
-        setShippingFeeDraft(String(d.shippingFee ?? 0));
-      });
-  }
-  useEffect(loadShippingFee, []);
-
-  function loadPromptPayId() {
-    fetch("/api/admin/pos/settings")
-      .then((r) => r.json())
-      .then((d) => {
-        setPromptPayId(d.promptPayId ?? "");
-        setPromptPayIdDraft(d.promptPayId ?? "");
-      });
-  }
-  useEffect(loadPromptPayId, []);
-
-  async function savePromptPayId(e: React.FormEvent) {
-    e.preventDefault();
-    setPromptPayIdError("");
-    setSavingPromptPayId(true);
-    try {
-      const res = await fetch("/api/admin/pos/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ promptPayId: promptPayIdDraft }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPromptPayIdError(data.error || "บันทึกไม่สำเร็จ");
-        return;
-      }
-      setPromptPayId(data.promptPayId);
-    } finally {
-      setSavingPromptPayId(false);
-    }
-  }
-
-  async function saveShippingFee(e: React.FormEvent) {
-    e.preventDefault();
-    setShippingFeeError("");
-    const fee = Number(shippingFeeDraft);
-    if (!Number.isFinite(fee) || fee < 0) {
-      setShippingFeeError("กรุณากรอกค่าจัดส่งเป็นตัวเลขที่มากกว่าหรือเท่ากับ 0");
-      return;
-    }
-    setSavingShippingFee(true);
-    try {
-      const res = await fetch("/api/admin/merch/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shippingFee: fee }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setShippingFeeError(data.error || "บันทึกไม่สำเร็จ");
-        return;
-      }
-      setShippingFee(data.shippingFee);
-    } finally {
-      setSavingShippingFee(false);
     }
   }
 
@@ -276,60 +199,6 @@ export default function AdminMerchProductsPage() {
           </Link>
         </div>
       </div>
-
-      <form onSubmit={saveShippingFee} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
-        <h2 className="font-display font-semibold text-stone-800">ค่าจัดส่ง</h2>
-        <p className="text-sm text-stone-500">ค่าจัดส่งนี้จะถูกรวมเข้ากับยอดชำระของทุกคำสั่งซื้อใหม่โดยอัตโนมัติ (คำสั่งซื้อเก่าจะไม่เปลี่ยนแปลงตามค่าที่แก้ไขนี้)</p>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">ค่าจัดส่ง (บาท)</span>
-            <input
-              type="number"
-              min={0}
-              value={shippingFeeDraft}
-              onChange={(e) => setShippingFeeDraft(e.target.value)}
-              className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2 w-40"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={savingShippingFee}
-            className="bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg px-4 py-2 font-semibold disabled:opacity-50"
-          >
-            {savingShippingFee ? "กำลังบันทึก..." : "บันทึกค่าจัดส่ง"}
-          </button>
-          {shippingFee !== null && <span className="text-sm text-stone-500">ค่าจัดส่งปัจจุบัน: {shippingFee.toLocaleString()} บาท</span>}
-        </div>
-        {shippingFeeError && <p className="text-red-600 text-sm">{shippingFeeError}</p>}
-      </form>
-
-      <form onSubmit={savePromptPayId} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
-        <h2 className="font-display font-semibold text-stone-800">QR พร้อมเพย์สำหรับขายหน้างาน (POS)</h2>
-        <p className="text-sm text-stone-500">
-          กรอกเบอร์โทร (หรือเลขบัตรประชาชน/นิติบุคคล) ที่ผูกพร้อมเพย์ไว้ — หน้าขายหน้างานจะสร้าง QR ระบุยอดเงินให้ลูกค้าสแกนจ่ายอัตโนมัติเมื่อเลือก
-          &quot;โอนเงิน&quot; (เจ้าหน้าที่ยังต้องตรวจสอบว่าเงินเข้าจริงก่อนกดยืนยันการขายเอง)
-        </p>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">เบอร์พร้อมเพย์ / เลขบัตร ปชช. / เลขนิติบุคคล</span>
-            <input
-              value={promptPayIdDraft}
-              onChange={(e) => setPromptPayIdDraft(e.target.value)}
-              placeholder="เช่น 0812345678"
-              className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2 w-56"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={savingPromptPayId}
-            className="bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg px-4 py-2 font-semibold disabled:opacity-50"
-          >
-            {savingPromptPayId ? "กำลังบันทึก..." : "บันทึก"}
-          </button>
-          {promptPayId !== null && <span className="text-sm text-stone-500">{promptPayId ? `ปัจจุบัน: ${promptPayId}` : "ยังไม่ได้ตั้งค่า"}</span>}
-        </div>
-        {promptPayIdError && <p className="text-red-600 text-sm">{promptPayIdError}</p>}
-      </form>
 
       <form onSubmit={createProduct} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
         <h2 className="font-display font-semibold text-stone-800">+ เพิ่มสินค้าใหม่</h2>

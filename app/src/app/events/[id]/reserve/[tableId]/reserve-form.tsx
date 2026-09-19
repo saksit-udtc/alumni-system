@@ -10,7 +10,7 @@ import {
   isValidEmailFormat,
   normalizeEmail,
 } from "@/lib/formValidation";
-import QrCode from "@/app/components/qr-code";
+import PayQr from "@/app/components/pay-qr";
 import { generatePromptPayPayload } from "@/lib/promptpay";
 
 export default function ReserveForm({
@@ -425,11 +425,7 @@ export default function ReserveForm({
       <div className="text-sm font-medium text-stone-800">ยอดชำระ: {total.toLocaleString()} บาท</div>
 
       {promptPayPayload && (
-        <div className="border border-cream-200 rounded-lg p-3 flex flex-col items-center text-center bg-cream-50">
-          <QrCode value={promptPayPayload} size={180} />
-          <div className="text-xs text-stone-500 mt-2">สแกนด้วยแอปธนาคารเพื่อจ่ายยอด {total.toLocaleString()} บาท แล้วแนบสลิปด้านล่าง</div>
-          <div className="text-xs text-stone-400 mt-1">รายการ: {paymentLabel}</div>
-        </div>
+        <PayQr value={promptPayPayload} amount={total} label={paymentLabel} title={eventName} size={180} />
       )}
 
       <div className="border-t border-cream-200 pt-3">

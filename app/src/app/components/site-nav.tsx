@@ -55,6 +55,7 @@ export default function SiteNav() {
   }
 
   return (
+    <>
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-cream-200">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 min-w-0">
@@ -120,5 +121,21 @@ export default function SiteNav() {
         </nav>
       )}
     </header>
+
+      {/* ปุ่มลอย "หน้าแรก" — แสดงเฉพาะจอมือถือ (md:hidden) และทุกหน้าที่ไม่ใช่หน้าแรก */}
+      {pathname !== "/" && (
+        <Link
+          href="/"
+          aria-label="กลับหน้าแรก"
+          className="md:hidden fixed right-4 bottom-4 z-40 inline-flex items-center gap-1.5 bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-full pl-3.5 pr-4 py-2.5 text-sm font-semibold shadow-lg"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 11l9-8 9 8" />
+            <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
+          </svg>
+          หน้าแรก
+        </Link>
+      )}
+    </>
   );
 }

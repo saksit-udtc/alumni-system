@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "../components/site-nav";
-import QrCode from "../components/qr-code";
+import PayQr from "../components/pay-qr";
+import SizeChart from "../components/size-chart";
 import { generatePromptPayPayload } from "@/lib/promptpay";
 import {
   validateNamePart,
@@ -312,6 +313,15 @@ export default function MerchShopPage() {
                 </label>
               )}
 
+              {anyStock && p.requiresSize && (
+                <details className="text-sm">
+                  <summary className="cursor-pointer select-none text-primary-700 font-medium">ดูตารางไซซ์</summary>
+                  <div className="mt-2">
+                    <SizeChart />
+                  </div>
+                </details>
+              )}
+
               {anyStock && (
                 <>
                   <label className="flex flex-col gap-1 text-sm">
@@ -458,11 +468,7 @@ export default function MerchShopPage() {
         </label>
 
         {promptPayPayload && (
-          <div className="border border-cream-200 rounded-lg p-3 flex flex-col items-center text-center bg-cream-50 border-t-cream-200 mt-1">
-            <QrCode value={promptPayPayload} size={180} />
-            <div className="text-xs text-stone-500 mt-2">สแกนด้วยแอปธนาคารเพื่อจ่ายยอด {total.toLocaleString()} บาท แล้วแนบสลิปด้านล่าง</div>
-            <div className="text-xs text-stone-400 mt-1">รายการ: {cartSummary}</div>
-          </div>
+          <PayQr value={promptPayPayload} amount={total} label={cartSummary} size={180} boxClassName="border-t-cream-200 mt-1" />
         )}
 
         <label className="flex flex-col gap-1 text-sm border-t border-cream-200 pt-3">

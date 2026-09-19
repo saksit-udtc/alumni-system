@@ -88,6 +88,7 @@ export default function HomePage() {
   const [content, setContent] = useState<LandingContent | null>(null);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false); // speed-dial ปุ่มลอย (เฉพาะมือถือ)
   const [openFaq, setOpenFaq] = useState(0);
   const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
   const [countdown, setCountdown] = useState({ d: "--", h: "--", m: "--", s: "--" });
@@ -159,7 +160,6 @@ export default function HomePage() {
             <a href="#gallery">คลังภาพ</a>
             <a href="#faq">คำถาม</a>
             <Link href="/status">ตรวจสอบการจอง</Link>
-            <Link href="/register">ลงทะเบียนศิษย์เก่า</Link>
             <Link href="/admin/login" style={{ opacity: 0.6, fontSize: 12 }}>เจ้าหน้าที่</Link>
           </div>
           <Link href={bookHref} className="nav-cta">จองโต๊ะ</Link>
@@ -176,15 +176,28 @@ export default function HomePage() {
             <a key={href} href={href} onClick={() => setMobileOpen(false)}>{label}</a>
           ))}
           <Link href="/status" onClick={() => setMobileOpen(false)}>ตรวจสอบการจอง</Link>
-          <Link href="/register" onClick={() => setMobileOpen(false)}>ลงทะเบียนศิษย์เก่า</Link>
           <Link href="/admin/login" onClick={() => setMobileOpen(false)}>เจ้าหน้าที่</Link>
           <Link href={bookHref} onClick={() => setMobileOpen(false)}>จองโต๊ะ →</Link>
         </div>
       </header>
 
       <div className="floating-menu">
-        <Link href={bookHref} className="floating-btn floating-btn-primary">จองโต๊ะงานเลี้ยง</Link>
-        <Link href="/merch" className="floating-btn floating-btn-secondary">สั่งซื้อของที่ระลึก</Link>
+        <div className={`fab-actions${fabOpen ? " open" : ""}`}>
+          <Link href={bookHref} className="floating-btn floating-btn-primary">จองโต๊ะ</Link>
+          <Link href="/merch" className="floating-btn floating-btn-secondary">สินค้า</Link>
+          {/* ปุ่มลอยที่ 3: ศิษย์เก่า -> /register */}
+          <Link href="/register" className="floating-btn floating-btn-secondary">ศิษย์เก่า</Link>
+        </div>
+        {/* ปุ่มรวม (speed-dial) — แสดงเฉพาะจอมือถือ (ดู CSS .fab-toggle) */}
+        <button
+          type="button"
+          className="fab-toggle"
+          onClick={() => setFabOpen((v) => !v)}
+          aria-expanded={fabOpen}
+          aria-label={fabOpen ? "ปิดเมนูลัด" : "เปิดเมนูลัด"}
+        >
+          {fabOpen ? "✕" : "•••"}
+        </button>
       </div>
 
       <section
@@ -541,16 +554,27 @@ export default function HomePage() {
         :global(.nav-cta){ background:var(--gold); color:var(--navy-deep); padding:10px 20px; border-radius:2px; font-weight:600; font-size:14px; transition:background .2s; white-space:nowrap; }
         :global(.nav-cta:hover){ background:var(--gold-bright); }
 
-        .floating-menu{ position:fixed; right:18px; bottom:18px; z-index:150; display:flex; flex-direction:column; gap:10px; }
-        .floating-menu :global(a){ padding:13px 22px; border-radius:999px; font-weight:700; font-size:14px; text-align:center; white-space:nowrap; box-shadow:0 8px 22px rgba(10,30,51,.35); transition:transform .15s, background .2s; }
-        .floating-menu :global(a:hover){ transform:translateY(-2px); }
-        .floating-menu :global(.floating-btn-primary){ background:var(--gold); color:var(--navy-deep); }
-        .floating-menu :global(.floating-btn-primary:hover){ background:var(--gold-bright); }
-        .floating-menu :global(.floating-btn-secondary){ background:var(--navy-deep); color:var(--paper); border:1px solid var(--gold); }
-        .floating-menu :global(.floating-btn-secondary:hover){ background:var(--navy); }
+        .floating-menu{ position:fixed; right:18px; bottom:18px; z-index:150; display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+        .fab-actions{ display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+        .fab-actions :global(a){ padding:13px 22px; border-radius:999px; font-weight:700; font-size:14px; text-align:center; white-space:nowrap; box-shadow:0 8px 22px rgba(10,30,51,.35); transition:opacity .2s ease, transform .2s ease, background .2s; }
+        .fab-actions :global(a:hover){ transform:translateY(-2px); }
+        .fab-actions :global(.floating-btn-primary){ background:var(--gold); color:var(--navy-deep); }
+        .fab-actions :global(.floating-btn-primary:hover){ background:var(--gold-bright); }
+        .fab-actions :global(.floating-btn-secondary){ background:var(--navy-deep); color:var(--paper); border:1px solid var(--gold); }
+        .fab-actions :global(.floating-btn-secondary:hover){ background:var(--navy); }
+        /* เดสก์ท็อป: แสดง 3 ปุ่มตลอด ไม่มีปุ่มรวม */
+        .fab-toggle{ display:none; }
+        /* มือถือ (<=640px): ยุบเหลือปุ่มเดียว (•••/✕) แตะแล้ว 3 ปุ่มเด้งออก */
         @media (max-width: 640px){
           .floating-menu{ right:14px; bottom:14px; }
-          .floating-menu :global(a){ padding:11px 16px; font-size:13px; }
+          .fab-actions :global(a){ padding:11px 16px; font-size:13px; opacity:0; transform:translateY(14px) scale(.92); pointer-events:none; }
+          .fab-actions.open :global(a){ opacity:1; transform:none; pointer-events:auto; }
+          .fab-actions.open :global(a:nth-child(1)){ transition-delay:.12s; }
+          .fab-actions.open :global(a:nth-child(2)){ transition-delay:.07s; }
+          .fab-actions.open :global(a:nth-child(3)){ transition-delay:.02s; }
+          .fab-toggle{ display:flex; width:54px; height:54px; border-radius:999px; background:var(--gold); color:var(--navy-deep); font-weight:800; font-size:18px; line-height:1; letter-spacing:1px; border:none; cursor:pointer; box-shadow:0 8px 22px rgba(10,30,51,.35); align-items:center; justify-content:center; transition:background .2s, transform .2s; }
+          .fab-toggle:hover{ background:var(--gold-bright); }
+          .fab-toggle:active{ transform:scale(.94); }
         }
         .burger{ display:none; color:var(--paper); font-size:22px; background:none; border:none; cursor:pointer; }
         .mobile-menu{ display:none; flex-direction:column; gap:0; background:var(--navy-deep); border-top:1px solid rgba(198,161,91,0.2); }
