@@ -15,7 +15,7 @@ export async function GET() {
     prisma.merchProduct.findMany({
       where: { active: true },
       orderBy: { createdAt: "asc" },
-      include: { stocks: true },
+      include: { stocks: true, images: { orderBy: { sortOrder: "asc" } } },
     }),
     getMerchShippingFee(),
   ]);
@@ -29,6 +29,13 @@ export async function GET() {
       price: p.price,
       requiresSize: p.requiresSize,
       imageUrl: p.imageKey ? publicMerchProductUrl(p.imageKey) : null,
+      // Full gallery for the detail view: cover image first, then extras in
+      // admin-defined order. imageUrl above stays the cover for the grid.
+      images: [
+        ...(p.imageKey ? [publicMerchProductUrl(p.imageKey)] : []),
+        ...p.images.map((img) => publicMerchProductUrl(img.imageKey)),
+      ],
+      sizeGuideUrl: p.sizeGuideKey ? publicMerchProductUrl(p.sizeGuideKey) : null,
       // requiresSize: false -> { "": <qty> }. requiresSize: true -> one
       // entry per size, e.g. { "M": 3, "L": 0 }. A size/slot with no stock
       // row at all is treated as 0 (out of stock), never as unlimited.

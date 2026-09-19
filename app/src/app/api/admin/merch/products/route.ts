@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   const products = await prisma.merchProduct.findMany({
     orderBy: { createdAt: "asc" },
-    include: { stocks: true },
+    include: { stocks: true, images: { orderBy: { sortOrder: "asc" } } },
   });
 
   return NextResponse.json({
@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
       requiresSize: p.requiresSize,
       active: p.active,
       imageUrl: p.imageKey ? publicMerchProductUrl(p.imageKey) : null,
+      images: p.images.map((img) => ({ id: img.id, imageUrl: publicMerchProductUrl(img.imageKey) })),
+      sizeGuideUrl: p.sizeGuideKey ? publicMerchProductUrl(p.sizeGuideKey) : null,
       stock: Object.fromEntries(p.stocks.map((s) => [s.size ?? "", s.quantity])),
     })),
   });

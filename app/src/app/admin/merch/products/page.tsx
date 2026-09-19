@@ -11,6 +11,10 @@ interface Product {
   requiresSize: boolean;
   active: boolean;
   imageUrl: string | null;
+  // Extra gallery photos (the cover image above is separate) + optional
+  // size-chart image — both shown on the shop's product detail view.
+  images: { id: string; imageUrl: string }[];
+  sizeGuideUrl: string | null;
   stock: Record<string, number>;
 }
 
@@ -39,6 +43,9 @@ export default function AdminMerchProductsPage() {
   // non-sized products), so typing in one box doesn't touch the others.
   const [stockDrafts, setStockDrafts] = useState<Record<string, string>>({});
   const [savingStock, setSavingStock] = useState<string | null>(null);
+  // Draft description edits keyed by product id (only present while edited).
+  const [descDrafts, setDescDrafts] = useState<Record<string, string>>({});
+  const [mediaBusy, setMediaBusy] = useState<string | null>(null);
 
   // การตั้งค่าค่าจัดส่ง/พร้อมเพย์ ย้ายไปเมนู "ตั้งค่าระบบ" (แก้ได้เฉพาะ SUPER_ADMIN)
 
@@ -131,6 +138,63 @@ export default function AdminMerchProductsPage() {
     formData.append("file", file);
     await fetch(`/api/admin/merch/products/${id}/image`, { method: "POST", body: formData });
     load();
+  }
+
+  // Runs one of the media mutations below with a per-product busy flag and
+  // surfaces server-side validation errors (wrong type / too large / etc).
+  async function withMedia(productId: string, fn: () => Promise<Response>) {
+    setMediaBusy(productId);
+    try {
+      const res = await fn();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "ดำเนินการไม่สำเร็จ");
+      }
+    } finally {
+      setMediaBusy(null);
+      load();
+    }
+  }
+
+  async function uploadGalleryImages(id: string, files: FileList) {
+    for (const file of Array.from(files)) {
+      const formData = new FormData();
+      formData.append("file", file);
+      await withMedia(id, () => fetch(`/api/admin/merch/products/${id}/gallery`, { method: "POST", body: formData }));
+    }
+  }
+
+  async function deleteGalleryImage(id: string, imageId: string) {
+    if (!confirm("ลบรูปนี้?")) return;
+    await withMedia(id, () => fetch(`/api/admin/merch/products/${id}/gallery/${imageId}`, { method: "DELETE" }));
+  }
+
+  async function uploadSizeGuide(id: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    await withMedia(id, () => fetch(`/api/admin/merch/products/${id}/size-guide`, { method: "POST", body: formData }));
+  }
+
+  async function deleteSizeGuide(id: string) {
+    if (!confirm("ลบรูปตารางขนาด?")) return;
+    await withMedia(id, () => fetch(`/api/admin/merch/products/${id}/size-guide`, { method: "DELETE" }));
+  }
+
+  async function saveDescription(p: Product) {
+    const value = descDrafts[p.id];
+    if (value === undefined) return;
+    await withMedia(p.id, () =>
+      fetch(`/api/admin/merch/products/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: value }),
+      })
+    );
+    setDescDrafts((prev) => {
+      const next = { ...prev };
+      delete next[p.id];
+      return next;
+    });
   }
 
   function draftKey(productId: string, size: string) {
@@ -286,6 +350,95 @@ export default function AdminMerchProductsPage() {
                     ลบ
                   </button>
                 </div>
+              </div>
+
+              <div className="border-t border-cream-200 pt-3 space-y-3">
+                <div className="text-xs font-medium text-stone-500">รายละเอียดและรูปที่แสดงในหน้ารายละเอียดสินค้า</div>
+
+                <label className="flex flex-col gap-1 text-xs">
+                  <span className="text-stone-500">รายละเอียดสินค้า (ขึ้นบรรทัดใหม่ได้)</span>
+                  <textarea
+                    rows={3}
+                    value={descDrafts[p.id] ?? p.description ?? ""}
+                    onChange={(e) => setDescDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                    className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-1.5 text-sm"
+                  />
+                </label>
+                {descDrafts[p.id] !== undefined && (
+                  <button
+                    onClick={() => saveDescription(p)}
+                    disabled={mediaBusy === p.id}
+                    className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white text-xs rounded-lg px-3 py-1.5 font-medium disabled:opacity-50"
+                  >
+                    บันทึกรายละเอียด
+                  </button>
+                )}
+
+                <div>
+                  <div className="text-xs text-stone-500 mb-1">รูปเพิ่มเติม (สูงสุด 10 รูป — รูปหลักคือรูปที่อัปโหลดด้านบน)</div>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {p.images.map((img) => (
+                      <div key={img.id} className="relative">
+                        <img src={img.imageUrl} alt="" className="w-16 h-16 object-cover rounded-lg border border-cream-200" />
+                        <button
+                          type="button"
+                          onClick={() => deleteGalleryImage(p.id, img.id)}
+                          aria-label="ลบรูปนี้"
+                          className="absolute -top-1.5 -right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full w-5 h-5 text-xs leading-none flex items-center justify-center"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <label className="w-16 h-16 border border-dashed border-stone-300 hover:border-maroon-700 rounded-lg flex items-center justify-center text-stone-400 hover:text-maroon-700 text-2xl cursor-pointer transition-colors">
+                      +
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files?.length) uploadGalleryImages(p.id, e.target.files);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {mediaBusy === p.id && <span className="text-xs text-stone-400">กำลังอัปโหลด...</span>}
+                  </div>
+                </div>
+
+                {p.requiresSize && (
+                  <div>
+                    <div className="text-xs text-stone-500 mb-1">
+                      รูปตารางขนาดของสินค้านี้ (ถ้าไม่อัปโหลด หน้าร้านจะแสดงตารางไซซ์เสื้อมาตรฐานของระบบแทน)
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {p.sizeGuideUrl && (
+                        <div className="relative">
+                          <img src={p.sizeGuideUrl} alt="ตารางขนาด" className="h-16 w-auto rounded-lg border border-cream-200" />
+                          <button
+                            type="button"
+                            onClick={() => deleteSizeGuide(p.id)}
+                            aria-label="ลบรูปตารางขนาด"
+                            className="absolute -top-1.5 -right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full w-5 h-5 text-xs leading-none flex items-center justify-center"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="text-xs"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) uploadSizeGuide(p.id, file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-cream-200 pt-3">

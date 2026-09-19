@@ -268,16 +268,35 @@ model MerchProduct {
   name         String
   description  String?
   price        Decimal  @db.Decimal(10, 2)
+  // Cover image (shown first / used by POS + admin thumbnails). Extra
+  // gallery photos live in MerchProductImage below.
   imageKey     String?
+  // Optional size-chart image (e.g. shirt measurements) shown on the shop's
+  // product detail view — uploaded by admin, null for products without one.
+  sizeGuideKey String?
   requiresSize Boolean  @default(false)
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
 
   orderItems   MerchOrderItem[]
+  images       MerchProductImage[]
   stocks       MerchProductStock[]
   posSaleItems PosSaleItem[]
   packageItems PackageItem[]
   reservationPackageItems ReservationPackageItem[]
+}
+
+// Additional gallery photos for a product, shown after the cover image
+// (MerchProduct.imageKey) on the shop's product detail view, in sortOrder.
+model MerchProductImage {
+  id        String       @id @default(cuid())
+  productId String
+  product   MerchProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  imageKey  String
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+
+  @@index([productId, sortOrder])
 }
 
 // One row per (product, size) — size is null for products that don't

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "../components/site-nav";
 import PayQr from "../components/pay-qr";
-import SizeChart from "../components/size-chart";
+import { ShopProduct, SIZES, StockBadge, ProductModal, totalStock } from "./shop-parts";
 import { generatePromptPayPayload } from "@/lib/promptpay";
 import {
   validateNamePart,
@@ -16,17 +16,7 @@ import {
   normalizeEmail,
 } from "@/lib/formValidation";
 
-interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  price: string;
-  requiresSize: boolean;
-  imageUrl: string | null;
-  // "" -> qty for non-sized products; per-size key otherwise. A missing
-  // key means 0 in stock, same as an explicit 0.
-  stock: Record<string, number>;
-}
+type Product = ShopProduct;
 
 interface CartLine {
   productId: string;
@@ -35,8 +25,6 @@ interface CartLine {
   quantity: number;
   unitPrice: number;
 }
-
-const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 
 export default function MerchShopPage() {
   const router = useRouter();
@@ -59,6 +47,14 @@ export default function MerchShopPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(null);
+  // Product currently open in the detail modal (null = closed).
+  const [detailId, setDetailId] = useState<string | null>(null);
+  // Short confirmation shown after adding to cart.
+  const [toast, setToast] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+  // True while the checkout form is on screen — the floating cart bar hides
+  // itself then, since the form already shows the same totals.
+  const [formInView, setFormInView] = useState(false);
   const [done, setDone] = useState(false);
   const [orderCode, setOrderCode] = useState("");
   const [shippingFee, setShippingFee] = useState(0);
@@ -80,6 +76,20 @@ export default function MerchShopPage() {
       .then((d) => setPromptPayId(d.promptPayId || ""))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 2000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  useEffect(() => {
+    const el = formRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([entry]) => setFormInView(entry.isIntersecting), { threshold: 0.05 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [done, loading, cart.length > 0]);
 
   function stockFor(p: Product, size: string) {
     return p.stock?.[size] ?? 0;
@@ -113,22 +123,31 @@ export default function MerchShopPage() {
     const remaining = stockFor(p, size || "") - inCartQty(p.id, size);
     if (remaining <= 0) return;
     const quantity = Math.max(1, Math.min(Number(sel.quantity) || 1, remaining));
-    setCart((prev) => [
-      ...prev,
-      {
-        productId: p.id,
-        name: p.name,
-        size,
-        quantity,
-        unitPrice: Number(p.price),
-      },
-    ]);
+    // Same product + size already in the cart -> bump that line instead of
+    // adding a duplicate row.
+    setCart((prev) => {
+      const i = prev.findIndex((l) => l.productId === p.id && (l.size || "") === (size || ""));
+      if (i >= 0) {
+        const next = [...prev];
+        next[i] = { ...next[i], quantity: next[i].quantity + quantity };
+        return next;
+      }
+      return [...prev, { productId: p.id, name: p.name, size, quantity, unitPrice: Number(p.price) }];
+    });
+    updateSelection(p.id, { quantity: 1 });
+    setToast(`เพิ่ม ${p.name}${size ? ` (${size})` : ""} ×${quantity} ลงตะกร้าแล้ว`);
+  }
+
+  function remainingForSize(p: Product, size: string) {
+    return stockFor(p, size) - inCartQty(p.id, p.requiresSize ? size : undefined);
   }
 
   function removeLine(index: number) {
     setCart((prev) => prev.filter((_, i) => i !== index));
   }
 
+  const detailProduct = detailId ? products.find((p) => p.id === detailId) ?? null : null;
+  const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   const total = cart.length > 0 ? subtotal + shippingFee : 0;
 
@@ -262,89 +281,70 @@ export default function MerchShopPage() {
         </div>
       </section>
 
-      <main className="max-w-3xl mx-auto p-4 space-y-6">
+      <main className={`max-w-3xl mx-auto p-4 space-y-6 ${cart.length > 0 ? "pb-28" : ""}`}>
       {loading && <p className="text-stone-500">กำลังโหลด...</p>}
       {!loading && products.length === 0 && <p className="text-stone-500">ยังไม่มีสินค้าเปิดขายในขณะนี้</p>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {products.map((p) => {
-          const sel = getSelection(p);
-          const selectedSize = p.requiresSize ? sel.size : "";
-          const remaining = stockFor(p, selectedSize) - inCartQty(p.id, p.requiresSize ? selectedSize : undefined);
-          const anyStock = p.requiresSize ? SIZES.some((s) => stockFor(p, s) > 0) : stockFor(p, "") > 0;
+          const soldOut = totalStock(p) <= 0;
+          const quickRemaining = remainingForSize(p, "");
           return (
-            <div key={p.id} className="bg-white rounded-xl border border-cream-200 shadow-md hover:shadow-md transition-shadow p-4 flex flex-col gap-2">
-              {p.imageUrl ? (
+            <div key={p.id} className="bg-white rounded-xl border border-cream-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden flex flex-col">
+              <button
+                type="button"
+                onClick={() => setDetailId(p.id)}
+                className="relative block w-full text-left"
+                aria-label={`ดูรายละเอียด ${p.name}`}
+              >
+                {p.imageUrl ? (
+                  <img src={p.imageUrl} alt={p.name} className={`w-full aspect-square object-cover ${soldOut ? "opacity-50 grayscale" : ""}`} />
+                ) : (
+                  <div className="w-full aspect-square bg-cream-100 flex items-center justify-center text-stone-400 text-sm">ไม่มีรูปภาพ</div>
+                )}
+                <div className="absolute top-2 left-2">
+                  <StockBadge product={p} />
+                </div>
+              </button>
+              <div className="p-3 flex flex-col gap-1 flex-1">
                 <button
                   type="button"
-                  onClick={() => setLightbox({ url: p.imageUrl!, alt: p.name })}
-                  className="block w-full cursor-zoom-in"
-                  aria-label={`ดูภาพขยายของ ${p.name}`}
+                  onClick={() => setDetailId(p.id)}
+                  className="text-left font-display font-semibold text-stone-800 hover:text-maroon-700 transition-colors"
                 >
-                  <img src={p.imageUrl} alt={p.name} className="w-full h-40 object-cover rounded-lg" />
+                  {p.name}
                 </button>
-              ) : (
-                <div className="w-full h-40 bg-cream-100 rounded-lg flex items-center justify-center text-stone-400 text-sm">
-                  ไม่มีรูปภาพ
-                </div>
-              )}
-              <h2 className="font-display font-semibold text-stone-800">{p.name}</h2>
-              {p.description && <p className="text-sm text-stone-500">{p.description}</p>}
-              <p className="font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
-
-              {!anyStock && (
-                <p className="text-sm font-medium text-red-600">สินค้าหมด</p>
-              )}
-
-              {anyStock && p.requiresSize && (
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium text-stone-700">ไซส์</span>
-                  <select
-                    value={sel.size}
-                    onChange={(e) => updateSelection(p.id, { size: e.target.value })}
-                    className="border border-stone-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500"
-                  >
-                    {SIZES.map((s) => (
-                      <option key={s} value={s} disabled={stockFor(p, s) === 0}>
-                        {s} {stockFor(p, s) === 0 ? "(หมด)" : `(เหลือ ${stockFor(p, s)})`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-
-              {anyStock && p.requiresSize && (
-                <details className="text-sm">
-                  <summary className="cursor-pointer select-none text-primary-700 font-medium">ดูตารางไซซ์</summary>
-                  <div className="mt-2">
-                    <SizeChart />
-                  </div>
-                </details>
-              )}
-
-              {anyStock && (
-                <>
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-medium text-stone-700">จำนวน {!p.requiresSize && `(เหลือ ${stockFor(p, "")})`}</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={Math.max(1, remaining)}
-                      value={sel.quantity}
-                      onChange={(e) => updateSelection(p.id, { quantity: Number(e.target.value) })}
-                      className="border border-stone-300 rounded-lg px-2 py-1.5 w-24 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500"
-                    />
-                  </label>
-
+                {p.description && <p className="text-xs text-stone-500 line-clamp-2">{p.description}</p>}
+                <p className="font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
+                <div className="mt-auto pt-2 flex flex-col sm:flex-row gap-2">
                   <button
-                    onClick={() => addToCart(p)}
-                    disabled={remaining <= 0}
-                    className="mt-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    type="button"
+                    onClick={() => setDetailId(p.id)}
+                    className="flex-1 border border-stone-300 hover:border-maroon-700 hover:text-maroon-700 transition-colors text-stone-600 rounded-lg py-2 text-sm font-medium"
                   >
-                    {remaining <= 0 ? "หมด" : "+ เพิ่มลงตะกร้า"}
+                    รายละเอียด
                   </button>
-                </>
-              )}
+                  {!soldOut &&
+                    (p.requiresSize ? (
+                      <button
+                        type="button"
+                        onClick={() => setDetailId(p.id)}
+                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 text-sm font-semibold"
+                      >
+                        เลือกไซส์
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => addToCart(p)}
+                        disabled={quickRemaining <= 0}
+                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {quickRemaining > 0 ? "+ ตะกร้า" : "ครบแล้ว"}
+                      </button>
+                    ))}
+                </div>
+              </div>
             </div>
           );
         })}
@@ -388,7 +388,7 @@ export default function MerchShopPage() {
         )}
       </div>
 
-      <form onSubmit={checkout} noValidate className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
+      <form ref={formRef} id="checkout-form" onSubmit={checkout} noValidate className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3">
         <h2 className="font-display font-semibold text-stone-800">ข้อมูลผู้สั่งซื้อ</h2>
 
         <div className="grid grid-cols-2 gap-3">
@@ -514,6 +514,50 @@ export default function MerchShopPage() {
           {submitting ? "กำลังส่งข้อมูล..." : "สั่งซื้อและส่งสลิป"}
         </button>
       </form>
+
+      {detailProduct && (
+        <ProductModal
+          product={detailProduct}
+          size={getSelection(detailProduct).size}
+          quantity={getSelection(detailProduct).quantity}
+          remainingFor={(size) => remainingForSize(detailProduct, size)}
+          onSize={(size) => updateSelection(detailProduct.id, { size })}
+          onQty={(quantity) => updateSelection(detailProduct.id, { quantity })}
+          onAdd={() => addToCart(detailProduct)}
+          onClose={() => setDetailId(null)}
+          onZoom={(url, alt) => setLightbox({ url, alt })}
+          escapeDisabled={!!lightbox}
+        />
+      )}
+
+      {cart.length > 0 && !formInView && !detailProduct && (
+        <div className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-cream-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <div className="text-sm">
+              <div className="font-medium text-stone-800">
+                ตะกร้า {cartCount} ชิ้น · รวม {total.toLocaleString()} บาท
+              </div>
+              <div className="text-xs text-stone-400">รวมค่าจัดส่งแล้ว</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-4 py-2.5 font-semibold text-sm whitespace-nowrap"
+            >
+              ไปชำระเงิน
+            </button>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div
+          role="status"
+          className={`fixed left-1/2 -translate-x-1/2 z-[60] bg-stone-800 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90vw] text-center ${cart.length > 0 && !formInView && !detailProduct ? "bottom-24" : "bottom-6"}`}
+        >
+          {toast}
+        </div>
+      )}
 
       {lightbox && (
         <div
