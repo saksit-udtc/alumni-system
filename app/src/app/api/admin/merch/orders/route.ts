@@ -31,6 +31,10 @@ export async function GET(req: NextRequest) {
         paymentStatus: o.paymentStatus,
         totalAmount: o.totalAmount,
         createdAt: o.createdAt,
+        carrier: o.carrier,
+        trackingNumber: o.trackingNumber,
+        shippedAt: o.shippedAt,
+        shipmentEmailSentAt: o.shipmentEmailSentAt,
         items: o.items.map((it) => ({
           productName: it.productName,
           size: it.size,

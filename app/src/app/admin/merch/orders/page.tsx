@@ -53,6 +53,12 @@ export default function AdminMerchOrdersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  // Shipment tracking (EMS) state
+  const [trackDraft, setTrackDraft] = useState<Record<string, string>>({});
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [shipBusyId, setShipBusyId] = useState<string | null>(null);
+  const [shipMsg, setShipMsg] = useState<{ id: string; ok: boolean; text: string } | null>(null);
+  const [shipFilter, setShipFilter] = useState<"all" | "toship" | "shipped">("all");
 
   function load() {
     fetch("/api/admin/merch/orders")
@@ -103,9 +109,69 @@ export default function AdminMerchOrdersPage() {
     }
   }
 
+  async function saveTracking(orderId: string) {
+    setShipBusyId(orderId);
+    setShipMsg(null);
+    try {
+      const res = await fetch(`/api/admin/merch/orders/${orderId}/ship`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackingNumber: trackDraft[orderId] || "" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setShipMsg({ id: orderId, ok: false, text: data.error || "บันทึกเลขพัสดุไม่สำเร็จ" });
+        return;
+      }
+      setEditingTrackId(null);
+      setShipMsg({
+        id: orderId,
+        ok: data.emailSent,
+        text: data.emailSent
+          ? "บันทึกเลขพัสดุและส่งอีเมลแจ้งผู้สั่งแล้ว"
+          : "บันทึกเลขพัสดุแล้ว แต่ส่งอีเมลไม่สำเร็จ — กด \"ส่งอีเมลอีกครั้ง\"",
+      });
+      load();
+    } finally {
+      setShipBusyId(null);
+    }
+  }
+
+  async function resendShippedEmail(orderId: string) {
+    setShipBusyId(orderId);
+    setShipMsg(null);
+    try {
+      const res = await fetch(`/api/admin/merch/orders/${orderId}/ship`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resendEmail: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setShipMsg({ id: orderId, ok: false, text: data.error || "ส่งอีเมลไม่สำเร็จ" });
+        return;
+      }
+      setShipMsg({
+        id: orderId,
+        ok: data.emailSent,
+        text: data.emailSent ? "ส่งอีเมลแจ้งจัดส่งอีกครั้งแล้ว" : "ส่งอีเมลไม่สำเร็จ (ตรวจสอบการตั้งค่าอีเมลของระบบ)",
+      });
+      load();
+    } finally {
+      setShipBusyId(null);
+    }
+  }
+
   const pendingCount = orders.filter((o) => ["pending", "awaiting_verify"].includes(o.paymentStatus)).length;
   const confirmedOrders = orders.filter((o) => o.paymentStatus === "confirmed");
   const confirmedRevenue = confirmedOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
+  const toShipCount = confirmedOrders.filter((o) => !o.trackingNumber).length;
+  const shippedCount = confirmedOrders.filter((o) => o.trackingNumber).length;
+  const visibleOrders = orders.filter((o) => {
+    if (shipFilter === "toship") return o.paymentStatus === "confirmed" && !o.trackingNumber;
+    if (shipFilter === "shipped") return !!o.trackingNumber;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -140,129 +206,238 @@ export default function AdminMerchOrdersPage() {
         <AdminStatCard icon="coin" label="ยอดขายยืนยันแล้ว" value={`${confirmedRevenue.toLocaleString()} บาท`} tone="sky" />
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-stone-500">การจัดส่ง:</span>
+        {([
+          ["all", `ทั้งหมด (${orders.length})`],
+          ["toship", `รอจัดส่ง (${toShipCount})`],
+          ["shipped", `จัดส่งแล้ว (${shippedCount})`],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setShipFilter(key)}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              shipFilter === key
+                ? "bg-primary-700 text-white border-primary-700"
+                : "bg-white text-stone-600 border-stone-300 hover:bg-cream-50"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {orders.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
           ยังไม่มีคำสั่งซื้อของที่ระลึกเข้ามาในระบบ
         </div>
+      ) : visibleOrders.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
+          ไม่มีคำสั่งซื้อในหมวดนี้
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-cream-200/80 shadow-sm bg-white">
-          <table className="w-full bg-white text-sm border-collapse">
-            <thead>
-              <tr className="text-left bg-gradient-to-b from-cream-100 to-cream-50 text-stone-500 text-[11px] font-semibold uppercase tracking-wider">
-                <th className="px-4 py-3.5 sticky top-0">รหัส</th>
-                <th className="px-4 py-3.5 sticky top-0">ผู้สั่ง</th>
-                <th className="px-4 py-3.5 sticky top-0">ที่อยู่จัดส่ง</th>
-                <th className="px-4 py-3.5 sticky top-0">รายการ</th>
-                <th className="px-4 py-3.5 sticky top-0 text-right">ยอดรวม</th>
-                <th className="px-4 py-3.5 sticky top-0">สถานะ</th>
-                <th className="px-4 py-3.5 sticky top-0">สลิป</th>
-                <th className="px-4 py-3.5 sticky top-0">การจัดการ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-cream-100">
-              {orders.map((o) => (
-                <tr key={o.id} className="hover:bg-primary-50/50 transition-colors align-top">
-                  <td className="px-4 py-3.5">
-                    <span className="font-mono text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-md">{o.orderCode}</span>
-                  </td>
-                  <td className="px-4 py-3.5">
+        <div className="space-y-4">
+          {visibleOrders.map((o) => (
+            <div key={o.id} className="bg-white rounded-2xl border border-cream-200/80 shadow-sm overflow-hidden">
+              {/* หัวการ์ด: รหัส / สถานะ / วันที่ / ยอดรวม */}
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 bg-gradient-to-b from-cream-100 to-cream-50 border-b border-cream-200/80">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs bg-white text-stone-600 border border-stone-200 px-2 py-1 rounded-md">{o.orderCode}</span>
+                  <StatusBadge status={o.paymentStatus} />
+                  <span className="text-xs text-stone-400">
+                    {new Date(o.createdAt).toLocaleString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+                <div className="text-stone-800 font-semibold tabular-nums">{Number(o.totalAmount).toLocaleString()} บาท</div>
+              </div>
+
+              <div className="grid gap-x-6 gap-y-4 p-4 md:grid-cols-2 xl:grid-cols-3">
+                {/* ผู้สั่ง + ที่อยู่ */}
+                <div className="min-w-0 space-y-2 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">ผู้สั่งและที่อยู่จัดส่ง</div>
+                  <div>
                     <div className="font-medium text-stone-800">{o.bookerName}</div>
-                    <div className="text-xs text-stone-400">{o.bookerPhone}</div>
-                    <div className="text-xs text-stone-400">{o.bookerEmail}</div>
-                  </td>
-                  <td className="px-4 py-3.5 max-w-[16rem] text-xs text-stone-600">
-                    {editingId === o.id ? (
-                      <div className="space-y-1.5">
-                        <textarea
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          rows={3}
-                          className="w-full text-xs border border-stone-300 rounded-md p-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                        />
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => saveAddress(o.id)}
-                            disabled={savingEdit || !editValue.trim()}
-                            className="text-xs px-2 py-1 rounded-md bg-primary-700 text-white hover:bg-primary-800 transition-colors disabled:opacity-50"
-                          >
-                            บันทึก
-                          </button>
-                          <button
-                            onClick={cancelEditAddress}
-                            disabled={savingEdit}
-                            className="text-xs px-2 py-1 rounded-md bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors"
-                          >
-                            ยกเลิก
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <div className="whitespace-pre-wrap">{o.shippingAddress}</div>
+                    <div className="text-xs text-stone-500">{o.bookerPhone}</div>
+                    <div className="text-xs text-stone-500 break-all">{o.bookerEmail}</div>
+                  </div>
+                  {editingId === o.id ? (
+                    <div className="space-y-1.5">
+                      <textarea
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        rows={4}
+                        className="w-full text-xs border border-stone-300 rounded-md p-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <div className="flex gap-1.5">
                         <button
-                          onClick={() => startEditAddress(o.id, o.shippingAddress)}
-                          className="text-primary-700 hover:text-primary-800 hover:underline"
+                          onClick={() => saveAddress(o.id)}
+                          disabled={savingEdit || !editValue.trim()}
+                          className="text-xs px-2 py-1 rounded-md bg-primary-700 text-white hover:bg-primary-800 transition-colors disabled:opacity-50"
                         >
-                          แก้ไข
+                          บันทึก
+                        </button>
+                        <button
+                          onClick={cancelEditAddress}
+                          disabled={savingEdit}
+                          className="text-xs px-2 py-1 rounded-md bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors"
+                        >
+                          ยกเลิก
                         </button>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5">
+                    </div>
+                  ) : (
+                    <div className="text-xs text-stone-600 bg-cream-50/70 border border-cream-200 rounded-lg p-2.5 space-y-1">
+                      <div className="whitespace-pre-wrap break-words">{o.shippingAddress}</div>
+                      <button
+                        onClick={() => startEditAddress(o.id, o.shippingAddress)}
+                        className="text-primary-700 hover:text-primary-800 hover:underline"
+                      >
+                        แก้ไขที่อยู่
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* รายการสินค้า + สลิป */}
+                <div className="min-w-0 space-y-2 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">รายการสินค้า</div>
+                  <div className="space-y-0.5">
                     {o.items.map((it: any, i: number) => (
                       <div key={i} className="text-xs text-stone-600">
                         {it.productName}
                         {it.size ? ` (${it.size})` : ""} × {it.quantity}
                       </div>
                     ))}
-                  </td>
-                  <td className="px-4 py-3.5 text-stone-800 font-medium text-right tabular-nums whitespace-nowrap">
-                    {Number(o.totalAmount).toLocaleString()} บาท
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <StatusBadge status={o.paymentStatus} />
-                  </td>
-                  <td className="px-4 py-3.5">
-                    {o.latestSlipUrl ? (
+                  </div>
+                  <div className="pt-1">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-1">สลิปโอนเงิน</div>
+                    <div className="flex flex-col items-start">
+                      {o.latestSlipUrl ? (
+                        <a
+                          href={o.latestSlipUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block whitespace-nowrap text-xs px-2.5 py-1.5 rounded-lg font-medium bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors"
+                        >
+                          ดูสลิป
+                        </a>
+                      ) : (
+                        <span className="inline-block whitespace-nowrap text-xs px-2.5 py-1.5 rounded-lg font-medium bg-stone-100 text-stone-400 border border-stone-200">ไม่มีสลิป</span>
+                      )}
+                      <EasySlipBadge status={o.latestSlipEasyslipStatus} message={o.latestSlipEasyslipMessage} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* การจัดส่ง EMS */}
+                <div className="min-w-0 space-y-2 text-sm md:col-span-2 xl:col-span-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">การจัดส่ง (EMS)</div>
+                  {o.paymentStatus !== "confirmed" ? (
+                    <p className="text-xs text-stone-400">จะกรอกเลขพัสดุได้หลังยืนยันการชำระเงินแล้ว</p>
+                  ) : o.trackingNumber && editingTrackId !== o.id ? (
+                    <div className="space-y-1.5 text-xs">
                       <a
-                        href={o.latestSlipUrl}
+                        href={`https://track.thailandpost.co.th/?trackNumber=${encodeURIComponent(o.trackingNumber)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-block whitespace-nowrap text-xs px-2.5 py-1.5 rounded-lg font-medium bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors"
+                        className="font-mono text-sm text-sky-700 hover:underline break-all"
                       >
-                        ดูสลิป
+                        {o.trackingNumber}
                       </a>
-                    ) : (
-                      <span className="inline-block whitespace-nowrap text-xs px-2.5 py-1.5 rounded-lg font-medium bg-stone-100 text-stone-400 border border-stone-200">ไม่มี</span>
-                    )}
-                    <EasySlipBadge status={o.latestSlipEasyslipStatus} message={o.latestSlipEasyslipMessage} />
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex flex-wrap gap-1.5">
-                      {["pending", "awaiting_verify"].includes(o.paymentStatus) && (
-                        <>
-                          <button
-                            onClick={() => act(o.id, "approve")}
-                            disabled={busyId === o.id}
-                            className="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors font-medium disabled:opacity-50"
-                          >
-                            อนุมัติ
-                          </button>
-                          <button
-                            onClick={() => act(o.id, "reject")}
-                            disabled={busyId === o.id}
-                            className="text-xs px-2.5 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors font-medium disabled:opacity-50"
-                          >
-                            ปฏิเสธ
-                          </button>
-                        </>
+                      <div className="text-stone-400">
+                        ส่งเมื่อ {new Date(o.shippedAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                      </div>
+                      {o.shipmentEmailSentAt ? (
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          ✓ ส่งอีเมลแล้ว
+                        </span>
+                      ) : (
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+                          ⚠ ยังไม่ได้ส่งอีเมล
+                        </span>
                       )}
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          onClick={() => resendShippedEmail(o.id)}
+                          disabled={shipBusyId === o.id}
+                          className="px-2 py-1 rounded-md bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors disabled:opacity-50"
+                        >
+                          ส่งอีเมลอีกครั้ง
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingTrackId(o.id);
+                            setTrackDraft((d) => ({ ...d, [o.id]: o.trackingNumber }));
+                            setShipMsg(null);
+                          }}
+                          className="px-2 py-1 rounded-md text-primary-700 hover:underline"
+                        >
+                          แก้เลข
+                        </button>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  ) : (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        saveTracking(o.id);
+                      }}
+                      className="space-y-1.5"
+                    >
+                      <input
+                        value={trackDraft[o.id] ?? ""}
+                        onChange={(e) => setTrackDraft((d) => ({ ...d, [o.id]: e.target.value.toUpperCase() }))}
+                        placeholder="EE123456789TH"
+                        maxLength={20}
+                        className="w-full font-mono text-xs border border-stone-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="submit"
+                          disabled={shipBusyId === o.id || !(trackDraft[o.id] || "").trim()}
+                          className="text-xs px-2.5 py-1.5 rounded-lg bg-primary-700 text-white hover:bg-primary-800 transition-colors font-medium disabled:opacity-50"
+                        >
+                          บันทึกและส่งอีเมล
+                        </button>
+                        {editingTrackId === o.id && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingTrackId(null)}
+                            className="text-xs px-2 py-1 rounded-md bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors"
+                          >
+                            ยกเลิก
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  )}
+                  {shipMsg && shipMsg.id === o.id ? (
+                    <p className={`text-xs ${shipMsg.ok ? "text-emerald-700" : "text-red-600"}`}>{shipMsg.text}</p>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* ปุ่มอนุมัติ/ปฏิเสธ — แสดงเฉพาะรายการที่รอตรวจสลิป */}
+              {["pending", "awaiting_verify"].includes(o.paymentStatus) && (
+                <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t border-cream-100 bg-cream-50/50">
+                  <button
+                    onClick={() => act(o.id, "reject")}
+                    disabled={busyId === o.id}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors font-medium disabled:opacity-50"
+                  >
+                    ปฏิเสธ
+                  </button>
+                  <button
+                    onClick={() => act(o.id, "approve")}
+                    disabled={busyId === o.id}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors font-medium disabled:opacity-50"
+                  >
+                    อนุมัติ
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

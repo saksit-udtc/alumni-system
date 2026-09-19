@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { trackingUrl } from "@/lib/shipping";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,10 @@ export async function GET(req: NextRequest) {
       paymentStatus: o.paymentStatus,
       totalAmount: o.totalAmount,
       createdAt: o.createdAt,
+      carrier: o.carrier,
+      trackingNumber: o.trackingNumber,
+      trackingUrl: o.trackingNumber ? trackingUrl(o.carrier, o.trackingNumber) : null,
+      shippedAt: o.shippedAt,
       items: o.items.map((it) => ({
         productName: it.productName,
         size: it.size,

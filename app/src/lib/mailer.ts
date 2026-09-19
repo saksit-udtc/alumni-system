@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { generateQrPngBuffer, checkinUrl } from "./qrcode";
 import { logEmail } from "./auditLog";
 import { supportReward } from "./supportConfig";
+import { trackingUrl } from "./shipping";
 
 function getTransport() {
   return nodemailer.createTransport({
@@ -609,4 +610,101 @@ export async function sendSupportRegistrationConfirmedEmail(args: SupportEmailAr
     </div>
   `;
   await sendSupportEmail("SUPPORT_REG_CONFIRMED", args.to, `ยืนยันการลงทะเบียน${label} - ${args.code}`, html);
+}
+
+// ---------------------------------------------------------------------------
+// Merch order shipped notification (EMS tracking number)
+// ---------------------------------------------------------------------------
+
+interface MerchOrderShippedEmailArgs {
+  to: string;
+  bookerName: string;
+  bookerPhone: string;
+  orderCode: string;
+  shippingAddress: string;
+  carrier: string;
+  trackingNumber: string;
+  shippedAt: Date;
+  items: { productName: string; size: string | null; quantity: number }[];
+}
+
+function buildMerchOrderShippedHtml(args: MerchOrderShippedEmailArgs) {
+  const base = process.env.APP_BASE_URL || "http://localhost:3000";
+  const track = trackingUrl(args.carrier, args.trackingNumber);
+  const statusUrl = `${base}/merch/status?orderCode=${encodeURIComponent(args.orderCode)}&phone=${encodeURIComponent(args.bookerPhone)}`;
+  const shippedDate = args.shippedAt.toLocaleDateString("th-TH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Bangkok",
+  });
+  const rows = args.items
+    .map(
+      (it) =>
+        `<li>${escapeHtml(it.productName)}${it.size ? ` (ไซส์ ${escapeHtml(it.size)})` : ""} × ${it.quantity}</li>`
+    )
+    .join("");
+  return `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>จัดส่งของที่ระลึกแล้ว</h2>
+      <p>เรียน คุณ${escapeHtml(args.bookerName)}</p>
+      <p>วิทยาลัยเทคนิคอุดรธานีได้นำส่งของที่ระลึกตามคำสั่งซื้อของท่านกับผู้ให้บริการขนส่งเรียบร้อยแล้ว เมื่อวันที่ ${shippedDate}</p>
+      <ul>
+        <li>รหัสการสั่งซื้อ: <strong>${escapeHtml(args.orderCode)}</strong></li>
+        <li>ขนส่ง: <strong>${escapeHtml(args.carrier)}</strong></li>
+        <li>เลขพัสดุ: <strong style="font-size:18px; letter-spacing:1px;">${escapeHtml(args.trackingNumber)}</strong></li>
+      </ul>
+      <p style="margin:20px 0;">
+        <a href="${track}" style="background:#7f1d1d; color:#ffffff; padding:10px 20px; border-radius:8px; text-decoration:none; display:inline-block;">ติดตามพัสดุ</a>
+      </p>
+      <p><strong>รายการสินค้า:</strong></p>
+      <ul>${rows}</ul>
+      <p><strong>จัดส่งไปที่:</strong><br/>${escapeHtml(args.shippingAddress).replace(/\n/g, "<br/>")}</p>
+      <p style="color:#64748b; font-size:12px;">
+        เลขพัสดุอาจใช้เวลาสักครู่กว่าจะแสดงข้อมูลบนระบบของผู้ให้บริการขนส่ง<br/>
+        ท่านสามารถดูเลขพัสดุได้อีกครั้งที่หน้าเช็คสถานะการสั่งซื้อ: ${statusUrl}
+      </p>
+    </div>
+  `;
+}
+
+/**
+ * Sent when staff record an EMS tracking number on a merch order. Same
+ * fail-soft contract as the other mail functions (never throws), but unlike
+ * them it returns whether the mail was actually sent, so the caller can
+ * store shipmentEmailSentAt and tell the admin to resend on failure.
+ */
+export async function sendMerchOrderShippedEmail(args: MerchOrderShippedEmailArgs): Promise<boolean> {
+  const subject = `จัดส่งของที่ระลึกแล้ว - ${args.orderCode}`;
+  try {
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        to: args.to,
+        subject,
+        html: buildMerchOrderShippedHtml(args),
+      });
+      if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      await logEmail({ type: "MERCH_ORDER_SHIPPED", recipient: args.to, status: "SUCCESS" });
+      return true;
+    }
+    if (process.env.SMTP_HOST) {
+      const transport = getTransport();
+      await transport.sendMail({
+        from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
+        to: args.to,
+        subject,
+        html: buildMerchOrderShippedHtml(args),
+      });
+      await logEmail({ type: "MERCH_ORDER_SHIPPED", recipient: args.to, status: "SUCCESS" });
+      return true;
+    }
+    console.warn("[mailer] neither RESEND_API_KEY nor SMTP_HOST configured, skipping merch order shipped email");
+    return false;
+  } catch (err) {
+    console.error("[mailer] failed to send merch order shipped email (non-fatal):", err);
+    await logEmail({ type: "MERCH_ORDER_SHIPPED", recipient: args.to, status: "FAILED", error: String(err) });
+    return false;
+  }
 }

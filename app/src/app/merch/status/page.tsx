@@ -133,6 +133,29 @@ function MerchStatusForm() {
                 <span>{Number(o.totalAmount).toLocaleString()} บาท</span>
               </div>
 
+              {o.trackingNumber && (
+                <div className="border-t border-cream-200 pt-2 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">สถานะการจัดส่ง</span>
+                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-green-100 text-green-700">จัดส่งแล้ว</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">เลขพัสดุ ({o.carrier})</span>
+                    <span className="font-mono font-semibold text-stone-800">{o.trackingNumber}</span>
+                  </div>
+                  {o.trackingUrl && (
+                    <a
+                      href={o.trackingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-center rounded-lg bg-maroon-700 hover:bg-maroon-800 transition-colors text-white py-2 mt-2 text-sm font-medium"
+                    >
+                      ติดตามพัสดุ
+                    </a>
+                  )}
+                </div>
+              )}
+
               {["pending", "awaiting_verify"].includes(o.paymentStatus) && (
                 <a
                   href={`/merch/orders/${o.orderCode}/upload-slip?phone=${encodeURIComponent(phone)}`}

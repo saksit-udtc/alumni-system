@@ -334,6 +334,12 @@ model MerchOrder {
   shippingFee     Decimal       @default(50) @db.Decimal(10, 2)
   totalAmount     Decimal       @db.Decimal(10, 2)
   paymentStatus   PaymentStatus @default(pending)
+  // Shipment tracking — filled in by staff once the parcel is handed to the
+  // carrier. trackingNumber == null means "not shipped yet".
+  carrier             String    @default("EMS")
+  trackingNumber      String?
+  shippedAt           DateTime?
+  shipmentEmailSentAt DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
