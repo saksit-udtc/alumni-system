@@ -1,0 +1,30 @@
+# =============================================================================
+# crontab.example — ตัวอย่างตารางเวลาสำรองอัตโนมัติ
+#
+# ติดตั้ง (บนเซิร์ฟเวอร์ qa-ems):
+#   sudo cp /opt/alumni-system/backup/crontab.example /etc/cron.d/alumni-backup
+#   sudo nano /etc/cron.d/alumni-backup        # แก้ path / ผู้ใช้ให้ตรง แล้วลบเครื่องหมาย # หน้าบรรทัดที่ต้องการ
+#   sudo chmod 644 /etc/cron.d/alumni-backup   # ไฟล์ใน /etc/cron.d ต้องเป็นของ root และไม่เปิดให้คนอื่นเขียน
+#
+# ข้อควรระวัง
+#  - ผู้ใช้ในคอลัมน์ที่ 6 (root) ต้องเป็นคนเดียวกับที่ตั้งค่า rclone ไว้ (rclone config เก็บที่ ~/.config/rclone/rclone.conf
+#    ของผู้ใช้นั้น) และต้องสั่ง docker ได้ ถ้าใช้ผู้ใช้อื่น ให้แก้บรรทัด RCLONE_CONFIG ด้านล่างให้ชี้ไปยังไฟล์ที่ถูกต้อง
+#  - เวลาเป็นเวลาของเครื่องเซิร์ฟเวอร์ (ตรวจด้วย `date` / `timedatectl` — ควรเป็น Asia/Bangkok)
+#  - สคริปต์เขียน log ของตัวเองที่ /opt/backups/alumni/backup.log อยู่แล้ว
+#    ไฟล์ .err ด้านล่างมีไว้เก็บเฉพาะข้อผิดพลาดตอนเริ่มต้น (เช่น หา rclone/docker ไม่เจอ)
+#  - สคริปต์กันการรันซ้อนกันเอง (flock) ถ้าสองงานชนเวลากัน งานหลังจะออกโดยไม่ทำอะไร
+# =============================================================================
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+RCLONE_CONFIG=/root/.config/rclone/rclone.conf
+
+# --- 1) สำรองเต็มรูปแบบ (ฐานข้อมูล + ไฟล์ MinIO + .env) ทุกวัน 02:30 -----------------------
+30 2 * * *  root  /bin/bash /opt/alumni-system/backup/backup.sh >/dev/null 2>>/var/log/alumni-backup.err
+
+# --- 2) (ไม่บังคับ) ช่วงเปิดจองโต๊ะ / ใกล้วันงาน: สำรองฐานข้อมูลถี่ขึ้นทุก 2 ชั่วโมง ------------
+#     เลื่อนนาทีเป็น :15 เพื่อไม่ให้ชนกับงานรอบ 02:30   เสร็จงานแล้วให้ใส่ # กลับ
+#15 */2 * * *  root  /bin/bash /opt/alumni-system/backup/backup.sh --db-only >/dev/null 2>>/var/log/alumni-backup.err
+
+# --- 3) (แนะนำ) ทดสอบว่าไฟล์สำรองกู้คืนได้จริง ทุกวันที่ 1 ของเดือน 04:00 ------------------------
+#     restore แบบ test ทำในฐานข้อมูลชั่วคราวและลบทิ้งเอง ไม่กระทบระบบจริง ผลอยู่ในไฟล์ log นี้
+#0 4 1 * *   root  /bin/bash /opt/alumni-system/backup/restore.sh test >>/var/log/alumni-restore-test.log 2>&1

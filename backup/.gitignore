@@ -1,0 +1,4 @@
+# ไฟล์ตั้งค่าจริง/ไฟล์ลับ/log ห้ามเข้า git
+backup.env
+restored.env
+*.log
