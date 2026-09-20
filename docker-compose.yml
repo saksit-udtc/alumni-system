@@ -108,6 +108,13 @@ services:
       # inline here — RESEND_FROM_EMAIL must be a verified sender/domain.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+      # Mail deliverability extras (see src/lib/mailer.ts): Reply-To mailbox a
+      # real person reads + footer contact details. All optional.
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      MAIL_ORG_NAME: ${MAIL_ORG_NAME:-}
+      MAIL_ORG_ADDRESS: ${MAIL_ORG_ADDRESS:-}
+      MAIL_CONTACT_PHONE: ${MAIL_CONTACT_PHONE:-}
+      MAIL_CONTACT_EMAIL: ${MAIL_CONTACT_EMAIL:-}
       NODE_ENV: production
     ports:
       - "127.0.0.1:3001:3000"

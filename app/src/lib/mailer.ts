@@ -16,6 +16,81 @@ function getTransport() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Deliverability helpers — every outgoing mail goes through mailExtras():
+//   * appends a footer (who sent it + how to reach us)
+//   * adds a plain-text alternative (HTML-only mail scores worse with spam filters)
+//   * sets Reply-To to a mailbox a person actually reads (MAIL_REPLY_TO)
+// Configure via env: MAIL_REPLY_TO, MAIL_ORG_NAME, MAIL_CONTACT_PHONE,
+// MAIL_CONTACT_EMAIL (falls back to MAIL_REPLY_TO), MAIL_ORG_ADDRESS.
+// ---------------------------------------------------------------------------
+
+function mailOrgName(): string {
+  return process.env.MAIL_ORG_NAME || "วิทยาลัยเทคนิคอุดรธานี";
+}
+
+function mailReplyTo(): string | undefined {
+  return process.env.MAIL_REPLY_TO || undefined;
+}
+
+function mailFooterLines(): string[] {
+  const lines: string[] = [mailOrgName()];
+  if (process.env.MAIL_ORG_ADDRESS) lines.push(process.env.MAIL_ORG_ADDRESS);
+  const contact: string[] = [];
+  const contactEmail = process.env.MAIL_CONTACT_EMAIL || process.env.MAIL_REPLY_TO;
+  if (process.env.MAIL_CONTACT_PHONE) contact.push(`โทร ${process.env.MAIL_CONTACT_PHONE}`);
+  if (contactEmail) contact.push(`อีเมล ${contactEmail}`);
+  if (contact.length) lines.push(`ติดต่อสอบถาม: ${contact.join(" · ")}`);
+  if (process.env.APP_BASE_URL) lines.push(`เว็บไซต์: ${process.env.APP_BASE_URL}`);
+  return lines;
+}
+
+function withFooter(html: string): string {
+  const [org, ...rest] = mailFooterLines();
+  const restHtml = rest.map((l) => `${escapeHtml(l)}<br/>`).join("\n        ");
+  return `${html}
+    <div style="font-family: sans-serif; font-size: 12px; line-height: 1.6; color: #64748b; border-top: 1px solid #e2e8f0; margin-top: 24px; padding-top: 12px;">
+      <strong>${escapeHtml(org)}</strong><br/>
+        ${restHtml}
+      อีเมลฉบับนี้ส่งโดยระบบอัตโนมัติเนื่องจากท่านทำรายการในระบบงานคืนสู่เหย้า หากท่านไม่ได้เป็นผู้ทำรายการ กรุณาแจ้งเจ้าหน้าที่หรือละเว้นอีเมลนี้
+    </div>`;
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => {
+      const text = String(label).replace(/<[^>]+>/g, "").trim();
+      return text && text !== href ? `${text} (${href})` : href;
+    })
+    .replace(/<img[^>]*alt="([^"]*)"[^>]*>/gi, "")
+    .replace(/<\/(h1|h2|h3|p|div|ul|ol)>/gi, "\n\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^[ \t]+/gm, "")
+    .trim();
+}
+
+function escapeHtml(v: string): string {
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** Spread into resend.emails.send() / transport.sendMail() in place of `html`. */
+function mailExtras(html: string): { html: string; text: string; replyTo: string | undefined } {
+  const full = withFooter(html);
+  return { html: full, text: htmlToText(full), replyTo: mailReplyTo() };
+}
+
 interface ConfirmationEmailArgs {
   to: string;
   bookerName: string;
@@ -56,7 +131,7 @@ async function sendViaResend(args: ConfirmationEmailArgs): Promise<void> {
     from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
     to: args.to,
     subject: `ยืนยันการจองโต๊ะ - ${args.eventName}`,
-    html: buildHtml(args),
+    ...mailExtras(buildHtml(args)),
     attachments: [
       {
         filename: "checkin-qr.png",
@@ -83,7 +158,7 @@ async function sendViaSmtp(args: ConfirmationEmailArgs): Promise<void> {
     from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
     to: args.to,
     subject: `ยืนยันการจองโต๊ะ - ${args.eventName}`,
-    html: buildHtml(args),
+    ...mailExtras(buildHtml(args)),
     attachments: [
       {
         filename: "checkin-qr.png",
@@ -182,7 +257,7 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to: args.to,
         subject: `จองโต๊ะสำเร็จ - ${args.eventName}`,
-        html: buildBookingReceivedHtml(args),
+        ...mailExtras(buildBookingReceivedHtml(args)),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
       await logEmail({ type: "BOOKING_RECEIVED", recipient: args.to, status: "SUCCESS" });
@@ -194,7 +269,7 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to: args.to,
         subject: `จองโต๊ะสำเร็จ - ${args.eventName}`,
-        html: buildBookingReceivedHtml(args),
+        ...mailExtras(buildBookingReceivedHtml(args)),
       });
       await logEmail({ type: "BOOKING_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
@@ -258,7 +333,7 @@ export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmai
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to: args.to,
         subject: `ยืนยันการสั่งซื้อของที่ระลึก - ${args.orderCode}`,
-        html: buildMerchOrderConfirmedHtml(args),
+        ...mailExtras(buildMerchOrderConfirmedHtml(args)),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
       await logEmail({ type: "MERCH_ORDER_CONFIRMED", recipient: args.to, status: "SUCCESS" });
@@ -270,7 +345,7 @@ export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmai
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to: args.to,
         subject: `ยืนยันการสั่งซื้อของที่ระลึก - ${args.orderCode}`,
-        html: buildMerchOrderConfirmedHtml(args),
+        ...mailExtras(buildMerchOrderConfirmedHtml(args)),
       });
       await logEmail({ type: "MERCH_ORDER_CONFIRMED", recipient: args.to, status: "SUCCESS" });
       return;
@@ -340,7 +415,7 @@ export async function sendMerchOrderReceivedEmail(args: MerchOrderReceivedEmailA
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to: args.to,
         subject: `สั่งซื้อของที่ระลึกสำเร็จ - ${args.orderCode}`,
-        html: buildMerchOrderReceivedHtml(args),
+        ...mailExtras(buildMerchOrderReceivedHtml(args)),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
       await logEmail({ type: "MERCH_ORDER_RECEIVED", recipient: args.to, status: "SUCCESS" });
@@ -352,7 +427,7 @@ export async function sendMerchOrderReceivedEmail(args: MerchOrderReceivedEmailA
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to: args.to,
         subject: `สั่งซื้อของที่ระลึกสำเร็จ - ${args.orderCode}`,
-        html: buildMerchOrderReceivedHtml(args),
+        ...mailExtras(buildMerchOrderReceivedHtml(args)),
       });
       await logEmail({ type: "MERCH_ORDER_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
@@ -413,7 +488,7 @@ export async function sendMerchSlipReceivedEmail(args: MerchSlipReceivedEmailArg
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to: args.to,
         subject: `ได้รับสลิปแล้ว รอตรวจสอบ - ${args.orderCode}`,
-        html: buildMerchSlipReceivedHtml(args),
+        ...mailExtras(buildMerchSlipReceivedHtml(args)),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
       await logEmail({ type: "MERCH_SLIP_RECEIVED", recipient: args.to, status: "SUCCESS" });
@@ -425,7 +500,7 @@ export async function sendMerchSlipReceivedEmail(args: MerchSlipReceivedEmailArg
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to: args.to,
         subject: `ได้รับสลิปแล้ว รอตรวจสอบ - ${args.orderCode}`,
-        html: buildMerchSlipReceivedHtml(args),
+        ...mailExtras(buildMerchSlipReceivedHtml(args)),
       });
       await logEmail({ type: "MERCH_SLIP_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
@@ -491,7 +566,7 @@ export async function sendSlipReceivedEmail(args: SlipReceivedEmailArgs): Promis
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to: args.to,
         subject: `ได้รับสลิปแล้ว รอตรวจสอบ - ${args.eventName}`,
-        html: buildSlipReceivedHtml(args),
+        ...mailExtras(buildSlipReceivedHtml(args)),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
       await logEmail({ type: "SLIP_RECEIVED", recipient: args.to, status: "SUCCESS" });
@@ -503,7 +578,7 @@ export async function sendSlipReceivedEmail(args: SlipReceivedEmailArgs): Promis
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to: args.to,
         subject: `ได้รับสลิปแล้ว รอตรวจสอบ - ${args.eventName}`,
-        html: buildSlipReceivedHtml(args),
+        ...mailExtras(buildSlipReceivedHtml(args)),
       });
       await logEmail({ type: "SLIP_RECEIVED", recipient: args.to, status: "SUCCESS" });
       return;
@@ -538,10 +613,6 @@ function rewardLi(args: SupportEmailArgs): string {
   return reward ? `\n        <li>สิ่งที่จะได้รับ: <strong>${reward}</strong></li>` : "";
 }
 
-function escapeHtml(v: string): string {
-  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
 async function sendSupportEmail(logType: string, to: string, subject: string, html: string): Promise<void> {
   try {
     if (process.env.RESEND_API_KEY) {
@@ -550,7 +621,7 @@ async function sendSupportEmail(logType: string, to: string, subject: string, ht
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to,
         subject,
-        html,
+        ...mailExtras(html),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
       await logEmail({ type: logType, recipient: to, status: "SUCCESS" });
@@ -562,7 +633,7 @@ async function sendSupportEmail(logType: string, to: string, subject: string, ht
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to,
         subject,
-        html,
+        ...mailExtras(html),
       });
       await logEmail({ type: logType, recipient: to, status: "SUCCESS" });
       return;
@@ -683,7 +754,7 @@ export async function sendMerchOrderShippedEmail(args: MerchOrderShippedEmailArg
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to: args.to,
         subject,
-        html: buildMerchOrderShippedHtml(args),
+        ...mailExtras(buildMerchOrderShippedHtml(args)),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
       await logEmail({ type: "MERCH_ORDER_SHIPPED", recipient: args.to, status: "SUCCESS" });
@@ -695,7 +766,7 @@ export async function sendMerchOrderShippedEmail(args: MerchOrderShippedEmailArg
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to: args.to,
         subject,
-        html: buildMerchOrderShippedHtml(args),
+        ...mailExtras(buildMerchOrderShippedHtml(args)),
       });
       await logEmail({ type: "MERCH_ORDER_SHIPPED", recipient: args.to, status: "SUCCESS" });
       return true;
