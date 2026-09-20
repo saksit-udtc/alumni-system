@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import QrScanner from "@/app/components/qr-scanner";
+import { UrlQuerySync } from "@/app/components/admin-list-search";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "รอชำระเงิน",
@@ -63,11 +64,10 @@ export default function AdminCheckinSearchPage() {
     if (token) router.push(`/admin/checkin/${encodeURIComponent(token)}`);
   }
 
-  async function search(e: React.FormEvent) {
-    e.preventDefault();
+  async function runSearch(term: string) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/checkin/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/admin/checkin/search?q=${encodeURIComponent(term)}`);
       const data = await res.json();
       setResults(data.reservations || []);
       setSearched(true);
@@ -76,8 +76,21 @@ export default function AdminCheckinSearchPage() {
     }
   }
 
+  function search(e: React.FormEvent) {
+    e.preventDefault();
+    runSearch(q);
+  }
+
   return (
     <div className="max-w-2xl space-y-6">
+      {/* มาจากช่องค้นหารวมบนแถบบน (?q=) → ใส่คำค้นและค้นให้เลย */}
+      <UrlQuerySync
+        onQuery={(v) => {
+          if (!v) return;
+          setQ(v);
+          runSearch(v);
+        }}
+      />
       <div>
         <h1 className="text-2xl font-display font-semibold text-stone-800">ค้นหาเพื่อเช็คอิน</h1>
         <p className="text-sm text-stone-500 mt-0.5">ค้นหาด้วยรหัสการจอง ชื่อผู้จอง หรือเบอร์โทรศัพท์ เพื่อยืนยันเช็คอินหน้างาน</p>

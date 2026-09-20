@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ListSearchInput, UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
 import { supportReward } from "@/lib/supportConfig";
 
 interface Reg {
@@ -59,6 +60,7 @@ export default function AdminSupportRegistrationsPage() {
   const [filter, setFilter] = useState<"all" | Reg["type"]>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [q, setQ] = useState("");
 
   function load() {
     fetch("/api/admin/support-registrations")
@@ -93,11 +95,18 @@ export default function AdminSupportRegistrationsPage() {
     }
   }
 
-  const shown = useMemo(() => (filter === "all" ? rows : rows.filter((r) => r.type === filter)), [rows, filter]);
+  const shown = useMemo(
+    () =>
+      rows
+        .filter((r) => filter === "all" || r.type === filter)
+        .filter((r) => matchesQuery(q, [r.code, r.name, r.phone, r.email, r.detail])),
+    [rows, filter, q]
+  );
   const sum = (t: Reg["type"]) => rows.filter((r) => r.type === t && r.paymentStatus === "confirmed").reduce((a, r) => a + r.amount, 0);
 
   return (
     <div className="space-y-4">
+      <UrlQuerySync onQuery={setQ} />
       <div>
         <h1 className="text-2xl font-display font-semibold text-stone-800">ลงทะเบียนศิษย์เก่าดีเด่น / ผู้สนับสนุนงาน</h1>
         <p className="text-sm text-stone-500 mt-1">ตรวจสลิปแล้วกด “อนุมัติ” เพื่อยืนยันการลงทะเบียน</p>
@@ -126,9 +135,11 @@ export default function AdminSupportRegistrationsPage() {
         ))}
       </div>
 
+      <ListSearchInput value={q} onChange={setQ} placeholder="ค้นหารหัส / ชื่อ / เบอร์โทร / อีเมล" total={rows.length} shown={shown.length} />
+
       {error && <p className="text-sm text-red-600">{error}</p>}
       {loading && <p className="text-stone-500">กำลังโหลด...</p>}
-      {!loading && shown.length === 0 && <p className="text-stone-500">ยังไม่มีรายการ</p>}
+      {!loading && shown.length === 0 && <p className="text-stone-500">{q.trim() ? "ไม่พบรายการที่ตรงกับคำค้นหา" : "ยังไม่มีรายการ"}</p>}
 
       <div className="space-y-3">
         {shown.map((r) => (

@@ -2,7 +2,8 @@
 // events list, event detail, reservations, merch orders). Colored icon +
 // matching top border so each metric is visually distinct at a glance —
 // mirrors the tone system introduced on the main dashboard.
-export type StatTone = "indigo" | "rose" | "emerald" | "amber" | "sky" | "violet" | "slate";
+// "navy" / "gold" อ่านสีจากธีมของเว็บ (maroon-* = สีหลัก, primary-* = สีเน้น) จึงเปลี่ยนตามธีมที่ตั้งใน /admin/settings
+export type StatTone = "indigo" | "rose" | "emerald" | "amber" | "sky" | "violet" | "slate" | "navy" | "gold";
 
 const TONE_BG: Record<StatTone, string> = {
   indigo: "bg-indigo-50 text-indigo-600",
@@ -12,6 +13,8 @@ const TONE_BG: Record<StatTone, string> = {
   sky: "bg-sky-50 text-sky-600",
   violet: "bg-violet-50 text-violet-600",
   slate: "bg-stone-100 text-stone-500",
+  navy: "bg-maroon-50 text-maroon-700",
+  gold: "bg-primary-50 text-primary-700",
 };
 
 const TONE_BORDER: Record<StatTone, string> = {
@@ -22,6 +25,8 @@ const TONE_BORDER: Record<StatTone, string> = {
   sky: "border-t-sky-400",
   violet: "border-t-violet-400",
   slate: "border-t-stone-300",
+  navy: "border-t-maroon-500",
+  gold: "border-t-primary-400",
 };
 
 const ICON_PATHS: Record<string, React.ReactNode> = {
@@ -74,6 +79,13 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
     <>
       <rect x="3" y="4" width="18" height="4" rx="1" />
       <path d="M5 8v11M19 8v11M9 8v11M15 8v11" />
+    </>
+  ),
+  box: (
+    <>
+      <path d="M21 8l-9-5-9 5 9 5 9-5z" />
+      <path d="M3 8v8l9 5 9-5V8" />
+      <path d="M12 13v8" />
     </>
   ),
   seat: (

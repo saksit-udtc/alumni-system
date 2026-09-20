@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AdminStatCard } from "@/app/components/admin-stat-card";
+import { ListSearchInput, UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "รอชำระเงิน",
@@ -57,6 +58,7 @@ function EasySlipBadge({ status, message }: { status: string | null; message: st
 export default function AdminAllReservationsPage() {
   const [reservations, setReservations] = useState<any[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
 
   function load() {
     fetch("/api/admin/reservations")
@@ -92,9 +94,11 @@ export default function AdminAllReservationsPage() {
   const pendingCount = reservations.filter((r) => ["pending", "awaiting_verify"].includes(r.paymentStatus)).length;
   const confirmedReservations = reservations.filter((r) => r.paymentStatus === "confirmed");
   const confirmedRevenue = confirmedReservations.reduce((sum, r) => sum + Number(r.totalAmount), 0);
+  const visible = reservations.filter((r) => matchesQuery(q, [r.bookingCode, r.bookerName, r.bookerPhone, r.bookerEmail, r.eventName, r.tableNumber]));
 
   return (
     <div className="space-y-6">
+      <UrlQuerySync onQuery={setQ} />
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-display font-semibold text-stone-800">รายการจอง</h1>
@@ -115,9 +119,15 @@ export default function AdminAllReservationsPage() {
         <AdminStatCard icon="coin" label="ยอดชำระยืนยันแล้ว" value={`${confirmedRevenue.toLocaleString()} บาท`} tone="sky" />
       </div>
 
+      <ListSearchInput value={q} onChange={setQ} placeholder="ค้นหารหัสจอง / ชื่อ / เบอร์โทร / โต๊ะ" total={reservations.length} shown={visible.length} />
+
       {reservations.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
           ยังไม่มีการจองโต๊ะเข้ามาในระบบ
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
+          ไม่พบรายการจองที่ตรงกับ &quot;{q}&quot;
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-cream-200/80 shadow-sm bg-white">
@@ -136,7 +146,7 @@ export default function AdminAllReservationsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-cream-100">
-              {reservations.map((r) => (
+              {visible.map((r) => (
                 <tr key={r.id} className="hover:bg-primary-50/50 transition-colors align-top">
                   <td className="px-4 py-3.5">
                     <span className="font-mono text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-md">{r.bookingCode}</span>

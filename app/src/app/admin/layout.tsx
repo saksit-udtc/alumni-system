@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import AdminGlobalSearch from "@/app/components/admin-global-search";
+import AdminUserMenu from "@/app/components/admin-user-menu";
+import { NotificationBell, useAdminNotifications } from "@/app/components/admin-notification-bell";
 
 const ICONS: Record<string, JSX.Element> = {
   dashboard: (
@@ -100,6 +103,15 @@ function LogoutIcon() {
   );
 }
 
+function SearchIconSmall() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}
+
 function MenuIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" className="w-6 h-6">
@@ -122,24 +134,24 @@ type AdminRole = "SUPER_ADMIN" | "CHECKIN_STAFF" | "MERCH_STAFF" | "FINANCE_STAF
 type NavChild = { href: string; label: string };
 const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; roles?: AdminRole[]; section?: string; children?: NavChild[] }[] = [
   { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true, roles: ["SUPER_ADMIN"] },
-  { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "RESERVATION_STAFF"] },
-  { href: "/admin/reservations", label: "รายการจอง", icon: "checkin", roles: ["SUPER_ADMIN", "FINANCE_STAFF"] },
-  { href: "/admin/support-registrations", label: "ศิษย์เก่าดีเด่น/ผู้สนับสนุน", icon: "users", roles: ["SUPER_ADMIN", "FINANCE_STAFF"] },
-  { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"] },
-  { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"] },
-  { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"] },
-  { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box", roles: ["SUPER_ADMIN", "MERCH_STAFF"] },
-  { href: "/admin/pos", label: "ขายหน้างาน (POS)", icon: "barcode", roles: ["SUPER_ADMIN", "MERCH_STAFF"] },
-  { href: "/admin/packages", label: "จัดการแพ็กเกจ", icon: "gift", roles: ["SUPER_ADMIN", "MERCH_STAFF", "RESERVATION_STAFF"] },
-  { href: "/admin/audit-log", label: "บันทึกการใช้งาน", icon: "log", roles: ["SUPER_ADMIN"], section: "Admin Action" },
-  { href: "/admin/users", label: "จัดการผู้ใช้งาน", icon: "users", roles: ["SUPER_ADMIN"], section: "Admin Action" },
+  { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "RESERVATION_STAFF"], section: "งานเลี้ยงและการจอง" },
+  { href: "/admin/reservations", label: "รายการจอง", icon: "checkin", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "งานเลี้ยงและการจอง" },
+  { href: "/admin/support-registrations", label: "ศิษย์เก่าดีเด่น/ผู้สนับสนุน", icon: "users", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "งานเลี้ยงและการจอง" },
+  { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"], section: "งานเลี้ยงและการจอง" },
+  { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"], section: "งานเลี้ยงและการจอง" },
+  { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
+  { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },
+  { href: "/admin/pos", label: "ขายหน้างาน (POS)", icon: "barcode", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },
+  { href: "/admin/packages", label: "จัดการแพ็กเกจ", icon: "gift", roles: ["SUPER_ADMIN", "MERCH_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
+  { href: "/admin/audit-log", label: "บันทึกการใช้งาน", icon: "log", roles: ["SUPER_ADMIN"], section: "ระบบ" },
+  { href: "/admin/users", label: "จัดการผู้ใช้งาน", icon: "users", roles: ["SUPER_ADMIN"], section: "ระบบ" },
   // เมนู "ตั้งค่า" เป็นกลุ่ม: รวมตั้งค่าระบบ + แบนเนอร์สไลด์ + โปสเตอร์ + จัดการหน้าแรก
   {
     href: "/admin/settings",
     label: "ตั้งค่า",
     icon: "gear",
     roles: ["SUPER_ADMIN"],
-    section: "Admin Action",
+    section: "ระบบ",
     children: [
       { href: "/admin/settings", label: "ตั้งค่าระบบ" },
       { href: "/admin/home-banners", label: "แบนเนอร์สไลด์หน้าแรก" },
@@ -165,6 +177,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [role, setRole] = useState<AdminRole | null>(null);
   const [actualRole, setActualRole] = useState<AdminRole | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [mobileSearch, setMobileSearch] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
 
   // Mirrors the server-side allow-list enforced per-route in src/lib/apiHelpers.ts —
@@ -173,7 +187,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const ROLE_ALLOWED_PREFIXES: Record<string, string[]> = {
     CHECKIN_STAFF: ["/admin/checkin"],
     MERCH_STAFF: ["/admin/merch", "/admin/pos", "/admin/packages"],
-    FINANCE_STAFF: ["/admin/reservations", "/admin/merch/orders"],
+    FINANCE_STAFF: ["/admin/reservations", "/admin/support-registrations", "/admin/merch/orders"],
     RESERVATION_STAFF: ["/admin/events", "/admin/merch/orders", "/admin/packages", "/admin/pos/package"],
   };
   const ROLE_HOME: Record<string, string> = {
@@ -192,6 +206,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         const r: AdminRole | null = data?.role ?? null;
         setRole(r);
         setActualRole(data?.actualRole ?? null);
+        setUsername(data?.username ?? null);
         if (r && r !== "SUPER_ADMIN") {
           const allowed = ROLE_ALLOWED_PREFIXES[r] || [];
           const ok = allowed.some((prefix) => pathname?.startsWith(prefix));
@@ -205,9 +220,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .catch(() => setCheckingAccess(false));
   }, [pathname]);
 
+  // งานค้างตามบทบาท → กระดิ่งบนแถบบน + ป้ายตัวเลขข้างเมนู (เจ้าหน้าที่เช็คอินไม่มีงานค้างให้แจ้ง)
+  const notifEnabled = !!role && role !== "CHECKIN_STAFF" && pathname !== "/admin/login";
+  const notif = useAdminNotifications(notifEnabled, pathname);
+
   if (pathname === "/admin/login") return <>{children}</>;
 
-  const visibleNavItems = NAV_ITEMS.filter((item) => !item.roles || !role || item.roles.includes(role));
+  // ยังไม่รู้บทบาท (กำลังโหลด /api/admin/me) = ยังไม่แสดงเมนู กันเมนูของบทบาทอื่นวาบขึ้นมาก่อน
+  const visibleNavItems = NAV_ITEMS.filter((item) => role && (!item.roles || item.roles.includes(role)));
 
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST" });
@@ -283,7 +303,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const NavList = (
     <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
       {visibleNavItems.map((item, i) => {
-        // แสดงหัวข้อ section เมื่อเริ่ม section ใหม่ (เช่น "Admin Action")
+        // แสดงหัวข้อ section เมื่อเริ่ม section ใหม่ (เช่น "ระบบ")
         const prev = visibleNavItems[i - 1];
         const showHeader = item.section && item.section !== prev?.section;
         return (
@@ -338,7 +358,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             ) : (
               <Link href={item.href} className={itemClass(item.href, item.exact)} onClick={() => setMobileOpen(false)}>
                 <NavIcon name={item.icon} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {(notif.navBadges[item.href] || 0) > 0 && (
+                  <span
+                    className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[11px] leading-5 font-semibold text-center"
+                    aria-label={`${notif.navBadges[item.href]} รายการรอดำเนินการ`}
+                  >
+                    {notif.navBadges[item.href] > 99 ? "99+" : notif.navBadges[item.href]}
+                  </span>
+                )}
               </Link>
             )}
           </div>
@@ -395,18 +423,54 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <div className="flex-1 min-w-0 flex flex-col">
         {ImpersonationBanner}
-        {/* Mobile topbar */}
-        <div className="lg:hidden h-14 flex items-center justify-between px-4 border-b border-cream-200 bg-white/90 backdrop-blur sticky top-0 z-40">
-          <button
-            onClick={() => setMobileOpen(true)}
-            aria-label="เปิดเมนู"
-            className="p-2 -ml-2 text-stone-700 hover:text-maroon-700"
-          >
-            <MenuIcon />
-          </button>
-          <span className="font-display font-semibold text-stone-800 text-sm">งานคืนสู่เหย้า</span>
-          <span className="w-10" aria-hidden="true" />
-        </div>
+        {/* แถบบน: ปุ่มเมนู (มือถือ) + ค้นหารวม + กระดิ่งงานค้าง + ชื่อผู้ใช้/บทบาท */}
+        <header className="h-14 lg:h-16 flex items-center gap-2 sm:gap-3 px-3 sm:px-6 border-b border-cream-200 bg-white/90 backdrop-blur sticky top-0 z-40">
+          {!mobileSearch && (
+            <button
+              onClick={() => setMobileOpen(true)}
+              aria-label="เปิดเมนู"
+              className="lg:hidden p-2 -ml-2 text-stone-700 hover:text-maroon-700"
+            >
+              <MenuIcon />
+            </button>
+          )}
+          {!mobileSearch && (
+            <span className="md:hidden flex-1 min-w-0 font-display font-semibold text-stone-800 text-sm truncate">งานคืนสู่เหย้า</span>
+          )}
+
+          {/* ช่องค้นหา: เดสก์ท็อปแสดงตลอด, มือถือแสดงเมื่อกดไอคอนแว่นขยาย */}
+          <AdminGlobalSearch
+            autoFocus={mobileSearch}
+            onDone={() => setMobileSearch(false)}
+            className={mobileSearch ? "flex-1" : "hidden md:block flex-1 max-w-md"}
+          />
+          {mobileSearch && (
+            <button onClick={() => setMobileSearch(false)} className="md:hidden shrink-0 text-sm text-stone-600 px-1">
+              ยกเลิก
+            </button>
+          )}
+
+          <div className={`${mobileSearch ? "hidden md:flex" : "flex"} items-center gap-1 ml-auto shrink-0`}>
+            <button
+              onClick={() => setMobileSearch(true)}
+              aria-label="ค้นหา"
+              className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg text-stone-600 hover:bg-cream-50 hover:text-maroon-700"
+            >
+              <SearchIconSmall />
+            </button>
+            {notifEnabled && (
+              <NotificationBell data={notif.data} error={notif.error} updatedAt={notif.updatedAt} onReload={notif.reload} />
+            )}
+            {role && (
+              <AdminUserMenu
+                username={username}
+                roleLabel={ROLE_LABELS[role]}
+                impersonating={impersonating}
+                onLogout={logout}
+              />
+            )}
+          </div>
+        </header>
 
         <main className="flex-1 p-4 sm:p-6 w-full max-w-5xl mx-auto">
           {checkingAccess ? <div className="text-sm text-stone-400 py-10 text-center">กำลังตรวจสอบสิทธิ์...</div> : children}

@@ -9,7 +9,9 @@ import { logAdminAction } from "@/lib/auditLog";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const { admin, response } = requireAdmin(req, ["MERCH_STAFF"]);
+  // RESERVATION_STAFF ต้องอ่านเลขพร้อมเพย์ได้ด้วย: หน้า /admin/pos/package (ขายแพ็กเกจ) ใช้สร้าง QR ชำระเงิน
+  // และเข้าถึงได้จากปุ่มในหน้าจัดการแพ็กเกจ
+  const { admin, response } = requireAdmin(req, ["MERCH_STAFF", "RESERVATION_STAFF"]);
   if (!admin) return response;
 
   const promptPayId = await getPosPromptPayId();

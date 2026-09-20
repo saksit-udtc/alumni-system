@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { ListSearchInput, UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "รอชำระเงิน",
@@ -15,6 +16,7 @@ export default function AdminReservationsPage() {
   const { id } = useParams<{ id: string }>();
   const [reservations, setReservations] = useState<any[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
 
   function load() {
     fetch(`/api/admin/events/${id}/reservations`)
@@ -47,8 +49,11 @@ export default function AdminReservationsPage() {
     }
   }
 
+  const visible = reservations.filter((r) => matchesQuery(q, [r.bookingCode, r.bookerName, r.bookerPhone, r.bookerEmail, r.tableNumber]));
+
   return (
     <div>
+      <UrlQuerySync onQuery={setQ} />
       <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
         <h1 className="text-2xl font-display font-semibold text-stone-800">รายการจอง</h1>
         <a
@@ -57,6 +62,10 @@ export default function AdminReservationsPage() {
         >
           Export Excel
         </a>
+      </div>
+
+      <div className="mb-4">
+        <ListSearchInput value={q} onChange={setQ} placeholder="ค้นหารหัสจอง / ชื่อ / เบอร์โทร / โต๊ะ" total={reservations.length} shown={visible.length} />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-cream-200 shadow-md">
@@ -74,7 +83,7 @@ export default function AdminReservationsPage() {
             </tr>
           </thead>
           <tbody>
-            {reservations.map((r) => (
+            {visible.map((r) => (
               <tr key={r.id} className="border-t border-cream-100 hover:bg-cream-50/60 transition-colors align-top">
                 <td className="p-3 font-mono text-stone-700">{r.bookingCode}</td>
                 <td className="p-3 text-stone-700">{r.tableNumber}</td>

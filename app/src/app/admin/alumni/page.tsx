@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { UrlQuerySync } from "@/app/components/admin-list-search";
 
 export default function AdminAlumniPage() {
   const [alumni, setAlumni] = useState<any[]>([]);
@@ -57,6 +58,7 @@ export default function AdminAlumniPage() {
 
   return (
     <div className="space-y-6">
+      <UrlQuerySync onQuery={setQ} />
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-display font-semibold text-stone-800">ทำเนียบศิษย์เก่า</h1>

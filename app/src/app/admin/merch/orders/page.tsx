@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminStatCard } from "@/app/components/admin-stat-card";
+import { ListSearchInput, UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "รอชำระเงิน",
@@ -59,6 +60,7 @@ export default function AdminMerchOrdersPage() {
   const [shipBusyId, setShipBusyId] = useState<string | null>(null);
   const [shipMsg, setShipMsg] = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const [shipFilter, setShipFilter] = useState<"all" | "toship" | "shipped">("all");
+  const [q, setQ] = useState("");
 
   function load() {
     fetch("/api/admin/merch/orders")
@@ -168,6 +170,7 @@ export default function AdminMerchOrdersPage() {
   const toShipCount = confirmedOrders.filter((o) => !o.trackingNumber).length;
   const shippedCount = confirmedOrders.filter((o) => o.trackingNumber).length;
   const visibleOrders = orders.filter((o) => {
+    if (!matchesQuery(q, [o.orderCode, o.bookerName, o.bookerPhone, o.bookerEmail, o.trackingNumber])) return false;
     if (shipFilter === "toship") return o.paymentStatus === "confirmed" && !o.trackingNumber;
     if (shipFilter === "shipped") return !!o.trackingNumber;
     return true;
@@ -175,6 +178,9 @@ export default function AdminMerchOrdersPage() {
 
   return (
     <div className="space-y-6">
+      <UrlQuerySync onQuery={setQ} />
+      {/* ?ship=toship|shipped จากกระดิ่งแจ้งเตือน → เลือกตัวกรองการจัดส่งให้เลย */}
+      <UrlQuerySync param="ship" onQuery={(v) => { if (v === "toship" || v === "shipped") setShipFilter(v); }} />
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-display font-semibold text-stone-800">รายการสั่งซื้อของที่ระลึก</h1>
@@ -205,6 +211,8 @@ export default function AdminMerchOrdersPage() {
         <AdminStatCard icon="checkin" label="ยืนยันแล้ว" value={String(confirmedOrders.length)} tone="emerald" />
         <AdminStatCard icon="coin" label="ยอดขายยืนยันแล้ว" value={`${confirmedRevenue.toLocaleString()} บาท`} tone="sky" />
       </div>
+
+      <ListSearchInput value={q} onChange={setQ} placeholder="ค้นหารหัสออเดอร์ / ชื่อ / เบอร์โทร / เลขพัสดุ" total={orders.length} shown={visibleOrders.length} />
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-stone-500">การจัดส่ง:</span>
