@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminStatCard } from "@/app/components/admin-stat-card";
-import { ListSearchInput, UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
+import { UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
+import {
+  AdminFilterBar,
+  buildStatusOptions,
+  countSlipCategories,
+  matchesListFilters,
+  slipCategory,
+  useListFilters,
+  type FilterableRow,
+} from "@/app/components/admin-list-filters";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "รอชำระเงิน",
@@ -61,6 +70,7 @@ export default function AdminMerchOrdersPage() {
   const [shipMsg, setShipMsg] = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const [shipFilter, setShipFilter] = useState<"all" | "toship" | "shipped">("all");
   const [q, setQ] = useState("");
+  const filters = useListFilters();
 
   function load() {
     fetch("/api/admin/merch/orders")
@@ -169,8 +179,14 @@ export default function AdminMerchOrdersPage() {
   const confirmedRevenue = confirmedOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
   const toShipCount = confirmedOrders.filter((o) => !o.trackingNumber).length;
   const shippedCount = confirmedOrders.filter((o) => o.trackingNumber).length;
-  const visibleOrders = orders.filter((o) => {
+  const filterRows: FilterableRow[] = orders.map((o) => ({
+    status: o.paymentStatus,
+    slip: slipCategory(!!o.latestSlipUrl, o.latestSlipEasyslipStatus),
+    createdAt: o.createdAt,
+  }));
+  const visibleOrders = orders.filter((o, i) => {
     if (!matchesQuery(q, [o.orderCode, o.bookerName, o.bookerPhone, o.bookerEmail, o.trackingNumber])) return false;
+    if (!matchesListFilters(filters, filterRows[i])) return false;
     if (shipFilter === "toship") return o.paymentStatus === "confirmed" && !o.trackingNumber;
     if (shipFilter === "shipped") return !!o.trackingNumber;
     return true;
@@ -212,7 +228,16 @@ export default function AdminMerchOrdersPage() {
         <AdminStatCard icon="coin" label="ยอดขายยืนยันแล้ว" value={`${confirmedRevenue.toLocaleString()} บาท`} tone="sky" />
       </div>
 
-      <ListSearchInput value={q} onChange={setQ} placeholder="ค้นหารหัสออเดอร์ / ชื่อ / เบอร์โทร / เลขพัสดุ" total={orders.length} shown={visibleOrders.length} />
+      <AdminFilterBar
+        search={{ value: q, onChange: setQ, placeholder: "ค้นหารหัสออเดอร์ / ชื่อ / เบอร์โทร / เลขพัสดุ" }}
+        filters={filters}
+        statusOptions={buildStatusOptions(orders.map((o) => o.paymentStatus), STATUS_LABEL)}
+        totalAll={orders.length}
+        slipCounts={countSlipCategories(filterRows)}
+        dateLabel="วันที่สั่งซื้อ"
+        shown={visibleOrders.length}
+        total={orders.length}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-stone-500">การจัดส่ง:</span>
@@ -241,7 +266,7 @@ export default function AdminMerchOrdersPage() {
         </div>
       ) : visibleOrders.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
-          ไม่มีคำสั่งซื้อในหมวดนี้
+          ไม่มีคำสั่งซื้อที่ตรงกับเงื่อนไขที่เลือก
         </div>
       ) : (
         <div className="space-y-4">

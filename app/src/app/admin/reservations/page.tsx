@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { AdminStatCard } from "@/app/components/admin-stat-card";
-import { ListSearchInput, UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
+import { UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
+import {
+  AdminFilterBar,
+  buildStatusOptions,
+  countSlipCategories,
+  matchesListFilters,
+  slipCategory,
+  useListFilters,
+  type FilterableRow,
+} from "@/app/components/admin-list-filters";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "รอชำระเงิน",
@@ -59,6 +68,7 @@ export default function AdminAllReservationsPage() {
   const [reservations, setReservations] = useState<any[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const filters = useListFilters();
 
   function load() {
     fetch("/api/admin/reservations")
@@ -94,7 +104,16 @@ export default function AdminAllReservationsPage() {
   const pendingCount = reservations.filter((r) => ["pending", "awaiting_verify"].includes(r.paymentStatus)).length;
   const confirmedReservations = reservations.filter((r) => r.paymentStatus === "confirmed");
   const confirmedRevenue = confirmedReservations.reduce((sum, r) => sum + Number(r.totalAmount), 0);
-  const visible = reservations.filter((r) => matchesQuery(q, [r.bookingCode, r.bookerName, r.bookerPhone, r.bookerEmail, r.eventName, r.tableNumber]));
+  const filterRows: FilterableRow[] = reservations.map((r) => ({
+    status: r.paymentStatus,
+    slip: slipCategory(!!r.latestSlipUrl, r.latestSlipEasyslipStatus),
+    createdAt: r.createdAt,
+  }));
+  const visible = reservations.filter(
+    (r, i) =>
+      matchesQuery(q, [r.bookingCode, r.bookerName, r.bookerPhone, r.bookerEmail, r.eventName, r.tableNumber]) &&
+      matchesListFilters(filters, filterRows[i])
+  );
 
   return (
     <div className="space-y-6">
@@ -119,7 +138,16 @@ export default function AdminAllReservationsPage() {
         <AdminStatCard icon="coin" label="ยอดชำระยืนยันแล้ว" value={`${confirmedRevenue.toLocaleString()} บาท`} tone="sky" />
       </div>
 
-      <ListSearchInput value={q} onChange={setQ} placeholder="ค้นหารหัสจอง / ชื่อ / เบอร์โทร / โต๊ะ" total={reservations.length} shown={visible.length} />
+      <AdminFilterBar
+        search={{ value: q, onChange: setQ, placeholder: "ค้นหารหัสจอง / ชื่อ / เบอร์โทร / โต๊ะ" }}
+        filters={filters}
+        statusOptions={buildStatusOptions(reservations.map((r) => r.paymentStatus), STATUS_LABEL)}
+        totalAll={reservations.length}
+        slipCounts={countSlipCategories(filterRows)}
+        dateLabel="วันที่จอง"
+        shown={visible.length}
+        total={reservations.length}
+      />
 
       {reservations.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
@@ -127,7 +155,7 @@ export default function AdminAllReservationsPage() {
         </div>
       ) : visible.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-cream-200 p-10 text-center text-stone-400 text-sm">
-          ไม่พบรายการจองที่ตรงกับ &quot;{q}&quot;
+          ไม่พบรายการจองที่ตรงกับเงื่อนไขที่เลือก
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-cream-200/80 shadow-sm bg-white">

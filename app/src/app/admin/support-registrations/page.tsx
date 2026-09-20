@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ListSearchInput, UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
+import { UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
+import {
+  AdminFilterBar,
+  buildStatusOptions,
+  countSlipCategories,
+  matchesListFilters,
+  slipCategory,
+  useListFilters,
+  type FilterableRow,
+} from "@/app/components/admin-list-filters";
 import { supportReward } from "@/lib/supportConfig";
 
 interface Reg {
@@ -61,6 +70,7 @@ export default function AdminSupportRegistrationsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
+  const filters = useListFilters();
 
   function load() {
     fetch("/api/admin/support-registrations")
@@ -95,12 +105,21 @@ export default function AdminSupportRegistrationsPage() {
     }
   }
 
-  const shown = useMemo(
+  // ตัวเลขสถานะ/สลิปนับตามประเภทที่เลือกอยู่ (ทั้งหมด/ศิษย์เก่าดีเด่น/ผู้สนับสนุน)
+  const typeRows = useMemo(() => rows.filter((r) => filter === "all" || r.type === filter), [rows, filter]);
+  const filterRows: FilterableRow[] = useMemo(
     () =>
-      rows
-        .filter((r) => filter === "all" || r.type === filter)
-        .filter((r) => matchesQuery(q, [r.code, r.name, r.phone, r.email, r.detail])),
-    [rows, filter, q]
+      typeRows.map((r) => ({
+        status: r.paymentStatus,
+        slip: slipCategory(!!r.slipUrl, r.easyslipStatus),
+        createdAt: r.createdAt,
+      })),
+    [typeRows]
+  );
+  const shown = useMemo(
+    () => typeRows.filter((r, i) => matchesQuery(q, [r.code, r.name, r.phone, r.email, r.detail]) && matchesListFilters(filters, filterRows[i])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [typeRows, filterRows, q, filters.status, filters.slip, filters.date]
   );
   const sum = (t: Reg["type"]) => rows.filter((r) => r.type === t && r.paymentStatus === "confirmed").reduce((a, r) => a + r.amount, 0);
 
@@ -135,11 +154,20 @@ export default function AdminSupportRegistrationsPage() {
         ))}
       </div>
 
-      <ListSearchInput value={q} onChange={setQ} placeholder="ค้นหารหัส / ชื่อ / เบอร์โทร / อีเมล" total={rows.length} shown={shown.length} />
+      <AdminFilterBar
+        search={{ value: q, onChange: setQ, placeholder: "ค้นหารหัส / ชื่อ / เบอร์โทร / อีเมล" }}
+        filters={filters}
+        statusOptions={buildStatusOptions(typeRows.map((r) => r.paymentStatus), STATUS_LABEL)}
+        totalAll={typeRows.length}
+        slipCounts={countSlipCategories(filterRows)}
+        dateLabel="วันที่ลงทะเบียน"
+        shown={shown.length}
+        total={typeRows.length}
+      />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {loading && <p className="text-stone-500">กำลังโหลด...</p>}
-      {!loading && shown.length === 0 && <p className="text-stone-500">{q.trim() ? "ไม่พบรายการที่ตรงกับคำค้นหา" : "ยังไม่มีรายการ"}</p>}
+      {!loading && shown.length === 0 && <p className="text-stone-500">{q.trim() || filters.hasActive ? "ไม่พบรายการที่ตรงกับเงื่อนไขที่เลือก" : "ยังไม่มีรายการ"}</p>}
 
       <div className="space-y-3">
         {shown.map((r) => (
