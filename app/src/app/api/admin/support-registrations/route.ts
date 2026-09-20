@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/apiHelpers";
-import { presignedGetUrl, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +26,7 @@ export async function GET(req: NextRequest) {
       easyslipStatus: r.easyslipStatus,
       easyslipMessage: r.easyslipMessage,
       createdAt: r.createdAt,
-      slipUrl: await presignedGetUrl(PAYMENT_SLIPS_BUCKET, r.slipFileKey).catch(() => null),
+      slipUrl: r.slipFileKey ? `/api/admin/slip/support/${r.id}` : null,
     }))
   );
   return NextResponse.json({ registrations });

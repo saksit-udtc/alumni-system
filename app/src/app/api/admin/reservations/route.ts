@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/apiHelpers";
-import { presignedGetUrl, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 
 /**
  * Global (all-events) reservations list — the FINANCE_STAFF-facing counterpart
@@ -28,7 +27,7 @@ export async function GET(req: NextRequest) {
   const withSlipUrls = await Promise.all(
     reservations.map(async (r) => {
       const latestSlip = r.slips[0];
-      const slipUrl = latestSlip ? await presignedGetUrl(PAYMENT_SLIPS_BUCKET, latestSlip.fileKey) : null;
+      const slipUrl = latestSlip ? `/api/admin/slip/reservation/${r.id}` : null;
       return {
         id: r.id,
         bookingCode: r.bookingCode,
