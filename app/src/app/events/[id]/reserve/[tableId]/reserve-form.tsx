@@ -76,6 +76,8 @@ export default function ReserveForm({
   const [consent, setConsent] = useState(false);
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // เมื่อกดส่งครั้งแรกแล้ว จะตรวจซ้ำแบบสดทุกครั้งที่แก้ข้อมูล เพื่อให้ข้อความแดงหายทันทีเมื่อกรอกถูก
+  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -135,7 +137,7 @@ export default function ReserveForm({
     ? `แพ็กเกจ "${packageName || ""}"${tableNumber != null ? ` — โต๊ะ ${tableNumber}` : ""}`
     : `จองโต๊ะ${tableNumber != null ? ` ${tableNumber}` : ""}${eventName ? ` — ${eventName}` : ""}`;
 
-  function validate(): boolean {
+  function computeErrors(): Record<string, string> {
     const errs: Record<string, string> = {};
 
     const firstErr = validateNamePart(bookerFirstName, "ชื่อ");
@@ -159,13 +161,24 @@ export default function ReserveForm({
       errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนยืนยันการจอง";
     }
 
+    return errs;
+  }
+
+  function validate(): boolean {
+    const errs = computeErrors();
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
+  useEffect(() => {
+    if (submitted) setFieldErrors(computeErrors());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted, bookerFirstName, bookerLastName, bookerPhone, bookerEmail, slipFile, consent]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSubmitted(true);
     if (!validate()) return;
 
     setSubmitting(true);

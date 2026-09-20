@@ -45,6 +45,8 @@ export default function MerchShopPage() {
   const [consent, setConsent] = useState(false);
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // เมื่อกดส่งครั้งแรกแล้ว จะตรวจซ้ำแบบสดทุกครั้งที่แก้ข้อมูล เพื่อให้ข้อความแดงหายทันทีเมื่อกรอกถูก
+  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(null);
@@ -166,7 +168,7 @@ export default function MerchShopPage() {
   // see what the amount covers without scrolling back up to the cart.
   const cartSummary = cart.map((l) => `${l.name}${l.size ? ` (${l.size})` : ""} x${l.quantity}`).join(", ");
 
-  function validate(): boolean {
+  function computeErrors(): Record<string, string> {
     const errs: Record<string, string> = {};
 
     const firstErr = validateNamePart(bookerFirstName, "ชื่อ");
@@ -193,9 +195,19 @@ export default function MerchShopPage() {
       errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนสั่งซื้อ";
     }
 
+    return errs;
+  }
+
+  function validate(): boolean {
+    const errs = computeErrors();
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
+
+  useEffect(() => {
+    if (submitted) setFieldErrors(computeErrors());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted, bookerFirstName, bookerLastName, bookerPhone, bookerEmail, shippingAddress, slipFile, consent]);
 
   async function checkout(e: React.FormEvent) {
     e.preventDefault();
@@ -204,6 +216,7 @@ export default function MerchShopPage() {
       setError("กรุณาเพิ่มสินค้าลงตะกร้าก่อนสั่งซื้อ");
       return;
     }
+    setSubmitted(true);
     if (!validate()) return;
 
     setSubmitting(true);
