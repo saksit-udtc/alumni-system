@@ -68,6 +68,8 @@ export default function SupportRegisterForm({ kind }: { kind: Kind }) {
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [consent, setConsent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // เมื่อกดส่งครั้งแรกแล้ว จะตรวจซ้ำแบบสดทุกครั้งที่แก้ข้อมูล เพื่อให้ข้อความแดงหายทันทีเมื่อกรอกถูก
+  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [promptPayId, setPromptPayId] = useState("");
@@ -99,7 +101,7 @@ export default function SupportRegisterForm({ kind }: { kind: Kind }) {
     }
   }, [promptPayId, amount]);
 
-  function validate() {
+  function computeErrors() {
     const errs: Record<string, string> = {};
     const f = validateNamePart(firstName, "ชื่อ");
     if (f) errs.firstName = f;
@@ -114,13 +116,24 @@ export default function SupportRegisterForm({ kind }: { kind: Kind }) {
     }
     if (!slipFile) errs.slipFile = "กรุณาแนบไฟล์สลิปโอนเงิน";
     if (!consent) errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนลงทะเบียน";
+    return errs;
+  }
+
+  function validate() {
+    const errs = computeErrors();
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
+  useEffect(() => {
+    if (submitted) setFieldErrors(computeErrors());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted, firstName, lastName, detail, phone, email, amount, slipFile, consent]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSubmitted(true);
     if (!validate()) return;
     setSubmitting(true);
     try {
