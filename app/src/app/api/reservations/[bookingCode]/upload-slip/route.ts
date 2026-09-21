@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { uploadObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 import { sendSlipReceivedEmail } from "@/lib/mailer";
+import { holdUntil } from "@/lib/holdPolicy";
 import crypto from "crypto";
 
 /**
@@ -48,7 +49,8 @@ export async function POST(req: NextRequest, { params }: { params: { bookingCode
     }),
     prisma.reservation.update({
       where: { id: reservation.id },
-      data: { paymentStatus: "awaiting_verify" },
+      // แนบสลิปแล้ว = รอแอดมินตรวจ → ขยายเวลากันโต๊ะเป็นนโยบาย awaiting_verify
+      data: { paymentStatus: "awaiting_verify", reservedUntil: holdUntil("awaiting_verify") },
     }),
   ]);
 

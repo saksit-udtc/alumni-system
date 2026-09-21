@@ -8,6 +8,8 @@ const prisma = new PrismaClient();
  * Requirement #3: every 5 minutes, find reservations where
  * paymentStatus IN ('pending','awaiting_verify') AND reservedUntil < now(),
  * and release each one via the shared release logic with newStatus='expired'.
+ * reservedUntil is set by the app (app/src/lib/holdPolicy.ts): 20 min for pending
+ * (no slip yet), 48 h for awaiting_verify (slip attached, waiting on an admin).
  */
 async function releaseExpiredReservations(): Promise<void> {
   const now = new Date();

@@ -25,7 +25,23 @@ export function zoneKey(zone: string | null) {
   return zone ?? "__unassigned__";
 }
 
-export function computeZoomFrame(tables: PosTable[], selectedZone: string | null) {
+export function computeZoomFrame(
+  tables: PosTable[],
+  selectedZone: string | null,
+  // padding (percent of the floor plan) kept around the zone's bounding box.
+  // The default (14) matches the original behavior used by the admin
+  // overview; the guest booking flow passes a smaller value so a zone fills
+  // more of a phone screen and the table markers end up big enough to tap.
+  opts: {
+    pad?: number;
+    // When the real viewport size is known, pick the scale that fits the whole
+    // zone on screen (both dimensions) instead of the width/height heuristic
+    // below, but never zoom out below what keeps a table marker tappable on a
+    // narrow phone screen. width/height are the visible viewport in pixels;
+    // imageRatio is the floor-plan image's width/height.
+    viewport?: { width: number; height: number; imageRatio: number };
+  } = {}
+) {
   if (selectedZone === null) return { cx: 50, cy: 50, scale: 1 };
 
   const inZone = tables.filter(
@@ -39,16 +55,39 @@ export function computeZoomFrame(tables: PosTable[], selectedZone: string | null
   const minY = Math.min(...inZone.map((t) => t.posY));
   const maxY = Math.max(...inZone.map((t) => t.posY));
 
-  const PAD = 14; // percent padding around the zone's bounding box
+  const PAD = opts.pad ?? 14; // percent padding around the zone's bounding box
   const width = Math.max(1, maxX - minX + PAD * 2);
   const height = Math.max(1, maxY - minY + PAD * 2);
 
   // Zoom to fit the *tighter* of the two dimensions, rather than requiring
   // both to fit (which is what made tall/narrow zones barely zoom at all
   // before). The looser dimension is handled by scrolling instead.
-  const scale = Math.max(1, Math.min(8, 100 / Math.min(width, height)));
+  let scale = Math.max(1, Math.min(8, 100 / Math.min(width, height)));
+  if (opts.viewport && opts.viewport.width > 0 && opts.viewport.height > 0) {
+    const { width: vw, height: vh, imageRatio } = opts.viewport;
+    // Largest zoom at which the zone's bounding box still fits the viewport
+    // horizontally (fitX) and vertically (fitY). The canvas is vw*scale wide
+    // and (vw*scale)/imageRatio tall, hence the imageRatio term.
+    const fitX = 100 / width;
+    const fitY = (100 * vh * imageRatio) / (height * vw);
+    // Floor: on a ~360px phone a zone that is big relative to the whole plan
+    // would otherwise be "fit" so small that markers are untappable, so keep
+    // at least ~2.2x there and let the guest scroll (no floor on wide screens).
+    const minTapScale = Math.max(1, 800 / vw);
+    scale = Math.min(8, Math.max(1, minTapScale, Math.min(fitX, fitY)));
+  }
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
 
   return { cx, cy, scale };
+}
+
+// Frame for jumping straight to one table (table-number search): centered on
+// the table at a fixed zoom, so the table and its neighbours fill the screen
+// regardless of how big its zone is.
+export function computeFocusFrame(t: { posX: number | null; posY: number | null }, viewportWidth = 0) {
+  // ~1440px of canvas across the screen keeps table markers finger-sized on a
+  // phone (4x of ~360px) without blowing up to a giant zoom on a wide screen.
+  const scale = viewportWidth > 0 ? Math.min(4, Math.max(2, 1440 / viewportWidth)) : 4;
+  return { cx: t.posX ?? 50, cy: t.posY ?? 50, scale };
 }

@@ -1,4 +1,5 @@
 import { Prisma, PosPaymentMethod } from "@prisma/client";
+import { holdUntil } from "./holdPolicy";
 import { prisma } from "./prisma";
 import { generateBookingCode, generateQrToken } from "./qrcode";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
@@ -34,8 +35,6 @@ export class PackageBookingError extends Error {
     this.code = code;
   }
 }
-
-const HOLD_MINUTES = 20;
 
 /**
  * Books a pre-configured Package (table booking + bundled merch items)
@@ -205,7 +204,7 @@ export async function bookPackage(input: BookPackageInput) {
         bookingCode = generateBookingCode();
       }
 
-      const reservedUntil = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
+      const reservedUntil = holdUntil(slipFileKey ? "awaiting_verify" : "pending");
 
       const reservation = await tx.reservation.create({
         data: {

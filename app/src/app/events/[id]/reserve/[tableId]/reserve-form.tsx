@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -12,6 +12,18 @@ import {
 } from "@/lib/formValidation";
 import PayQr from "@/app/components/pay-qr";
 import { generatePromptPayPayload } from "@/lib/promptpay";
+
+// ขนาดไฟล์สลิปสูงสุดฝั่งหน้าเว็บ (ตรงกับเพดาน 10MB ของ upload อื่นๆ ในระบบ)
+const SLIP_MAX_BYTES = 10 * 1024 * 1024;
+
+// ลำดับช่องบนฟอร์ม — ใช้เลื่อนหน้าจอไปช่องแรกที่ผิดตอนกดส่ง
+const FIELD_ORDER = ["bookerFirstName", "bookerLastName", "bookerPhone", "bookerEmail", "slipFile", "consent"];
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function ReserveForm({
   eventId,
@@ -75,9 +87,36 @@ export default function ReserveForm({
 
   const [consent, setConsent] = useState(false);
   const [slipFile, setSlipFile] = useState<File | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  // เมื่อกดส่งครั้งแรกแล้ว จะตรวจซ้ำแบบสดทุกครั้งที่แก้ข้อมูล เพื่อให้ข้อความแดงหายทันทีเมื่อกรอกถูก
+  // Inline validation: ช่องไหนที่ผู้ใช้แตะแล้ว (blur / เลือกไฟล์ / ติ๊ก) จึงเริ่มแสดง error ของช่องนั้น
+  // ไม่แสดงตอนยังไม่เคยแตะ เพื่อไม่ให้ฟอร์มเป็นสีแดงตั้งแต่เปิดหน้า — หลังแตะแล้วตรวจสดทุกครั้งที่พิมพ์
+  // ข้อความแดงจึงหายทันทีที่กรอกถูก และเมื่อกดส่ง (submitted) จะแสดง error ของทุกช่อง
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
+  const slipInputRef = useRef<HTMLInputElement>(null);
+  const [slipPreviewUrl, setSlipPreviewUrl] = useState<string | null>(null);
+  const [slipPreviewFailed, setSlipPreviewFailed] = useState(false);
+
+  function touch(field: string) {
+    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  }
+
+  // Preview รูปสลิป: สร้าง object URL ในเครื่อง (ไม่อัปโหลดอะไรขึ้นเซิร์ฟเวอร์) และคืนหน่วยความจำทุกครั้งที่เปลี่ยนไฟล์/ออกจากหน้า
+  useEffect(() => {
+    setSlipPreviewFailed(false);
+    if (!slipFile || !slipFile.type.startsWith("image/")) {
+      setSlipPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(slipFile);
+    setSlipPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [slipFile]);
+
+  function clearSlip() {
+    setSlipFile(null);
+    touch("slipFile");
+    if (slipInputRef.current) slipInputRef.current.value = "";
+  }
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -156,6 +195,13 @@ export default function ReserveForm({
 
     if (!slipFile) {
       errs.slipFile = "กรุณาแนบไฟล์สลิปโอนเงิน";
+    } else if (slipFile.type && !slipFile.type.startsWith("image/") && slipFile.type !== "application/pdf") {
+      // type ว่างได้ (บางเครื่องไม่ระบุชนิดไฟล์ เช่น HEIC บน Windows) จึงไม่ปฏิเสธกรณีนั้น
+      errs.slipFile = "รองรับเฉพาะไฟล์รูปภาพหรือ PDF เท่านั้น";
+    } else if (slipFile.size === 0) {
+      errs.slipFile = "ไฟล์ว่างเปล่า กรุณาเลือกไฟล์สลิปใหม่";
+    } else if (slipFile.size > SLIP_MAX_BYTES) {
+      errs.slipFile = `ไฟล์ใหญ่เกินไป (${formatFileSize(slipFile.size)}) ขนาดต้องไม่เกิน 10 MB`;
     }
     if (!consent) {
       errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนยืนยันการจอง";
@@ -164,16 +210,24 @@ export default function ReserveForm({
     return errs;
   }
 
-  function validate(): boolean {
-    const errs = computeErrors();
-    setFieldErrors(errs);
-    return Object.keys(errs).length === 0;
+  // error ที่ "แสดงจริง": เฉพาะช่องที่แตะแล้ว หรือทุกช่องหลังกดส่ง
+  const allErrors = computeErrors();
+  const fieldErrors: Record<string, string> = {};
+  for (const key of Object.keys(allErrors)) {
+    if (submitted || touched[key]) fieldErrors[key] = allErrors[key];
   }
 
-  useEffect(() => {
-    if (submitted) setFieldErrors(computeErrors());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitted, bookerFirstName, bookerLastName, bookerPhone, bookerEmail, slipFile, consent]);
+  function validate(): boolean {
+    const errs = computeErrors();
+    const first = FIELD_ORDER.find((k) => errs[k]);
+    if (first) {
+      // พาผู้ใช้ไปยังช่องแรกที่ยังไม่ผ่าน
+      const el = document.getElementById(`reserve-${first}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.focus({ preventScroll: true });
+    }
+    return !first;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -288,8 +342,11 @@ export default function ReserveForm({
             ชื่อผู้จอง <span className="text-red-600">*</span>
           </label>
           <input
+            id="reserve-bookerFirstName"
             value={bookerFirstName}
             onChange={(e) => setBookerFirstName(e.target.value)}
+            onBlur={() => touch("bookerFirstName")}
+            aria-invalid={!!fieldErrors.bookerFirstName}
             autoComplete="given-name"
             maxLength={100}
             className={inputClass("bookerFirstName")}
@@ -301,8 +358,11 @@ export default function ReserveForm({
             นามสกุลผู้จอง <span className="text-red-600">*</span>
           </label>
           <input
+            id="reserve-bookerLastName"
             value={bookerLastName}
             onChange={(e) => setBookerLastName(e.target.value)}
+            onBlur={() => touch("bookerLastName")}
+            aria-invalid={!!fieldErrors.bookerLastName}
             autoComplete="family-name"
             maxLength={100}
             className={inputClass("bookerLastName")}
@@ -316,8 +376,11 @@ export default function ReserveForm({
           เบอร์โทรศัพท์ <span className="text-red-600">*</span>
         </label>
         <input
+          id="reserve-bookerPhone"
           type="tel"
           inputMode="numeric"
+          onBlur={() => touch("bookerPhone")}
+          aria-invalid={!!fieldErrors.bookerPhone}
           autoComplete="tel"
           value={bookerPhone}
           onChange={(e) => setBookerPhone(formatThaiPhoneDisplay(e.target.value))}
@@ -332,13 +395,18 @@ export default function ReserveForm({
           อีเมล <span className="text-red-600">*</span>
         </label>
         <input
+          id="reserve-bookerEmail"
           type="email"
+          aria-invalid={!!fieldErrors.bookerEmail}
           autoComplete="email"
           autoCapitalize="off"
           autoCorrect="off"
           value={bookerEmail}
           onChange={(e) => setBookerEmail(e.target.value)}
-          onBlur={(e) => setBookerEmail(normalizeEmail(e.target.value))}
+          onBlur={(e) => {
+            setBookerEmail(normalizeEmail(e.target.value));
+            touch("bookerEmail");
+          }}
           className={inputClass("bookerEmail")}
         />
         {fieldErrors.bookerEmail && <p className="text-xs text-red-600 mt-1">{fieldErrors.bookerEmail}</p>}
@@ -447,20 +515,66 @@ export default function ReserveForm({
         </label>
         <p className="text-xs text-stone-400 mb-1">กรุณาโอนเงินตามยอดด้านบนแล้วแนบรูปสลิปที่นี่ ระบบจะบันทึกการจองและส่งสลิปให้เจ้าหน้าที่ตรวจสอบในขั้นตอนเดียวกัน</p>
         <input
+          id="reserve-slipFile"
+          ref={slipInputRef}
           type="file"
           accept="image/*,application/pdf"
-          onChange={(e) => setSlipFile(e.target.files?.[0] || null)}
+          aria-invalid={!!fieldErrors.slipFile}
+          onChange={(e) => {
+            setSlipFile(e.target.files?.[0] || null);
+            touch("slipFile");
+          }}
           className={inputClass("slipFile")}
         />
         {fieldErrors.slipFile && <p className="text-xs text-red-600 mt-1">{fieldErrors.slipFile}</p>}
+
+        {slipFile && (
+          <div className="mt-2 flex items-start gap-3 rounded-lg border border-cream-200 bg-cream-50 p-2">
+            {slipPreviewUrl && !slipPreviewFailed ? (
+              <a href={slipPreviewUrl} target="_blank" rel="noopener noreferrer" title="คลิกเพื่อดูรูปขนาดเต็ม" className="shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={slipPreviewUrl}
+                  alt="ตัวอย่างสลิปที่เลือก"
+                  onError={() => setSlipPreviewFailed(true)}
+                  className="h-40 w-auto max-w-[9rem] rounded border border-stone-200 bg-white object-contain"
+                />
+              </a>
+            ) : (
+              <div className="flex h-20 w-16 shrink-0 items-center justify-center rounded border border-stone-200 bg-white text-xs font-semibold text-stone-500">
+                {slipFile.type === "application/pdf" ? "PDF" : "ไฟล์"}
+              </div>
+            )}
+            <div className="min-w-0 flex-1 text-sm">
+              <p className="truncate font-medium text-stone-700" title={slipFile.name}>{slipFile.name}</p>
+              <p className="text-xs text-stone-500">{formatFileSize(slipFile.size)}</p>
+              {slipPreviewFailed && (
+                <p className="mt-1 text-xs text-stone-400">ไม่สามารถแสดงตัวอย่างไฟล์ชนิดนี้ได้ แต่ยังส่งได้ตามปกติ</p>
+              )}
+              {!allErrors.slipFile && <p className="mt-1 text-xs text-emerald-600">พร้อมส่ง — ตรวจให้แน่ใจว่าเห็นยอดเงินและวันที่ชัดเจน</p>}
+              <button
+                type="button"
+                onClick={clearSlip}
+                className="mt-1 text-xs text-red-600 underline hover:text-red-700"
+              >
+                ลบไฟล์
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-cream-200 pt-3">
         <label className="flex items-start gap-2 text-sm text-stone-700">
           <input
+            id="reserve-consent"
             type="checkbox"
             checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
+            aria-invalid={!!fieldErrors.consent}
+            onChange={(e) => {
+              setConsent(e.target.checked);
+              touch("consent");
+            }}
             className="accent-maroon-700 mt-0.5"
           />
           <span>

@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { logAdminAction } from "@/lib/auditLog";
-
-const HOLD_MINUTES = 20;
+import { holdUntil } from "@/lib/holdPolicy";
 
 /**
  * Requirement #5: only from confirmed -> awaiting_verify, AND pushes
- * reservedUntil forward (+20min) in the same update so cron doesn't
+ * reservedUntil forward (awaiting_verify hold, see lib/holdPolicy.ts) in the same update so cron doesn't
  * immediately re-expire it. Does not touch seatsReserved.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -25,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     where: { id: params.id },
     data: {
       paymentStatus: "awaiting_verify",
-      reservedUntil: new Date(Date.now() + HOLD_MINUTES * 60 * 1000),
+      reservedUntil: holdUntil("awaiting_verify"),
       checkedIn: false,
       checkedInAt: null,
       checkedInBy: null,

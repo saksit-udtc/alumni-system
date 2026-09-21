@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { generateBookingCode, generateQrToken } from "./qrcode";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
+import { holdUntil } from "./holdPolicy";
 import { validateNamePart, validateThaiPhone, cleanPhoneForStorage, normalizeEmail } from "./formValidation";
 
 export interface BookTableInput {
@@ -29,8 +30,6 @@ export class BookingError extends Error {
     this.code = code;
   }
 }
-
-const HOLD_MINUTES = 20;
 
 /**
  * Books a table atomically. Requirement #1.
@@ -160,7 +159,7 @@ export async function bookTable(input: BookTableInput) {
       bookingCode = generateBookingCode();
     }
 
-    const reservedUntil = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
+    const reservedUntil = holdUntil(slipFileKey ? "awaiting_verify" : "pending");
 
     const reservation = await tx.reservation.create({
       data: {
