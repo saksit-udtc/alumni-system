@@ -454,7 +454,11 @@ export default function AdminMerchOrdersPage() {
               {["pending", "awaiting_verify"].includes(o.paymentStatus) && (
                 <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t border-cream-100 bg-cream-50/50">
                   <button
-                    onClick={() => act(o.id, "reject")}
+                    onClick={() => {
+                              const n = window.prompt("เหตุผลที่ปฏิเสธ (ไม่บังคับ) — ระบบจะส่งอีเมลแจ้งเหตุผลนี้ให้ลูกค้า");
+                              if (n === null) return;
+                              act(o.id, "reject", n);
+                            }}
                     disabled={busyId === o.id}
                     className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors font-medium disabled:opacity-50"
                   >

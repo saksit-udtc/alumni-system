@@ -779,3 +779,127 @@ export async function sendMerchOrderShippedEmail(args: MerchOrderShippedEmailArg
     return false;
   }
 }
+
+interface ReservationRejectedEmailArgs {
+  to: string;
+  bookerName: string;
+  eventName: string;
+  bookingCode: string;
+  note?: string;
+}
+
+function buildReservationRejectedHtml(args: ReservationRejectedEmailArgs) {
+  const base = process.env.APP_BASE_URL || "http://localhost:3000";
+  return `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>ไม่สามารถยืนยันการจองโต๊ะได้</h2>
+      <p>เรียน คุณ${args.bookerName}</p>
+      <p>เจ้าหน้าที่ตรวจสอบสลิปการโอนเงินสำหรับการจองรหัส <strong>${args.bookingCode}</strong> งาน <strong>${args.eventName}</strong> ของท่านแล้ว แต่ไม่สามารถยืนยันรายการนี้ได้ โต๊ะ/ที่นั่งของท่านจึงถูกปล่อยคืนเข้าระบบเพื่อให้ผู้อื่นจองต่อได้ครับ/ค่ะ</p>
+      ${args.note ? `<p><strong>เหตุผลที่ปฏิเสธ:</strong> ${escapeHtml(args.note).replace(/\n/g, "<br/>")}</p>` : ""}
+      <p>หากเป็นเพราะสลิปไม่ชัดเจน โอนผิดยอด หรือเหตุผลอื่นที่แก้ไขได้ กรุณาทำรายการจองโต๊ะใหม่อีกครั้งที่ <a href="${base}">${base}</a> แล้วแนบสลิปที่ถูกต้อง</p>
+    </div>
+  `;
+}
+
+/**
+ * Sent when an admin rejects a reservation's payment slip (paymentStatus ->
+ * rejected via releaseReservation). Explains why (admin's note, if any) and
+ * points the customer at a fresh booking, since the table/seats were already
+ * released back to the pool by releaseReservation and re-uploading a new
+ * slip to this same reservation isn't offered — see /status page, which
+ * only shows the upload-slip button for pending/awaiting_verify. Same
+ * fail-soft contract as every other mailer function: never throws.
+ */
+export async function sendReservationRejectedEmail(args: ReservationRejectedEmailArgs): Promise<void> {
+  try {
+    const subject = `การจองโต๊ะไม่ผ่านการตรวจสอบ - ${args.eventName}`;
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        to: args.to,
+        subject,
+        ...mailExtras(buildReservationRejectedHtml(args)),
+      });
+      if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      await logEmail({ type: "RESERVATION_REJECTED", recipient: args.to, status: "SUCCESS" });
+      return;
+    }
+    if (process.env.SMTP_HOST) {
+      const transport = getTransport();
+      await transport.sendMail({
+        from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
+        to: args.to,
+        subject,
+        ...mailExtras(buildReservationRejectedHtml(args)),
+      });
+      await logEmail({ type: "RESERVATION_REJECTED", recipient: args.to, status: "SUCCESS" });
+      return;
+    }
+    console.warn("[mailer] neither RESEND_API_KEY nor SMTP_HOST configured, skipping reservation-rejected email");
+  } catch (err) {
+    console.error("[mailer] failed to send reservation-rejected email (non-fatal):", err);
+    await logEmail({ type: "RESERVATION_REJECTED", recipient: args.to, status: "FAILED", error: String(err) });
+  }
+}
+
+interface MerchOrderRejectedEmailArgs {
+  to: string;
+  bookerName: string;
+  orderCode: string;
+  note?: string;
+}
+
+function buildMerchOrderRejectedHtml(args: MerchOrderRejectedEmailArgs) {
+  const base = process.env.APP_BASE_URL || "http://localhost:3000";
+  return `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>ไม่สามารถยืนยันการสั่งซื้อของที่ระลึกได้</h2>
+      <p>เรียน คุณ${args.bookerName}</p>
+      <p>เจ้าหน้าที่ตรวจสอบสลิปการโอนเงินสำหรับคำสั่งซื้อรหัส <strong>${args.orderCode}</strong> ของท่านแล้ว แต่ไม่สามารถยืนยันรายการนี้ได้ สินค้าในคำสั่งซื้อนี้จึงถูกคืนเข้าสต๊อกเพื่อให้ลูกค้าท่านอื่นสั่งซื้อต่อได้ครับ/ค่ะ</p>
+      ${args.note ? `<p><strong>เหตุผลที่ปฏิเสธ:</strong> ${escapeHtml(args.note).replace(/\n/g, "<br/>")}</p>` : ""}
+      <p>หากเป็นเพราะสลิปไม่ชัดเจน โอนผิดยอด หรือเหตุผลอื่นที่แก้ไขได้ กรุณาทำรายการสั่งซื้อใหม่อีกครั้งที่ <a href="${base}/merch">${base}/merch</a> แล้วแนบสลิปที่ถูกต้อง</p>
+    </div>
+  `;
+}
+
+/**
+ * Sent when an admin rejects a merch order's payment slip (paymentStatus ->
+ * rejected). Explains why (admin's note, if any) and points the customer at
+ * a fresh order, since the stock was already returned to the pool by the
+ * reject route and re-uploading a new slip to this same order isn't offered
+ * — see /merch/status, which only shows the upload-slip button for
+ * pending/awaiting_verify. Same fail-soft contract: never throws.
+ */
+export async function sendMerchOrderRejectedEmail(args: MerchOrderRejectedEmailArgs): Promise<void> {
+  try {
+    const subject = `คำสั่งซื้อของที่ระลึกไม่ผ่านการตรวจสอบ - ${args.orderCode}`;
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        to: args.to,
+        subject,
+        ...mailExtras(buildMerchOrderRejectedHtml(args)),
+      });
+      if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
+      await logEmail({ type: "MERCH_ORDER_REJECTED", recipient: args.to, status: "SUCCESS" });
+      return;
+    }
+    if (process.env.SMTP_HOST) {
+      const transport = getTransport();
+      await transport.sendMail({
+        from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
+        to: args.to,
+        subject,
+        ...mailExtras(buildMerchOrderRejectedHtml(args)),
+      });
+      await logEmail({ type: "MERCH_ORDER_REJECTED", recipient: args.to, status: "SUCCESS" });
+      return;
+    }
+    console.warn("[mailer] neither RESEND_API_KEY nor SMTP_HOST configured, skipping merch-order-rejected email");
+  } catch (err) {
+    console.error("[mailer] failed to send merch-order-rejected email (non-fatal):", err);
+    await logEmail({ type: "MERCH_ORDER_REJECTED", recipient: args.to, status: "FAILED", error: String(err) });
+  }
+}

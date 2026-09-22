@@ -241,7 +241,11 @@ export default function AdminAllReservationsPage() {
                             อนุมัติ
                           </button>
                           <button
-                            onClick={() => act(r.id, "reject")}
+                            onClick={() => {
+                              const n = window.prompt("เหตุผลที่ปฏิเสธ (ไม่บังคับ) — ระบบจะส่งอีเมลแจ้งเหตุผลนี้ให้ลูกค้า");
+                              if (n === null) return;
+                              act(r.id, "reject", n);
+                            }}
                             disabled={busyId === r.id}
                             className="text-xs px-2.5 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors font-medium disabled:opacity-50"
                           >

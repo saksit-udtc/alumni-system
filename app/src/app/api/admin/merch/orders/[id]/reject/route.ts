@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { logAdminAction } from "@/lib/auditLog";
+import { sendMerchOrderRejectedEmail } from "@/lib/mailer";
 
 /**
  * Admin "reject slip" for a merch order. Merch orders have no seat/table to
@@ -82,6 +83,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     targetType: "MerchOrder",
     targetId: order.id,
     detail: `orderCode=${order.orderCode}`,
+  });
+
+  // แจ้งลูกค้าทางอีเมล (fail-soft, ไม่บล็อกการปฏิเสธ) — order.paymentStatus ที่
+  // เช็คไว้ด้านบนแล้วว่าเป็น awaiting_verify/pending ก่อนเข้ามาถึงตรงนี้
+  // การันตีว่ารอบนี้คือการเปลี่ยนสถานะเป็น rejected จริง ๆ ไม่ใช่กดซ้ำ
+  await sendMerchOrderRejectedEmail({
+    to: order.bookerEmail,
+    bookerName: order.bookerName,
+    orderCode: order.orderCode,
+    note,
   });
 
   return NextResponse.json({ ok: true });
