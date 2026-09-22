@@ -21,6 +21,7 @@ const SLIP_MAX_BYTES = 10 * 1024 * 1024;
 interface PackageItem {
   packageItemId: string;
   productName: string;
+  productImageUrl: string | null;
   size: string | null;
   quantity: number;
   buyerChoosesSize: boolean;
@@ -32,6 +33,7 @@ interface MerchPackage {
   name: string;
   description: string | null;
   price: number;
+  imageUrl: string | null;
   items: PackageItem[];
 }
 
@@ -258,13 +260,23 @@ export default function MerchPackageOrderPage() {
         {!loading && pkg && !done && (
           <div className="mt-4 grid md:grid-cols-2 gap-6">
             <div className="bg-white border border-cream-200 shadow-md rounded-xl p-5 h-fit space-y-2">
+              {pkg.imageUrl && (
+                <img src={pkg.imageUrl} alt={pkg.name} className="w-full aspect-square object-cover rounded-lg" />
+              )}
               <h2 className="font-display font-semibold text-lg text-stone-800">{pkg.name}</h2>
               {pkg.description && <p className="text-sm text-stone-600">{pkg.description}</p>}
-              <ul className="text-sm text-stone-600 list-disc list-inside space-y-0.5">
+              <ul className="text-sm text-stone-600 space-y-2">
                 {pkg.items.map((it) => (
-                  <li key={it.packageItemId}>
-                    {it.productName}
-                    {it.size ? ` (ไซส์ ${it.size})` : it.buyerChoosesSize ? " (เลือกไซส์เอง)" : ""} × {it.quantity}
+                  <li key={it.packageItemId} className="flex items-center gap-2">
+                    {it.productImageUrl ? (
+                      <img src={it.productImageUrl} alt={it.productName} className="w-12 h-12 object-cover rounded-lg border border-cream-200 shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-cream-100 flex items-center justify-center text-stone-400 text-[10px] shrink-0">ไม่มีรูป</div>
+                    )}
+                    <span>
+                      {it.productName}
+                      {it.size ? ` (ไซส์ ${it.size})` : it.buyerChoosesSize ? " (เลือกไซส์เอง)" : ""} × {it.quantity}
+                    </span>
                   </li>
                 ))}
               </ul>

@@ -16,7 +16,7 @@ export async function GET() {
       include: {
         items: {
           include: {
-            product: { select: { name: true, stocks: { select: { size: true, quantity: true } } } },
+            product: { select: { name: true, imageKey: true, stocks: { select: { size: true, quantity: true } } } },
           },
         },
       },
@@ -35,6 +35,7 @@ export async function GET() {
       items: p.items.map((it) => ({
         packageItemId: it.id,
         productName: it.product.name,
+        productImageUrl: it.product.imageKey ? publicMerchProductUrl(it.product.imageKey) : null,
         size: it.size,
         quantity: it.quantity,
         buyerChoosesSize: it.buyerChoosesSize,
