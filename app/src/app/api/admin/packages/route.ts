@@ -21,7 +21,10 @@ export async function GET(req: NextRequest) {
       items: {
         include: { product: { select: { id: true, name: true, requiresSize: true } } },
       },
-      _count: { select: { reservations: true } },
+      // merchOrders counts online orders of a merch-only package (see
+      // lib/createMerchPackageOrder.ts); reservations counts table+merch
+      // package sales. A package only ever accrues one or the other.
+      _count: { select: { reservations: true, merchOrders: true } },
     },
   });
 
@@ -45,8 +48,8 @@ function validateItems(items: unknown): { error?: string; clean?: PackageItemInp
     const buyerChoosesSize = raw?.buyerChoosesSize === true;
     // A buyer-choice item always stores size:null in config — the actual
     // size is picked per-purchase (see lib/bookPackage.ts / lib/
-    // packageMerchSale.ts), so any size the admin form sent for it is
-    // ignored rather than trusted.
+    // createMerchPackageOrder.ts), so any size the admin form sent for it
+    // is ignored rather than trusted.
     const size = !buyerChoosesSize && typeof raw?.size === "string" && raw.size.trim() ? raw.size.trim() : null;
     const quantity = Number(raw?.quantity);
     if (!productId) return { error: "ข้อมูลสินค้าในแพ็กเกจไม่ถูกต้อง" };
@@ -67,8 +70,9 @@ export async function POST(req: NextRequest) {
   const description = typeof body?.description === "string" ? body.description.trim() : "";
   const eventId = typeof body?.eventId === "string" ? body.eventId : "";
   // "none" (from the admin form's package-type toggle) means a merch-only
-  // package — no table involved at all, sold only at the POS counter (see
-  // lib/packageMerchSale.ts). Stored as bookingType:null.
+  // package — no table involved at all, sold ONLINE ONLY through the merch
+  // shop, never at the POS counter (see lib/createMerchPackageOrder.ts).
+  // Stored as bookingType:null.
   const merchOnly = body?.bookingType === "none";
   const bookingType = body?.bookingType === "full_table" || body?.bookingType === "seats" ? body.bookingType : "";
   const seatCount = Number(body?.seatCount);

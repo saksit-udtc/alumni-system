@@ -346,8 +346,16 @@ model MerchOrder {
   items MerchOrderItem[]
   slips MerchPaymentSlip[]
 
+  // Set only when this order was created from a merch-only Package
+  // (bookingType null — "เฉพาะของที่ระลึก", online-only, see
+  // lib/createMerchPackageOrder.ts) — null for every plain product-cart
+  // order (the original, untouched path via lib/createMerchOrder.ts).
+  packageId String?
+  package   Package? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+
   @@index([bookerPhone])
   @@index([paymentStatus])
+  @@index([packageId])
 }
 
 model MerchOrderItem {
@@ -482,10 +490,15 @@ model Package {
 
   items        PackageItem[]
   reservations Reservation[]
-  // POS sales of a merch-only package (bookingType null) — see
-  // lib/packageMerchSale.ts. A table+merch package purchase never touches
-  // this; it always goes through reservations above.
+  // Legacy/unused: an earlier iteration sold merch-only packages via POS
+  // (PosSale.packageId) before this was changed to online-only — the
+  // relation stays (some test data may reference it) but nothing writes
+  // to it going forward.
   posSales     PosSale[]
+  // Online orders of a merch-only package (bookingType null — see
+  // lib/createMerchPackageOrder.ts). A table+merch package purchase never
+  // touches this; it always goes through reservations above.
+  merchOrders  MerchOrder[]
 
   @@index([eventId])
 }

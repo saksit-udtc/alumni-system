@@ -65,6 +65,12 @@ export default function MerchShopPage() {
   // use (lib/settings.ts) — purely a convenience QR for the customer to
   // scan-and-pay, the slip-upload + admin-verify flow is unchanged.
   const [promptPayId, setPromptPayId] = useState("");
+  // Merch-only "แพ็กเกจสุดคุ้ม" bundles (bookingType null — no table) sold
+  // online only, alongside the regular product grid below — see
+  // lib/createMerchPackageOrder.ts and /merch/package/[id].
+  const [merchPackages, setMerchPackages] = useState<
+    { id: string; name: string; description: string | null; price: number }[]
+  >([]);
 
   useEffect(() => {
     fetch("/api/merch/products")
@@ -77,6 +83,10 @@ export default function MerchShopPage() {
     fetch("/api/settings/promptpay")
       .then((r) => r.json())
       .then((d) => setPromptPayId(d.promptPayId || ""))
+      .catch(() => {});
+    fetch("/api/merch/packages")
+      .then((r) => r.json())
+      .then((d) => setMerchPackages(d.packages || []))
       .catch(() => {});
   }, []);
 
@@ -288,6 +298,24 @@ export default function MerchShopPage() {
       <PageTitle title="สั่งซื้อของที่ระลึก" />
 
       <main className={`max-w-5xl mx-auto p-4 space-y-6 ${cart.length > 0 ? "pb-28" : ""}`}>
+      {merchPackages.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="font-display font-semibold text-lg text-stone-800">แพ็กเกจสุดคุ้ม</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {merchPackages.map((p) => (
+              <Link
+                key={p.id}
+                href={`/merch/package/${p.id}`}
+                className="block bg-white rounded-xl border border-cream-200 shadow-md hover:shadow-lg transition-shadow p-4"
+              >
+                <div className="font-medium text-stone-800">{p.name}</div>
+                {p.description && <p className="text-sm text-stone-500 mt-0.5">{p.description}</p>}
+                <div className="text-maroon-700 font-semibold mt-2">{Number(p.price).toLocaleString()} บาท</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
       {loading && <p className="text-stone-500">กำลังโหลด...</p>}
       {!loading && products.length === 0 && <p className="text-stone-500">ยังไม่มีสินค้าเปิดขายในขณะนี้</p>}
 

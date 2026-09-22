@@ -2,18 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { bookPackage, PackageBookingError } from "@/lib/bookPackage";
-import { sellMerchPackage, PackageMerchSaleError } from "@/lib/packageMerchSale";
 import { logAdminAction } from "@/lib/auditLog";
 import { PosPaymentMethod } from "@prisma/client";
 
 // POS counter sale of a Package — payment is already settled in person.
-// Branches on the package's own bookingType: a table+merch package (as
-// before) always calls bookPackage with immediateConfirm: true and returns
-// { reservation }; a merch-only package (bookingType null — see
-// lib/packageMerchSale.ts) never touches a table at all and returns
-// { sale } instead. The public online-booking path (Phase 2) calls
-// bookPackage directly from a different, unauthenticated route — merch-only
-// packages stay POS-only, same as "seats" packages already were.
+// Only a table+merch package (bookingType full_table/seats) can be sold
+// here: it always calls bookPackage with immediateConfirm: true and
+// returns { reservation }. A merch-only package (bookingType null — "เฉพาะ
+// ของที่ระลึก", no table at all) is sold ONLINE ONLY through the merch
+// shop — see lib/createMerchPackageOrder.ts and /merch/package/[id] — and
+// is rejected here with a clear message rather than offered at the POS
+// counter.
 export const dynamic = "force-dynamic";
 
 function parseItemSizeSelections(raw: unknown): Record<string, string> | undefined {
@@ -47,32 +46,9 @@ export async function POST(req: NextRequest) {
   if (!pkg) return jsonError("ไม่พบแพ็กเกจที่ระบุ", 404);
 
   if (pkg.bookingType === null) {
-    // Merch-only package: no table at all.
-    try {
-      const sale = await sellMerchPackage({
-        packageId,
-        cashierId: admin.adminId,
-        paymentMethod,
-        buyerName: bookerName || undefined,
-        buyerPhone: bookerPhone || undefined,
-        itemSizeSelections,
-      });
-
-      await logAdminAction({
-        adminId: admin.adminId,
-        action: "PACKAGE_SALE",
-        targetType: "PosSale",
-        targetId: sale.id,
-        detail: `ขายแพ็กเกจของที่ระลึกหน้างาน รหัส ${sale.saleCode} ยอด ${sale.totalAmount} บาท (${paymentMethod})`,
-      });
-
-      return NextResponse.json({ sale }, { status: 201 });
-    } catch (err) {
-      if (err instanceof PackageMerchSaleError) {
-        return jsonError(err.message);
-      }
-      throw err;
-    }
+    return jsonError(
+      "แพ็กเกจนี้เป็นแพ็กเกจเฉพาะของที่ระลึก ไม่มีการจองโต๊ะ ขายได้เฉพาะผ่านหน้าร้านค้าออนไลน์เท่านั้น ไม่ขายหน้างานผ่าน POS"
+    );
   }
 
   if (!tableId) return jsonError("ต้องระบุโต๊ะที่ต้องการจอง");

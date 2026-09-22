@@ -41,7 +41,7 @@ interface PackageRow {
   active: boolean;
   event: { id: string; name: string; eventDate: string; status: string };
   items: PackageItem[];
-  _count: { reservations: number };
+  _count: { reservations: number; merchOrders: number };
 }
 
 // Draft shape for an item row while building/editing a package's item list.
@@ -234,7 +234,7 @@ export default function AdminPackagesPage() {
         <div>
           <h1 className="text-2xl font-display font-semibold text-stone-800">แพ็กเกจขาย</h1>
           <p className="text-sm text-stone-500 mt-0.5">
-            ตั้งค่าแพ็กเกจสำเร็จรูป (จองโต๊ะ + แถมสินค้า หรือเฉพาะของที่ระลึก) เพื่อขายผ่าน POS หน้างาน ({packages.length} แพ็กเกจ)
+            ตั้งค่าแพ็กเกจสำเร็จรูป — จองโต๊ะ + แถมสินค้า (ขายผ่าน POS หน้างาน) หรือเฉพาะของที่ระลึก (ขายออนไลน์เท่านั้น) ({packages.length} แพ็กเกจ)
           </p>
         </div>
         <div className="flex gap-2">
@@ -314,11 +314,11 @@ export default function AdminPackagesPage() {
               >
                 <option value="full_table">จองทั้งโต๊ะ + ของแถม</option>
                 <option value="seats">จองเป็นที่นั่ง + ของแถม</option>
-                <option value="none">เฉพาะของที่ระลึก (ไม่มีโต๊ะ — ขายได้เฉพาะ POS)</option>
+                <option value="none">เฉพาะของที่ระลึก (ไม่มีโต๊ะ — ขายออนไลน์เท่านั้น)</option>
               </select>
               {bookingType === "none" && (
                 <span className="text-xs text-stone-400">
-                  ไม่มีการจองโต๊ะ — ขายได้เฉพาะหน้างานผ่าน POS เท่านั้น (ไม่แสดงในหน้าจองออนไลน์)
+                  ไม่มีการจองโต๊ะ — ขายผ่านหน้าร้านค้าออนไลน์เท่านั้น ไม่ขายหน้างานผ่าน POS
                 </span>
               )}
             </label>
@@ -446,11 +446,11 @@ export default function AdminPackagesPage() {
                   <div className="text-xs text-stone-500 mt-0.5">
                     งาน: {p.event.name} ·{" "}
                     {p.bookingType === null
-                      ? "เฉพาะของที่ระลึก (ไม่มีโต๊ะ — POS เท่านั้น)"
+                      ? "เฉพาะของที่ระลึก (ไม่มีโต๊ะ — ขายออนไลน์เท่านั้น)"
                       : p.bookingType === "full_table"
                       ? "จองทั้งโต๊ะ + ของแถม"
                       : `จอง ${p.seatCount} ที่นั่ง + ของแถม`}{" "}
-                    · ขายแล้ว {p._count.reservations} ครั้ง
+                    · ขายแล้ว {p.bookingType === null ? p._count.merchOrders : p._count.reservations} ครั้ง
                   </div>
                   <div className="text-sm text-maroon-700 font-medium mt-0.5">{Number(p.price).toLocaleString()} บาท</div>
                 </div>

@@ -118,14 +118,14 @@ export async function bookPackage(input: BookPackageInput) {
         throw new PackageBookingError("PACKAGE_INACTIVE", "แพ็กเกจนี้ถูกปิดการขายแล้ว");
       }
       // Defense in depth: a merch-only package (bookingType/seatCount null
-      // — see lib/packageMerchSale.ts) must never reach here at all, since
-      // this whole function is table-centric. Also narrows the types below
-      // (TS can't otherwise know bookingType/seatCount are non-null past
-      // this point).
+      // — see lib/createMerchPackageOrder.ts) must never reach here at all,
+      // since this whole function is table-centric. Also narrows the types
+      // below (TS can't otherwise know bookingType/seatCount are non-null
+      // past this point).
       if (pkg.bookingType === null || pkg.seatCount === null) {
         throw new PackageBookingError(
           "NOT_TABLE_PACKAGE",
-          "แพ็กเกจนี้เป็นแพ็กเกจเฉพาะของที่ระลึก ไม่มีการจองโต๊ะ กรุณาขายผ่านหน้า \"ขายแพ็กเกจหน้างาน\" แทน"
+          "แพ็กเกจนี้เป็นแพ็กเกจเฉพาะของที่ระลึก ไม่มีการจองโต๊ะ กรุณาซื้อผ่านหน้าร้านค้าออนไลน์ (เมนูของที่ระลึก) แทน"
         );
       }
       const bookingType = pkg.bookingType;

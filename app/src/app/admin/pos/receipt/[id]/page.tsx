@@ -21,9 +21,12 @@ interface Sale {
   createdAt: string;
   items: SaleItem[];
   cashier: { username: string };
-  // Set only for a merch-only Package sale (see lib/packageMerchSale.ts) —
-  // changes how the item lines below are rendered (bundled price, not
-  // per-item pricing that would need to sum to totalAmount).
+  // Legacy/unused going forward: an earlier iteration sold merch-only
+  // Package bundles at the POS counter and tagged the PosSale with
+  // packageId — that path was changed to online-only (see
+  // lib/createMerchPackageOrder.ts), so this is always null for any new
+  // sale. Left in place only in case old test data still has it set;
+  // still renders correctly (bundled price line) if it ever is.
   package: { name: string } | null;
 }
 
