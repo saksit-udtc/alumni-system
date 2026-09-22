@@ -10,12 +10,20 @@ interface PackageOption {
   id: string;
   name: string;
   description: string | null;
-  bookingType: "full_table" | "seats";
-  seatCount: number;
+  // null = merch-only package (no table at all) — see /admin/packages.
+  bookingType: "full_table" | "seats" | null;
+  seatCount: number | null;
   price: string;
   active: boolean;
   event: { id: string; name: string; status: string };
-  items: { id: string; size: string | null; quantity: number; product: { name: string } }[];
+  items: {
+    id: string;
+    productId: string;
+    size: string | null;
+    quantity: number;
+    buyerChoosesSize: boolean;
+    product: { name: string };
+  }[];
 }
 
 interface TableOption {
@@ -27,6 +35,12 @@ interface TableOption {
   zone: string | null;
 }
 
+interface ProductOption {
+  id: string;
+  name: string;
+  stocks: { id: string; size: string | null; quantity: number }[];
+}
+
 // POS counter flow for selling a pre-configured Package: pick the package
 // (which fixes the event, booking type, seat count and bundled items) →
 // pick an available table for that event → take buyer info + payment →
@@ -36,10 +50,12 @@ export default function PosPackageSalePage() {
   const router = useRouter();
   const [packages, setPackages] = useState<PackageOption[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
+  const [products, setProducts] = useState<ProductOption[]>([]);
   const [packageId, setPackageId] = useState("");
   const [tables, setTables] = useState<TableOption[]>([]);
   const [loadingTables, setLoadingTables] = useState(false);
   const [tableId, setTableId] = useState("");
+  const [itemSizeSelections, setItemSizeSelections] = useState<Record<string, string>>({});
   const [bookerName, setBookerName] = useState("");
   const [bookerPhone, setBookerPhone] = useState("");
   const [bookerEmail, setBookerEmail] = useState("");
@@ -51,8 +67,15 @@ export default function PosPackageSalePage() {
   useEffect(() => {
     fetch("/api/admin/packages")
       .then((r) => r.json())
-      .then((d) => setPackages((d.packages || []).filter((p: PackageOption) => p.active && p.event.status === "open")))
+      .then((d) =>
+        setPackages(
+          (d.packages || []).filter((p: PackageOption) => p.active && (p.bookingType === null || p.event.status === "open"))
+        )
+      )
       .finally(() => setLoadingPackages(false));
+    fetch("/api/admin/packages/products-options")
+      .then((r) => r.json())
+      .then((d) => setProducts(d.products || []));
   }, []);
 
   useEffect(() => {
@@ -62,11 +85,13 @@ export default function PosPackageSalePage() {
   }, []);
 
   const selectedPackage = packages.find((p) => p.id === packageId) || null;
+  const isMerchOnly = selectedPackage ? selectedPackage.bookingType === null : false;
 
   useEffect(() => {
     setTableId("");
     setTables([]);
-    if (!selectedPackage) return;
+    setItemSizeSelections({});
+    if (!selectedPackage || isMerchOnly) return;
     setLoadingTables(true);
     fetch(
       `/api/admin/packages/tables?eventId=${selectedPackage.event.id}&bookingType=${selectedPackage.bookingType}&seatCount=${selectedPackage.seatCount}`
@@ -75,6 +100,12 @@ export default function PosPackageSalePage() {
       .then((d) => setTables(d.tables || []))
       .finally(() => setLoadingTables(false));
   }, [packageId]);
+
+  function sizesForProduct(productId: string): string[] {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return [];
+    return product.stocks.filter((s) => s.quantity > 0).map((s) => s.size || "");
+  }
 
   const promptPayPayload = useMemo(() => {
     if (paymentMethod !== "transfer" || !promptPayId || !selectedPackage) return null;
@@ -88,8 +119,15 @@ export default function PosPackageSalePage() {
   async function submitSale() {
     setError("");
     if (!packageId) return setError("กรุณาเลือกแพ็กเกจ");
-    if (!tableId) return setError("กรุณาเลือกโต๊ะ");
-    if (!bookerName.trim() || !bookerPhone.trim()) return setError("กรุณากรอกชื่อและเบอร์โทรศัพท์ผู้จอง");
+    if (!isMerchOnly && !tableId) return setError("กรุณาเลือกโต๊ะ");
+    if (!isMerchOnly && (!bookerName.trim() || !bookerPhone.trim())) {
+      return setError("กรุณากรอกชื่อและเบอร์โทรศัพท์ผู้จอง");
+    }
+    for (const it of selectedPackage?.items || []) {
+      if (it.buyerChoosesSize && !itemSizeSelections[it.id]) {
+        return setError(`กรุณาเลือกไซส์สำหรับ "${it.product.name}"`);
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -98,11 +136,12 @@ export default function PosPackageSalePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           packageId,
-          tableId,
-          bookerName: bookerName.trim(),
-          bookerPhone: bookerPhone.trim(),
+          tableId: isMerchOnly ? undefined : tableId,
+          bookerName: bookerName.trim() || undefined,
+          bookerPhone: bookerPhone.trim() || undefined,
           bookerEmail: bookerEmail.trim() || undefined,
           paymentMethod,
+          itemSizeSelections,
         }),
       });
       const data = await res.json();
@@ -110,7 +149,11 @@ export default function PosPackageSalePage() {
         setError(data.error || "บันทึกการขายไม่สำเร็จ");
         return;
       }
-      router.push(`/admin/pos/package/receipt/${data.reservation.id}`);
+      if (data.sale) {
+        router.push(`/admin/pos/receipt/${data.sale.id}`);
+      } else {
+        router.push(`/admin/pos/package/receipt/${data.reservation.id}`);
+      }
     } catch {
       setError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {
@@ -158,19 +201,52 @@ export default function PosPackageSalePage() {
 
             {selectedPackage && (
               <div className="text-xs text-stone-500 border-t border-cream-100 pt-2 mt-1">
-                {selectedPackage.bookingType === "full_table" ? "จองทั้งโต๊ะ" : `จอง ${selectedPackage.seatCount} ที่นั่ง`} · ของแถม:{" "}
+                {isMerchOnly
+                  ? "เฉพาะของที่ระลึก (ไม่มีโต๊ะ)"
+                  : selectedPackage.bookingType === "full_table"
+                  ? "จองทั้งโต๊ะ"
+                  : `จอง ${selectedPackage.seatCount} ที่นั่ง`}{" "}
+                · ของแถม:{" "}
                 {selectedPackage.items.map((it, i) => (
                   <span key={it.id}>
                     {i > 0 && ", "}
                     {it.product.name}
-                    {it.size ? ` (${it.size})` : ""} x{it.quantity}
+                    {it.buyerChoosesSize ? " (เลือกไซส์เอง)" : it.size ? ` (${it.size})` : ""} x{it.quantity}
                   </span>
                 ))}
               </div>
             )}
+
+            {selectedPackage && selectedPackage.items.some((it) => it.buyerChoosesSize) && (
+              <div className="border-t border-cream-100 pt-2 mt-1 space-y-2">
+                <span className="text-xs font-medium text-stone-700 block">เลือกไซส์สำหรับลูกค้า</span>
+                {selectedPackage.items
+                  .filter((it) => it.buyerChoosesSize)
+                  .map((it) => {
+                    const sizes = sizesForProduct(it.productId);
+                    return (
+                      <label key={it.id} className="flex items-center gap-2 text-sm">
+                        <span className="text-stone-600 min-w-0 flex-1 truncate">{it.product.name}</span>
+                        <select
+                          value={itemSizeSelections[it.id] || ""}
+                          onChange={(e) => setItemSizeSelections((prev) => ({ ...prev, [it.id]: e.target.value }))}
+                          className="border border-stone-300 rounded-lg px-2 py-1.5 text-sm"
+                        >
+                          <option value="">-- ไซส์ --</option>
+                          {sizes.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    );
+                  })}
+              </div>
+            )}
           </div>
 
-          {selectedPackage && (
+          {selectedPackage && !isMerchOnly && (
             <div className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-2">
               <span className="font-medium text-sm block">เลือกโต๊ะ</span>
               {loadingTables ? (
@@ -200,19 +276,23 @@ export default function PosPackageSalePage() {
 
         <div className="lg:col-span-2">
           <div className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-3 lg:sticky lg:top-4">
-            <h2 className="font-display font-semibold text-stone-800">ข้อมูลผู้จอง + ชำระเงิน</h2>
+            <h2 className="font-display font-semibold text-stone-800">
+              {isMerchOnly ? "ข้อมูลผู้ซื้อ (ถ้ามี) + ชำระเงิน" : "ข้อมูลผู้จอง + ชำระเงิน"}
+            </h2>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">ชื่อผู้จอง *</span>
+              <span className="font-medium">{isMerchOnly ? "ชื่อผู้ซื้อ" : "ชื่อผู้จอง *"}</span>
               <input value={bookerName} onChange={(e) => setBookerName(e.target.value)} className="border border-stone-300 rounded-lg px-3 py-2" />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">เบอร์โทร *</span>
+              <span className="font-medium">{isMerchOnly ? "เบอร์โทร" : "เบอร์โทร *"}</span>
               <input value={bookerPhone} onChange={(e) => setBookerPhone(e.target.value)} className="border border-stone-300 rounded-lg px-3 py-2" />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">อีเมล (ถ้ามี)</span>
-              <input value={bookerEmail} onChange={(e) => setBookerEmail(e.target.value)} className="border border-stone-300 rounded-lg px-3 py-2" />
-            </label>
+            {!isMerchOnly && (
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">อีเมล (ถ้ามี)</span>
+                <input value={bookerEmail} onChange={(e) => setBookerEmail(e.target.value)} className="border border-stone-300 rounded-lg px-3 py-2" />
+              </label>
+            )}
 
             <div>
               <span className="text-sm font-medium block mb-1">วิธีชำระเงิน</span>
@@ -264,7 +344,7 @@ export default function PosPackageSalePage() {
 
             <button
               onClick={submitSale}
-              disabled={submitting || !selectedPackage || !tableId}
+              disabled={submitting || !selectedPackage || (!isMerchOnly && !tableId)}
               className="w-full bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-3 font-semibold disabled:opacity-50"
             >
               {submitting ? "กำลังบันทึก..." : "ยืนยันการขาย + พิมพ์ใบยืนยัน"}

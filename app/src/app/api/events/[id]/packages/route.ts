@@ -18,7 +18,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const packages = await prisma.package.findMany({
     where: { eventId: params.id, active: true, bookingType: "full_table" },
     orderBy: { createdAt: "asc" },
-    include: { items: { include: { product: { select: { name: true } } } } },
+    include: {
+      items: {
+        include: {
+          product: { select: { name: true, stocks: { select: { size: true, quantity: true } } } },
+        },
+      },
+    },
   });
 
   return NextResponse.json({
@@ -29,9 +35,16 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       price: p.price,
       seatCount: p.seatCount,
       items: p.items.map((it) => ({
+        packageItemId: it.id,
         productName: it.product.name,
         size: it.size,
         quantity: it.quantity,
+        buyerChoosesSize: it.buyerChoosesSize,
+        // Only needed when buyerChoosesSize is true — the guest picks from
+        // real in-stock sizes, same set POS/admin would offer.
+        availableSizes: it.buyerChoosesSize
+          ? it.product.stocks.filter((s) => s.quantity > 0).map((s) => s.size || "")
+          : [],
       })),
     })),
   });

@@ -27,6 +27,7 @@ interface PackageItem {
   productId: string;
   size: string | null;
   quantity: number;
+  buyerChoosesSize: boolean;
   product: { id: string; name: string; requiresSize: boolean };
 }
 
@@ -34,8 +35,8 @@ interface PackageRow {
   id: string;
   name: string;
   description: string | null;
-  bookingType: "full_table" | "seats";
-  seatCount: number;
+  bookingType: "full_table" | "seats" | null;
+  seatCount: number | null;
   price: string;
   active: boolean;
   event: { id: string; name: string; eventDate: string; status: string };
@@ -46,11 +47,15 @@ interface PackageRow {
 // Draft shape for an item row while building/editing a package's item list.
 interface ItemDraft {
   productId: string;
-  size: string; // "" means no-size product
+  size: string; // "" means no-size product, or buyerChoosesSize is true
   quantity: string;
+  buyerChoosesSize: boolean;
 }
 
-const emptyItem: ItemDraft = { productId: "", size: "", quantity: "1" };
+const emptyItem: ItemDraft = { productId: "", size: "", quantity: "1", buyerChoosesSize: false };
+// "none" is a client-only sentinel for "merch-only package, no table at
+// all" — sent to the API as bookingType:"none", stored in the DB as null.
+type BookingTypeChoice = "full_table" | "seats" | "none";
 
 export default function AdminPackagesPage() {
   const [packages, setPackages] = useState<PackageRow[]>([]);
@@ -62,7 +67,7 @@ export default function AdminPackagesPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [eventId, setEventId] = useState("");
-  const [bookingType, setBookingType] = useState<"full_table" | "seats">("full_table");
+  const [bookingType, setBookingType] = useState<BookingTypeChoice>("full_table");
   const [seatCount, setSeatCount] = useState("");
   const [price, setPrice] = useState("");
   const [items, setItems] = useState<ItemDraft[]>([{ ...emptyItem }]);
@@ -109,12 +114,17 @@ export default function AdminPackagesPage() {
     setName(p.name);
     setDescription(p.description || "");
     setEventId(p.event.id);
-    setBookingType(p.bookingType);
-    setSeatCount(String(p.seatCount));
+    setBookingType(p.bookingType ?? "none");
+    setSeatCount(p.seatCount ? String(p.seatCount) : "");
     setPrice(p.price);
     setItems(
       p.items.length
-        ? p.items.map((it) => ({ productId: it.productId, size: it.size || "", quantity: String(it.quantity) }))
+        ? p.items.map((it) => ({
+            productId: it.productId,
+            size: it.size || "",
+            quantity: String(it.quantity),
+            buyerChoosesSize: it.buyerChoosesSize,
+          }))
         : [{ ...emptyItem }]
     );
     setError("");
@@ -145,13 +155,16 @@ export default function AdminPackagesPage() {
       .filter((it) => it.productId)
       .map((it) => ({
         productId: it.productId,
-        size: it.size || null,
+        size: it.buyerChoosesSize ? null : it.size || null,
         quantity: Math.max(1, Math.floor(Number(it.quantity) || 0)),
+        buyerChoosesSize: it.buyerChoosesSize,
       }));
+
+    const merchOnly = bookingType === "none";
 
     if (!name.trim()) return setError("กรุณาระบุชื่อแพ็กเกจ");
     if (!editingId && !eventId) return setError("กรุณาเลือกงาน");
-    if (!seatCount || Number(seatCount) <= 0) return setError("กรุณาระบุจำนวนที่นั่ง");
+    if (!merchOnly && (!seatCount || Number(seatCount) <= 0)) return setError("กรุณาระบุจำนวนที่นั่ง");
     if (!price || Number(price) < 0) return setError("กรุณาระบุราคาแพ็กเกจ");
     if (cleanItems.length === 0) return setError("กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ");
 
@@ -162,7 +175,7 @@ export default function AdminPackagesPage() {
         description,
         eventId,
         bookingType,
-        seatCount: Number(seatCount),
+        seatCount: merchOnly ? 0 : Number(seatCount),
         price: Number(price),
         items: cleanItems,
       };
@@ -190,11 +203,16 @@ export default function AdminPackagesPage() {
       body: JSON.stringify({
         name: p.name,
         description: p.description,
-        bookingType: p.bookingType,
-        seatCount: p.seatCount,
+        bookingType: p.bookingType ?? "none",
+        seatCount: p.seatCount ?? 0,
         price: p.price,
         active: !p.active,
-        items: p.items.map((it) => ({ productId: it.productId, size: it.size, quantity: it.quantity })),
+        items: p.items.map((it) => ({
+          productId: it.productId,
+          size: it.size,
+          quantity: it.quantity,
+          buyerChoosesSize: it.buyerChoosesSize,
+        })),
       }),
     });
     load();
@@ -216,7 +234,7 @@ export default function AdminPackagesPage() {
         <div>
           <h1 className="text-2xl font-display font-semibold text-stone-800">แพ็กเกจขาย</h1>
           <p className="text-sm text-stone-500 mt-0.5">
-            ตั้งค่าแพ็กเกจสำเร็จรูป (จองโต๊ะ + แถมสินค้า) เพื่อขายผ่าน POS หน้างาน ({packages.length} แพ็กเกจ)
+            ตั้งค่าแพ็กเกจสำเร็จรูป (จองโต๊ะ + แถมสินค้า หรือเฉพาะของที่ระลึก) เพื่อขายผ่าน POS หน้างาน ({packages.length} แพ็กเกจ)
           </p>
         </div>
         <div className="flex gap-2">
@@ -291,30 +309,38 @@ export default function AdminPackagesPage() {
               <span className="font-medium">รูปแบบการจอง *</span>
               <select
                 value={bookingType}
-                onChange={(e) => setBookingType(e.target.value as "full_table" | "seats")}
+                onChange={(e) => setBookingType(e.target.value as BookingTypeChoice)}
                 className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2"
               >
-                <option value="full_table">จองทั้งโต๊ะ</option>
-                <option value="seats">จองเป็นที่นั่ง</option>
+                <option value="full_table">จองทั้งโต๊ะ + ของแถม</option>
+                <option value="seats">จองเป็นที่นั่ง + ของแถม</option>
+                <option value="none">เฉพาะของที่ระลึก (ไม่มีโต๊ะ — ขายได้เฉพาะ POS)</option>
               </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">จำนวนที่นั่ง *</span>
-              <input
-                type="number"
-                min={1}
-                value={seatCount}
-                onChange={(e) => setSeatCount(e.target.value)}
-                className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2"
-              />
-              {bookingType === "full_table" && selectedEvent && (
+              {bookingType === "none" && (
                 <span className="text-xs text-stone-400">
-                  {selectedEvent.tableCapacities.length > 0
-                    ? `ต้องตรงกับความจุโต๊ะที่มีอยู่จริงในงานนี้ (${selectedEvent.tableCapacities.join(", ")} ที่นั่ง)`
-                    : "งานนี้ยังไม่มีโต๊ะ — เพิ่มโต๊ะก่อนจึงจะสร้างแพ็กเกจแบบเหมาทั้งโต๊ะได้"}
+                  ไม่มีการจองโต๊ะ — ขายได้เฉพาะหน้างานผ่าน POS เท่านั้น (ไม่แสดงในหน้าจองออนไลน์)
                 </span>
               )}
             </label>
+            {bookingType !== "none" && (
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">จำนวนที่นั่ง *</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={seatCount}
+                  onChange={(e) => setSeatCount(e.target.value)}
+                  className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2"
+                />
+                {bookingType === "full_table" && selectedEvent && (
+                  <span className="text-xs text-stone-400">
+                    {selectedEvent.tableCapacities.length > 0
+                      ? `ต้องตรงกับความจุโต๊ะที่มีอยู่จริงในงานนี้ (${selectedEvent.tableCapacities.join(", ")} ที่นั่ง)`
+                      : "งานนี้ยังไม่มีโต๊ะ — เพิ่มโต๊ะก่อนจึงจะสร้างแพ็กเกจแบบเหมาทั้งโต๊ะได้"}
+                  </span>
+                )}
+              </label>
+            )}
           </div>
 
           <div className="border-t border-cream-200 pt-3">
@@ -332,7 +358,7 @@ export default function AdminPackagesPage() {
                   <div key={index} className="flex flex-wrap items-center gap-2">
                     <select
                       value={item.productId}
-                      onChange={(e) => updateItem(index, { productId: e.target.value, size: "" })}
+                      onChange={(e) => updateItem(index, { productId: e.target.value, size: "", buyerChoosesSize: false })}
                       className="flex-1 min-w-[10rem] border border-stone-300 rounded-lg px-2 py-1.5 text-sm"
                     >
                       <option value="">-- เลือกสินค้า --</option>
@@ -342,7 +368,7 @@ export default function AdminPackagesPage() {
                         </option>
                       ))}
                     </select>
-                    {needsSizePicker && (
+                    {needsSizePicker && !item.buyerChoosesSize && (
                       <select
                         value={item.size}
                         onChange={(e) => updateItem(index, { size: e.target.value })}
@@ -355,6 +381,17 @@ export default function AdminPackagesPage() {
                           </option>
                         ))}
                       </select>
+                    )}
+                    {needsSizePicker && (
+                      <label className="flex items-center gap-1 text-xs text-stone-600 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={item.buyerChoosesSize}
+                          onChange={(e) => updateItem(index, { buyerChoosesSize: e.target.checked, size: "" })}
+                          className="accent-maroon-700"
+                        />
+                        ให้ลูกค้าเลือกไซส์เอง
+                      </label>
                     )}
                     <input
                       type="number"
@@ -407,8 +444,13 @@ export default function AdminPackagesPage() {
                   <div className="font-display font-semibold text-stone-800">{p.name}</div>
                   {p.description && <div className="text-xs text-stone-400">{p.description}</div>}
                   <div className="text-xs text-stone-500 mt-0.5">
-                    งาน: {p.event.name} · {p.bookingType === "full_table" ? "จองทั้งโต๊ะ" : `จอง ${p.seatCount} ที่นั่ง`} ·{" "}
-                    ขายแล้ว {p._count.reservations} ครั้ง
+                    งาน: {p.event.name} ·{" "}
+                    {p.bookingType === null
+                      ? "เฉพาะของที่ระลึก (ไม่มีโต๊ะ — POS เท่านั้น)"
+                      : p.bookingType === "full_table"
+                      ? "จองทั้งโต๊ะ + ของแถม"
+                      : `จอง ${p.seatCount} ที่นั่ง + ของแถม`}{" "}
+                    · ขายแล้ว {p._count.reservations} ครั้ง
                   </div>
                   <div className="text-sm text-maroon-700 font-medium mt-0.5">{Number(p.price).toLocaleString()} บาท</div>
                 </div>
@@ -431,7 +473,7 @@ export default function AdminPackagesPage() {
                 {p.items.map((it) => (
                   <span key={it.id}>
                     {it.product.name}
-                    {it.size ? ` (${it.size})` : ""} x{it.quantity}
+                    {it.buyerChoosesSize ? " (ลูกค้าเลือกไซส์เอง)" : it.size ? ` (${it.size})` : ""} x{it.quantity}
                   </span>
                 ))}
               </div>

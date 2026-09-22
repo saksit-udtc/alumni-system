@@ -26,6 +26,13 @@ export interface BookPackageInput {
   immediateConfirm?: boolean;
   paymentMethod?: PosPaymentMethod;
   cashierId?: string;
+  /**
+   * Buyer-chosen sizes for the package's PackageItem rows that have
+   * buyerChoosesSize:true (e.g. "เลือกไซส์เสื้อเอง") — keyed by
+   * PackageItem.id. Ignored for any item where buyerChoosesSize is false
+   * (that item's admin-configured size is used instead, as before).
+   */
+  itemSizeSelections?: Record<string, string>;
 }
 
 export class PackageBookingError extends Error {
@@ -57,6 +64,7 @@ export async function bookPackage(input: BookPackageInput) {
     immediateConfirm,
     paymentMethod,
     cashierId,
+    itemSizeSelections,
   } = input;
 
   if (!bookerName?.trim() || !bookerPhone?.trim()) {
@@ -109,6 +117,19 @@ export async function bookPackage(input: BookPackageInput) {
       if (!pkg.active) {
         throw new PackageBookingError("PACKAGE_INACTIVE", "แพ็กเกจนี้ถูกปิดการขายแล้ว");
       }
+      // Defense in depth: a merch-only package (bookingType/seatCount null
+      // — see lib/packageMerchSale.ts) must never reach here at all, since
+      // this whole function is table-centric. Also narrows the types below
+      // (TS can't otherwise know bookingType/seatCount are non-null past
+      // this point).
+      if (pkg.bookingType === null || pkg.seatCount === null) {
+        throw new PackageBookingError(
+          "NOT_TABLE_PACKAGE",
+          "แพ็กเกจนี้เป็นแพ็กเกจเฉพาะของที่ระลึก ไม่มีการจองโต๊ะ กรุณาขายผ่านหน้า \"ขายแพ็กเกจหน้างาน\" แทน"
+        );
+      }
+      const bookingType = pkg.bookingType;
+      const seatCount = pkg.seatCount;
 
       // Row-level lock on the target table — identical pattern to
       // bookTable.ts, so a plain table booking and a package booking on the
@@ -144,11 +165,11 @@ export async function bookPackage(input: BookPackageInput) {
         throw new PackageBookingError("EVENT_NOT_OPEN", "งานนี้ไม่เปิดให้จองในขณะนี้");
       }
 
-      if (pkg.bookingType === "full_table") {
+      if (bookingType === "full_table") {
         if (table.seatsReserved !== 0) {
           throw new PackageBookingError("TABLE_NOT_EMPTY", "โต๊ะนี้มีการจองบางส่วนแล้ว ไม่สามารถจองทั้งโต๊ะได้");
         }
-        if (pkg.seatCount !== table.capacity) {
+        if (seatCount !== table.capacity) {
           throw new PackageBookingError(
             "SEAT_COUNT_MISMATCH",
             "แพ็กเกจนี้ตั้งจำนวนที่นั่งไม่ตรงกับความจุของโต๊ะ กรุณาแจ้งผู้ดูแลระบบ"
@@ -158,7 +179,7 @@ export async function bookPackage(input: BookPackageInput) {
         if (table.isFullTableBooking) {
           throw new PackageBookingError("TABLE_FULLY_BOOKED", "โต๊ะนี้ถูกจองเต็มทั้งโต๊ะแล้ว");
         }
-        if (table.seatsReserved + pkg.seatCount > table.capacity) {
+        if (table.seatsReserved + seatCount > table.capacity) {
           throw new PackageBookingError("NOT_ENOUGH_SEATS", "ที่นั่งว่างไม่เพียงพอ");
         }
       }
@@ -177,20 +198,38 @@ export async function bookPackage(input: BookPackageInput) {
       }> = [];
 
       for (const item of pkg.items) {
+        // A buyer-choice item ignores its own (always-null) admin size and
+        // uses whatever the buyer selected for this PackageItem instead —
+        // required, and validated against the product's real stock rows by
+        // the decrement below (an unknown/unstocked size just fails the
+        // updateMany like any other out-of-stock case).
+        let size = item.size;
+        if (item.buyerChoosesSize) {
+          const selected = itemSizeSelections?.[item.id]?.trim();
+          if (!selected) {
+            const product = await tx.merchProduct.findUnique({ where: { id: item.productId } });
+            throw new PackageBookingError(
+              "SIZE_REQUIRED",
+              `กรุณาเลือกไซส์สำหรับ "${product?.name ?? "สินค้า"}" ในแพ็กเกจ`
+            );
+          }
+          size = selected;
+        }
+
         const result = await tx.merchProductStock.updateMany({
-          where: { productId: item.productId, size: item.size, quantity: { gte: item.quantity } },
+          where: { productId: item.productId, size, quantity: { gte: item.quantity } },
           data: { quantity: { decrement: item.quantity } },
         });
         if (result.count === 0) {
           const product = await tx.merchProduct.findUnique({ where: { id: item.productId } });
-          const label = item.size ? `${product?.name ?? "สินค้า"} (ไซส์ ${item.size})` : product?.name ?? "สินค้า";
+          const label = size ? `${product?.name ?? "สินค้า"} (ไซส์ ${size})` : product?.name ?? "สินค้า";
           throw new PackageBookingError("ITEM_OUT_OF_STOCK", `สินค้าในแพ็กเกจ "${label}" มีไม่เพียงพอ`);
         }
         const product = await tx.merchProduct.findUnique({ where: { id: item.productId } });
         itemSnapshots.push({
           productId: item.productId,
           productName: product?.name ?? "สินค้า",
-          size: item.size,
+          size,
           quantity: item.quantity,
         });
       }
@@ -211,8 +250,8 @@ export async function bookPackage(input: BookPackageInput) {
           bookingCode,
           eventId: pkg.eventId,
           tableId,
-          bookingType: pkg.bookingType,
-          seatCount: pkg.seatCount,
+          bookingType,
+          seatCount,
           bookerName: bookerName.trim(),
           bookerPhone: cleanPhoneForStorage(bookerPhone),
           bookerEmail: normalizedEmail,
@@ -248,8 +287,8 @@ export async function bookPackage(input: BookPackageInput) {
       await tx.table.update({
         where: { id: tableId },
         data: {
-          seatsReserved: { increment: pkg.seatCount },
-          isFullTableBooking: pkg.bookingType === "full_table" ? true : table.isFullTableBooking,
+          seatsReserved: { increment: seatCount },
+          isFullTableBooking: bookingType === "full_table" ? true : table.isFullTableBooking,
         },
       });
 

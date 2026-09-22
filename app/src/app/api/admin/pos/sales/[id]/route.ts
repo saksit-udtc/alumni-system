@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const sale = await prisma.posSale.findUnique({
     where: { id: params.id },
-    include: { items: true, cashier: { select: { username: true } } },
+    include: { items: true, cashier: { select: { username: true } }, package: { select: { name: true } } },
   });
   if (!sale) return jsonError("NOT_FOUND", 404);
 

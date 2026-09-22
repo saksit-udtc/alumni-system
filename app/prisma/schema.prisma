@@ -413,10 +413,17 @@ model PosSale {
   buyerPhone    String?
   createdAt     DateTime         @default(now())
 
+  // Set only when this sale was created from a merch-only Package
+  // (bookingType null) via lib/packageMerchSale.ts — null for every plain
+  // barcode-scan POS sale (the original, still-untouched path).
+  packageId String?
+  package   Package? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+
   items PosSaleItem[]
 
   @@index([cashierId])
   @@index([createdAt])
+  @@index([packageId])
 }
 
 model PosSaleItem {
@@ -430,7 +437,11 @@ model PosSaleItem {
   product   MerchProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
   productName String
   size      String?
-  barcode   String
+  // Null for a row that came from a merch-only Package sale (see PosSale.
+  // packageId above) — those items were never individually scanned, they
+  // were bundled by the admin ahead of time. Always set for a normal
+  // barcode-scan sale, unchanged from before.
+  barcode   String?
   quantity  Int
   unitPrice Decimal      @db.Decimal(10, 2)
 
@@ -452,11 +463,16 @@ model Package {
   description String?
   eventId     String
   event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  bookingType BookingType
+  // null = a merch-only package ("เฉพาะของที่ระลึก" — no table involved at
+  // all, sold only at the POS counter via lib/packageMerchSale.ts, never
+  // through the public online booking flow). Non-null keeps the original
+  // table+merch bundle behavior (lib/bookPackage.ts).
+  bookingType BookingType?
   // Seats consumed on the chosen table — for bookingType "full_table" this
   // must equal the table's capacity (validated at booking time, same rule
   // as plain bookTable()); for "seats" it's the number of seats reserved.
-  seatCount   Int
+  // null for a merch-only package (no table, so no seat count).
+  seatCount   Int?
   // Fixed bundle price (replaces the table's normal pricePerTable/
   // pricePerSeat*seatCount calculation entirely for a package purchase).
   price       Decimal     @db.Decimal(10, 2)
@@ -466,6 +482,10 @@ model Package {
 
   items        PackageItem[]
   reservations Reservation[]
+  // POS sales of a merch-only package (bookingType null) — see
+  // lib/packageMerchSale.ts. A table+merch package purchase never touches
+  // this; it always goes through reservations above.
+  posSales     PosSale[]
 
   @@index([eventId])
 }
@@ -482,7 +502,16 @@ model PackageItem {
   package   Package      @relation(fields: [packageId], references: [id], onDelete: Cascade)
   productId String
   product   MerchProduct @relation(fields: [productId], references: [id])
+  // Fixed size chosen by the admin at config time — null when either the
+  // product doesn't need a size, or buyerChoosesSize is true (in which case
+  // this is always null and the actual size is recorded per-purchase on
+  // ReservationPackageItem/PosSaleItem instead).
   size      String?
+  // true = the admin deliberately leaves size open ("ระบุไซส์เอง") and the
+  // buyer picks a size (from the product's real stock rows) at purchase
+  // time — POS counter or the online package form. false (default) keeps
+  // the original behavior: size is fixed by the admin above.
+  buyerChoosesSize Boolean @default(false)
   quantity  Int          @default(1)
 
   @@index([packageId])

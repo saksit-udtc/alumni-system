@@ -19,6 +19,9 @@ interface Sale {
   createdAt: string;
   items: SaleItem[];
   cashier: { username: string };
+  // Set only when this sale came from a merch-only Package (see
+  // /admin/packages — a package that bundles souvenirs with no table).
+  package: { name: string } | null;
 }
 
 const PAYMENT_LABEL: Record<string, string> = { cash: "เงินสด", transfer: "โอนเงิน" };
@@ -72,7 +75,12 @@ export default function PosSalesHistoryPage() {
             <tbody>
               {sales.map((s) => (
                 <tr key={s.id} className="border-t border-cream-100">
-                  <td className="px-4 py-2.5 font-mono">{s.saleCode}</td>
+                  <td className="px-4 py-2.5 font-mono">
+                    {s.saleCode}
+                    {s.package && (
+                      <div className="text-xs font-sans text-maroon-700 font-medium mt-0.5">แพ็กเกจ: {s.package.name}</div>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-stone-500">{new Date(s.createdAt).toLocaleString("th-TH")}</td>
                   <td className="px-4 py-2.5">{s.items.reduce((a, it) => a + it.quantity, 0)} ชิ้น</td>
                   <td className="px-4 py-2.5">{PAYMENT_LABEL[s.paymentMethod] || s.paymentMethod}</td>

@@ -21,6 +21,10 @@ interface Sale {
   createdAt: string;
   items: SaleItem[];
   cashier: { username: string };
+  // Set only for a merch-only Package sale (see lib/packageMerchSale.ts) —
+  // changes how the item lines below are rendered (bundled price, not
+  // per-item pricing that would need to sum to totalAmount).
+  package: { name: string } | null;
 }
 
 const PAYMENT_LABEL: Record<string, string> = { cash: "เงินสด", transfer: "โอนเงิน" };
@@ -89,6 +93,9 @@ export default function PosReceiptPage({ params }: { params: { id: string } }) {
           {sale.buyerPhone && <div>เบอร์โทร: {sale.buyerPhone}</div>}
         </div>
         <div className="border-t border-dashed border-stone-300 my-2" />
+        {sale.package && (
+          <div className="text-xs text-maroon-700 font-medium mb-1">แพ็กเกจ: {sale.package.name}</div>
+        )}
         <div className="space-y-1">
           {sale.items.map((it) => (
             <div key={it.id} className="flex justify-between gap-2">
@@ -98,10 +105,12 @@ export default function PosReceiptPage({ params }: { params: { id: string } }) {
                   {it.size ? ` (${it.size})` : ""}
                 </div>
                 <div className="text-xs text-stone-500">
-                  {it.quantity} x {Number(it.unitPrice).toLocaleString()}
+                  {it.quantity} {sale.package ? "ชิ้น (รวมในแพ็กเกจ)" : `x ${Number(it.unitPrice).toLocaleString()}`}
                 </div>
               </div>
-              <div className="shrink-0 font-medium">{(it.quantity * Number(it.unitPrice)).toLocaleString()}</div>
+              {!sale.package && (
+                <div className="shrink-0 font-medium">{(it.quantity * Number(it.unitPrice)).toLocaleString()}</div>
+              )}
             </div>
           ))}
         </div>

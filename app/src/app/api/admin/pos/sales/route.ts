@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const sales = await prisma.posSale.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,
-    include: { items: true, cashier: { select: { username: true } } },
+    include: { items: true, cashier: { select: { username: true } }, package: { select: { name: true } } },
   });
 
   return NextResponse.json({ sales });

@@ -13,7 +13,14 @@ interface PackageOption {
   name: string;
   description: string | null;
   price: string;
-  items: { productName: string; size: string | null; quantity: number }[];
+  items: {
+    packageItemId: string;
+    productName: string;
+    size: string | null;
+    quantity: number;
+    buyerChoosesSize: boolean;
+    availableSizes: string[];
+  }[];
 }
 
 // Lets the guest pick a pre-configured package (table + bundled merch, one
@@ -26,12 +33,17 @@ function PackagePicker({
   pricePerTable,
   selected,
   onSelect,
+  itemSizeSelections,
+  onSelectSize,
 }: {
   packages: PackageOption[];
   pricePerTable: number;
   selected: string | null;
   onSelect: (id: string | null) => void;
+  itemSizeSelections: Record<string, string>;
+  onSelectSize: (packageItemId: string, size: string) => void;
 }) {
+  const selectedPackage = packages.find((p) => p.id === selected) || null;
   return (
     <div className="bg-white border border-cream-200 shadow-md rounded-xl p-4 space-y-2">
       <div className="text-sm font-medium text-stone-700">เลือกรูปแบบการจอง</div>
@@ -56,10 +68,10 @@ function PackagePicker({
               <span className="block text-xs text-stone-400 mt-0.5">
                 ของแถม:{" "}
                 {p.items.map((it, i) => (
-                  <span key={i}>
+                  <span key={it.packageItemId}>
                     {i > 0 && ", "}
                     {it.productName}
-                    {it.size ? ` (${it.size})` : ""} x{it.quantity}
+                    {it.buyerChoosesSize ? " (เลือกไซส์เอง)" : it.size ? ` (${it.size})` : ""} x{it.quantity}
                   </span>
                 ))}
               </span>
@@ -67,6 +79,30 @@ function PackagePicker({
           </span>
         </label>
       ))}
+      {selectedPackage && selectedPackage.items.some((it) => it.buyerChoosesSize) && (
+        <div className="border-t border-cream-100 pt-2 mt-1 space-y-2">
+          <span className="text-xs font-medium text-stone-700 block">เลือกไซส์</span>
+          {selectedPackage.items
+            .filter((it) => it.buyerChoosesSize)
+            .map((it) => (
+              <label key={it.packageItemId} className="flex items-center gap-2 text-sm">
+                <span className="text-stone-600 min-w-0 flex-1 truncate">{it.productName}</span>
+                <select
+                  value={itemSizeSelections[it.packageItemId] || ""}
+                  onChange={(e) => onSelectSize(it.packageItemId, e.target.value)}
+                  className="border border-stone-300 rounded-lg px-2 py-1.5 text-sm"
+                >
+                  <option value="">-- ไซส์ --</option>
+                  {it.availableSizes.map((sz) => (
+                    <option key={sz} value={sz}>
+                      {sz}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -83,6 +119,7 @@ export default function ReservePage() {
   const [error, setError] = useState("");
   const [packages, setPackages] = useState<PackageOption[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [itemSizeSelections, setItemSizeSelections] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch(`/api/events/${id}`)
@@ -133,7 +170,12 @@ export default function ReservePage() {
             packages={packages}
             pricePerTable={Number(event.pricePerTable)}
             selected={selectedPackageId}
-            onSelect={setSelectedPackageId}
+            onSelect={(id) => {
+              setSelectedPackageId(id);
+              setItemSizeSelections({});
+            }}
+            itemSizeSelections={itemSizeSelections}
+            onSelectSize={(packageItemId, size) => setItemSizeSelections((prev) => ({ ...prev, [packageItemId]: size }))}
           />
         )}
         <ReserveForm
@@ -147,6 +189,7 @@ export default function ReservePage() {
           pricePerSeat={Number(event.pricePerSeat)}
           packageId={selectedPackage?.id}
           packagePrice={selectedPackage ? Number(selectedPackage.price) : undefined}
+          packageItemSizeSelections={itemSizeSelections}
           eventName={event.name}
           tableNumber={table.tableNumber}
           packageName={selectedPackage?.name}

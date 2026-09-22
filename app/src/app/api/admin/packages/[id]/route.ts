@@ -25,6 +25,7 @@ interface PackageItemInput {
   productId: string;
   size?: string | null;
   quantity: number;
+  buyerChoosesSize?: boolean;
 }
 
 function validateItems(items: unknown): { error?: string; clean?: PackageItemInput[] } {
@@ -34,13 +35,14 @@ function validateItems(items: unknown): { error?: string; clean?: PackageItemInp
   const clean: PackageItemInput[] = [];
   for (const raw of items) {
     const productId = typeof raw?.productId === "string" ? raw.productId : "";
-    const size = typeof raw?.size === "string" && raw.size.trim() ? raw.size.trim() : null;
+    const buyerChoosesSize = raw?.buyerChoosesSize === true;
+    const size = !buyerChoosesSize && typeof raw?.size === "string" && raw.size.trim() ? raw.size.trim() : null;
     const quantity = Number(raw?.quantity);
     if (!productId) return { error: "ข้อมูลสินค้าในแพ็กเกจไม่ถูกต้อง" };
     if (!Number.isInteger(quantity) || quantity <= 0) {
       return { error: "จำนวนสินค้าต้องเป็นจำนวนเต็มมากกว่า 0" };
     }
-    clean.push({ productId, size, quantity });
+    clean.push({ productId, size, quantity, buyerChoosesSize });
   }
   return { clean };
 }
@@ -55,23 +57,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const description = typeof body?.description === "string" ? body.description.trim() : "";
+  const merchOnly = body?.bookingType === "none";
   const bookingType = body?.bookingType === "full_table" || body?.bookingType === "seats" ? body.bookingType : "";
   const seatCount = Number(body?.seatCount);
   const price = Number(body?.price);
   const active = typeof body?.active === "boolean" ? body.active : existing.active;
 
   if (!name) return jsonError("กรุณาระบุชื่อแพ็กเกจ");
-  if (!bookingType) return jsonError("กรุณาเลือกรูปแบบการจอง");
-  if (!Number.isInteger(seatCount) || seatCount <= 0) return jsonError("จำนวนที่นั่งต้องเป็นจำนวนเต็มมากกว่า 0");
+  if (!merchOnly && !bookingType) return jsonError("กรุณาเลือกรูปแบบการจอง");
+  if (!merchOnly && (!Number.isInteger(seatCount) || seatCount <= 0)) {
+    return jsonError("จำนวนที่นั่งต้องเป็นจำนวนเต็มมากกว่า 0");
+  }
   if (!Number.isFinite(price) || price < 0) return jsonError("ราคาแพ็กเกจไม่ถูกต้อง");
 
   const { error, clean } = validateItems(body?.items);
   if (error || !clean) return jsonError(error!);
 
   // Validated against the event's actual table capacities, not
-  // Event.seatsPerTable — see the same note in ../route.ts's POST.
+  // Event.seatsPerTable — see the same note in ../route.ts's POST. Not
+  // applicable to a merch-only package (no table at all).
   const event = await prisma.event.findUnique({ where: { id: existing.eventId }, include: { tables: true } });
-  if (event && bookingType === "full_table" && !event.tables.some((t) => t.capacity === seatCount)) {
+  if (!merchOnly && event && bookingType === "full_table" && !event.tables.some((t) => t.capacity === seatCount)) {
     const capacities = Array.from(new Set(event.tables.map((t) => t.capacity))).sort((a, b) => a - b);
     return jsonError(
       capacities.length > 0
@@ -82,10 +88,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   // Matched by plain productId+size fields, not the productId_size
   // compound-unique helper — see the same note in ../route.ts's POST.
+  // buyerChoosesSize items are checked more loosely (any stock row at all).
   for (const item of clean) {
-    const stock = await prisma.merchProductStock.findFirst({
-      where: { productId: item.productId, size: item.size },
-    });
+    const stock = item.buyerChoosesSize
+      ? await prisma.merchProductStock.findFirst({ where: { productId: item.productId } })
+      : await prisma.merchProductStock.findFirst({ where: { productId: item.productId, size: item.size } });
     if (!stock) {
       return jsonError("มีสินค้าในแพ็กเกจที่ไม่มีข้อมูลสต๊อกตรงกับไซส์ที่เลือก กรุณาตรวจสอบอีกครั้ง");
     }
@@ -101,8 +108,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       data: {
         name,
         description: description || null,
-        bookingType,
-        seatCount,
+        bookingType: merchOnly ? null : bookingType,
+        seatCount: merchOnly ? null : seatCount,
         price,
         active,
         items: {
@@ -110,6 +117,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
             productId: item.productId,
             size: item.size,
             quantity: item.quantity,
+            buyerChoosesSize: item.buyerChoosesSize || false,
           })),
         },
       },

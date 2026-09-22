@@ -36,6 +36,17 @@ export async function POST(req: NextRequest) {
     }
   }
   const file = formData.get("file") as File | null;
+  const itemSizeSelectionsRaw = formData.get("itemSizeSelections");
+  let itemSizeSelections: Record<string, string> | undefined;
+  if (itemSizeSelectionsRaw) {
+    try {
+      const parsed = JSON.parse(String(itemSizeSelectionsRaw));
+      if (parsed && typeof parsed === "object") itemSizeSelections = parsed;
+    } catch {
+      // ignore malformed input — treated as not provided, bookPackage()
+      // will reject with SIZE_REQUIRED if the package actually needs it
+    }
+  }
 
   if (!eventId || !tableId || !packageId || !bookerName || !bookerPhone || !bookerEmail) {
     return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" }, { status: 400 });
@@ -75,6 +86,7 @@ export async function POST(req: NextRequest) {
       bookerEmail,
       partyNames,
       slipFileKey,
+      itemSizeSelections,
     });
 
     if (reservation.bookerEmail) {

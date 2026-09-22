@@ -35,6 +35,7 @@ export default function ReserveForm({
   pricePerSeat,
   packageId,
   packagePrice,
+  packageItemSizeSelections,
   eventName,
   tableNumber,
   packageName,
@@ -54,6 +55,10 @@ export default function ReserveForm({
    * stays exactly the same regardless of which mode this is. */
   packageId?: string;
   packagePrice?: number;
+  /** Guest's chosen size per PackageItem that has buyerChoosesSize:true
+   * (keyed by packageItemId) — collected by the PackagePicker in
+   * ../page.tsx, sent through unchanged as JSON. */
+  packageItemSizeSelections?: Record<string, string>;
   /** Display-only, for the "รายการ" line under the PromptPay QR so a
    * scanning customer (or whoever reviews the payment later) can tell what
    * the amount is for at a glance — never sent to the server. */
@@ -252,6 +257,9 @@ export default function ReserveForm({
     if (partyNames.length > 0) formData.append("partyNames", JSON.stringify(partyNames));
     formData.append("file", slipFile as File);
     if (packageId) formData.append("packageId", packageId);
+    if (packageId && packageItemSizeSelections && Object.keys(packageItemSizeSelections).length > 0) {
+      formData.append("itemSizeSelections", JSON.stringify(packageItemSizeSelections));
+    }
 
     const res = await fetch(packageId ? "/api/reservations/package" : "/api/reservations", {
       method: "POST",
