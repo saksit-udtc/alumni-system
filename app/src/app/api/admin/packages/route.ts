@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { logAdminAction } from "@/lib/auditLog";
+import { publicMerchProductUrl } from "@/lib/minio";
 
 // Plain GET, no dynamic route segment, reads the DB — force-dynamic so
 // Next.js doesn't try to prerender this at Docker build time (see the same
@@ -28,7 +29,12 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ packages });
+  return NextResponse.json({
+    packages: packages.map((p) => ({
+      ...p,
+      imageUrl: p.imageKey ? publicMerchProductUrl(p.imageKey) : null,
+    })),
+  });
 }
 
 interface PackageItemInput {

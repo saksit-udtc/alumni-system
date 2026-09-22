@@ -39,6 +39,7 @@ interface PackageRow {
   seatCount: number | null;
   price: string;
   active: boolean;
+  imageUrl: string | null;
   event: { id: string; name: string; eventDate: string; status: string };
   items: PackageItem[];
   _count: { reservations: number; merchOrders: number };
@@ -223,6 +224,20 @@ export default function AdminPackagesPage() {
     const res = await fetch(`/api/admin/packages/${id}`, { method: "DELETE" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) alert(data.error || "ลบไม่สำเร็จ");
+    load();
+  }
+
+  async function uploadPackageImage(id: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`/api/admin/packages/${id}/image`, { method: "POST", body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) alert(data.error || "อัปโหลดรูปไม่สำเร็จ");
+    load();
+  }
+
+  async function removePackageImage(id: string) {
+    await fetch(`/api/admin/packages/${id}/image`, { method: "DELETE" });
     load();
   }
 
@@ -440,6 +455,34 @@ export default function AdminPackagesPage() {
           {packages.map((p) => (
             <div key={p.id} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 flex flex-col gap-2">
               <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-start gap-3">
+                  <div className="flex flex-col items-center gap-1 shrink-0">
+                    {p.imageUrl ? (
+                      <img src={p.imageUrl} alt={p.name} className="w-16 h-16 object-cover rounded-lg border border-cream-200" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-cream-100 flex items-center justify-center text-stone-400 text-[10px] text-center">
+                        ไม่มีรูป
+                      </div>
+                    )}
+                    <label className="text-[11px] text-maroon-700 hover:underline cursor-pointer">
+                      {p.imageUrl ? "เปลี่ยนรูป" : "เพิ่มรูป"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) uploadPackageImage(p.id, file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {p.imageUrl && (
+                      <button type="button" onClick={() => removePackageImage(p.id)} className="text-[11px] text-red-600 hover:underline">
+                        ลบรูป
+                      </button>
+                    )}
+                  </div>
                 <div>
                   <div className="font-display font-semibold text-stone-800">{p.name}</div>
                   {p.description && <div className="text-xs text-stone-400">{p.description}</div>}
@@ -453,6 +496,7 @@ export default function AdminPackagesPage() {
                     · ขายแล้ว {p.bookingType === null ? p._count.merchOrders : p._count.reservations} ครั้ง
                   </div>
                   <div className="text-sm text-maroon-700 font-medium mt-0.5">{Number(p.price).toLocaleString()} บาท</div>
+                </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${p.active ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-500"}`}>

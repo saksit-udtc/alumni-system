@@ -80,7 +80,7 @@ export default function MerchShopPage() {
   // online only, alongside the regular product grid below — see
   // lib/createMerchPackageOrder.ts and /merch/package/[id].
   const [merchPackages, setMerchPackages] = useState<
-    { id: string; name: string; description: string | null; price: number }[]
+    { id: string; name: string; description: string | null; price: number; imageUrl: string | null }[]
   >([]);
 
   useEffect(() => {
@@ -331,26 +331,8 @@ export default function MerchShopPage() {
       <PageTitle title="สั่งซื้อของที่ระลึก" />
 
       <main className={`max-w-5xl mx-auto p-4 space-y-6 ${cart.length > 0 ? "pb-28" : ""}`}>
-      {merchPackages.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="font-display font-semibold text-lg text-stone-800">แพ็กเกจสุดคุ้ม</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {merchPackages.map((p) => (
-              <Link
-                key={p.id}
-                href={`/merch/package/${p.id}`}
-                className="block bg-white rounded-xl border border-cream-200 shadow-md hover:shadow-lg transition-shadow p-4"
-              >
-                <div className="font-medium text-stone-800">{p.name}</div>
-                {p.description && <p className="text-sm text-stone-500 mt-0.5">{p.description}</p>}
-                <div className="text-maroon-700 font-semibold mt-2">{Number(p.price).toLocaleString()} บาท</div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
       {loading && <p className="text-stone-500">กำลังโหลด...</p>}
-      {!loading && products.length === 0 && <p className="text-stone-500">ยังไม่มีสินค้าเปิดขายในขณะนี้</p>}
+      {!loading && products.length === 0 && merchPackages.length === 0 && <p className="text-stone-500">ยังไม่มีสินค้าเปิดขายในขณะนี้</p>}
 
       <div className="grid grid-cols-4 gap-2 sm:gap-4">
         {products.map((p) => {
@@ -415,6 +397,34 @@ export default function MerchShopPage() {
             </div>
           );
         })}
+        {/* Merch-only packages ("แพ็กเกจสุดคุ้ม") — appended after the
+            regular products, same card layout as a normal product (image,
+            name, price, action button), so the two read as one continuous
+            shop grid. A package always links out to its own purchase page
+            (/merch/package/[id]) instead of adding to this page's cart. */}
+        {merchPackages.map((p) => (
+          <Link
+            key={p.id}
+            href={`/merch/package/${p.id}`}
+            className="bg-white rounded-xl border border-cream-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden flex flex-col"
+          >
+            {p.imageUrl ? (
+              <img src={p.imageUrl} alt={p.name} className="w-full aspect-square object-cover" />
+            ) : (
+              <div className="w-full aspect-square bg-cream-100 flex items-center justify-center text-stone-400 text-sm">ไม่มีรูปภาพ</div>
+            )}
+            <div className="p-2 sm:p-3 flex flex-col gap-1 flex-1">
+              <span className="text-left text-xs sm:text-base leading-snug font-display font-semibold text-stone-800">{p.name}</span>
+              {p.description && <p className="hidden sm:block text-xs text-stone-500 line-clamp-2">{p.description}</p>}
+              <p className="text-xs sm:text-base font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
+              <div className="mt-auto pt-2">
+                <span className="block text-center bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-1.5 sm:py-2 text-xs sm:text-sm font-semibold">
+                  ดูแพ็กเกจ
+                </span>
+              </div>
+            </div>
+          </Link>
+        ))}
       </div>
 
       <div className="max-w-3xl mx-auto w-full bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-2">

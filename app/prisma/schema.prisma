@@ -484,6 +484,12 @@ model Package {
   // Fixed bundle price (replaces the table's normal pricePerTable/
   // pricePerSeat*seatCount calculation entirely for a package purchase).
   price       Decimal     @db.Decimal(10, 2)
+  // Cover image shown on the merch shop's package card and the package's
+  // own purchase page — same convention as MerchProduct.imageKey (uploaded
+  // via POST /api/admin/packages/[id]/image into the shared
+  // merch-products bucket, under a "packages/" key prefix). null shows the
+  // same "no image" placeholder the product grid uses.
+  imageKey    String?
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

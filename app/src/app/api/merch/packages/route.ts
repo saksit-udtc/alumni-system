@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMerchShippingFee } from "@/lib/settings";
+import { publicMerchProductUrl } from "@/lib/minio";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export async function GET() {
       name: p.name,
       description: p.description,
       price: p.price,
+      imageUrl: p.imageKey ? publicMerchProductUrl(p.imageKey) : null,
       items: p.items.map((it) => ({
         packageItemId: it.id,
         productName: it.product.name,
