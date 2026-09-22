@@ -238,9 +238,7 @@ export default function HomePage() {
           </a>
           <div className="nav-links">
             <a href="#schedule">กำหนดการ</a>
-            <a href="#honor">คุณครู</a>
             <a href="#venue">สถานที่</a>
-            <a href="#gallery">คลังภาพ</a>
             <a href="#faq">คำถาม</a>
             <Link href="/status">ตรวจสอบการจอง</Link>
             <Link href="/admin/login" style={{ opacity: 0.6, fontSize: 12 }}>เจ้าหน้าที่</Link>
@@ -250,9 +248,7 @@ export default function HomePage() {
         <div className={`mobile-menu${mobileOpen ? " open" : ""}`}>
           {[
             ["#schedule", "กำหนดการ"],
-            ["#honor", "คุณครู"],
             ["#venue", "สถานที่"],
-            ["#gallery", "คลังภาพ"],
             ["#faq", "คำถาม"],
           ].map(([href, label]) => (
             <a key={href} href={href} onClick={() => setMobileOpen(false)}>{label}</a>
@@ -264,6 +260,7 @@ export default function HomePage() {
 
       {banners.length > 0 && (
         <section className="promo-slider" aria-label="ประชาสัมพันธ์">
+          <div className="wrap promo-wrap">
           <div className="promo-track">
             {banners.map((b, i) => {
               const img = <img src={b.imageUrl} alt={b.title || "แบนเนอร์"} className="promo-img" draggable={false} />;
@@ -294,25 +291,20 @@ export default function HomePage() {
               </div>
             </>
           )}
+          </div>
         </section>
       )}
 
       <section className={`menu-cards${banners.length > 0 ? " after-slider" : ""}`} aria-label="เมนูหลัก">
         <div className="wrap menu-grid">
           {[
-            { href: bookHref, onClick: goBook, title: "จองโต๊ะงานเลี้ยง", tone: "green", icon: "M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM9 15l2 2 4-4" },
-            { href: "/merch", title: "สั่งซื้อของที่ระลึก", tone: "blue", icon: "M6 8h12l1 12H5L6 8zM9 8a3 3 0 016 0" },
-            { href: "/distinguished-alumni", title: "ลงทะเบียนศิษย์เก่าดีเด่น", tone: "pink", icon: "M2 9l10-5 10 5-10 5L2 9zM6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5" },
-            { href: "/sponsor", title: "ลงทะเบียนผู้สนับสนุนงาน", tone: "rose", icon: "M12 20s-7-4.5-7-10a4 4 0 017-2.5A4 4 0 0119 10c0 5.5-7 10-7 10z" },
+            { href: bookHref, onClick: goBook, title: "จองโต๊ะงานเลี้ยง", img: "/menu/menu-booking.webp" },
+            { href: "/merch", title: "สั่งซื้อของที่ระลึก", img: "/menu/menu-merch.webp" },
+            { href: "/distinguished-alumni", title: "รับโล่ศิษย์เก่าดีเด่น", img: "/menu/menu-distinguished.webp" },
+            { href: "/sponsor", title: "รับโล่ผู้มีอุปการคุณ", img: "/menu/menu-benefactor.webp" },
           ].map((c) => (
-            <Link key={c.title} href={c.href} onClick={c.onClick} className="menu-card">
-              <span className="menu-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="34" height="34">
-                  <path d={c.icon} />
-                </svg>
-              </span>
-              <span className="menu-title">{c.title}</span>
-              <span className="menu-btn">เข้าใช้งาน</span>
+            <Link key={c.title} href={c.href} onClick={c.onClick} className="menu-card" aria-label={c.title}>
+              <img src={c.img} alt={c.title} className="menu-img" width={968} height={726} draggable={false} />
             </Link>
           ))}
         </div>
@@ -321,7 +313,7 @@ export default function HomePage() {
       {poster.enabled && (
         <section className="poster-section" id="poster" aria-label="โปสเตอร์งาน">
           <div className="wrap">
-          <h2 className="poster-title">โปสเตอร์งาน</h2>
+          <h2 className="poster-title">รายละเอียดงาน</h2>
           <button
             type="button"
             className="poster-frame"
@@ -470,29 +462,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="honor-band" id="honor">
-        <div className="wrap">
-          <div className="section-head">
-            <div className="kicker" style={{ color: "var(--gold-text)" }}>แขกผู้มีเกียรติ</div>
-            <h2 style={{ color: "var(--on-surf)" }}>แด่ครูผู้สร้างช่างฝีมือ</h2>
-            <p style={{ color: "var(--on-surf-dim)" }}>แม้ออกจากรั้ววิทยาลัยไปนานเพียงใด บทเรียนของครูยังคงอยู่เสมอ</p>
-          </div>
-          <div className="honor-grid">
-            {content.honorGuests.map((g, i) => (
-              <div className="honor-card" key={i}>
-                {g.photoUrl ? (
-                  <img src={g.photoUrl} alt={g.name} className="honor-avatar honor-avatar-photo" />
-                ) : (
-                  <div className="honor-avatar">{g.name.charAt(0)}</div>
-                )}
-                <h4>{g.name}</h4>
-                <p>{g.role}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section id="venue">
         <div className="wrap venue-grid">
           <div>
@@ -515,65 +484,7 @@ export default function HomePage() {
             ) : null}
           </div>
           <div className="venue-visual">
-            <div className="blueprint" />
-            <div className="corner tl" /><div className="corner br" />
-            <div className="pin">◈<br />{content.venueName}<br />อ.เมือง จ.อุดรธานี</div>
-          </div>
-        </div>
-      </section>
-
-      <section id="gallery" style={{ background: "var(--bg-alt)" }}>
-        <div className="wrap">
-          <div className="section-head">
-            <div className="kicker">คลังภาพ</div>
-            <h2>ความทรงจำที่เราสร้างด้วยกัน</h2>
-            <p>กำลังรวบรวมภาพเก่าจากทุกรุ่น — ส่งภาพของคุณเข้ามาได้ อาจได้ขึ้นจอใหญ่ในคืนงาน</p>
-          </div>
-          {gallery.length > 0 && (
-            <div className="gallery-tabs">
-              {categories.map((c) => (
-                <button key={c} className={`gtab${activeCategory === c ? " active" : ""}`} onClick={() => setActiveCategory(c)}>{c}</button>
-              ))}
-            </div>
-          )}
-          {gallery.length === 0 ? (
-            <div className="gallery-grid">
-              {["ปฐมนิเทศ", "ห้องปฏิบัติการ", "คุณครู", "กีฬาสี", "ฝึกงาน", "เพื่อนร่วมรุ่น", "พิธีจบการศึกษา", "คืนสู่เหย้าปีก่อน"].map((label) => (
-                <div className="g-cell" key={label}>รอภาพถ่าย — {label}</div>
-              ))}
-            </div>
-          ) : (
-            <div className="gallery-grid">
-              {filteredGallery.map((g) => (
-                <div className="g-cell" key={g.id}>
-                  <img src={g.imageUrl} alt={g.caption || ""} className="g-img" />
-                  {g.caption && <span className="g-caption">{g.caption}</span>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section id="sponsors">
-        <div className="wrap">
-          <div className="section-head">
-            <div className="kicker">ร่วมเป็นส่วนหนึ่ง</div>
-            <h2>เปิดรับผู้สนับสนุน</h2>
-            <p>การสนับสนุนของท่านช่วยให้ค่ำคืนนี้เกิดขึ้นได้ และสมทบทุนจัดซื้อรถมินิบัสสำหรับนักเรียน-นักศึกษา</p>
-          </div>
-          <div className="sponsor-grid">
-            {content.sponsors.map((s, i) => (
-              <div className={`sponsor-card${i === 0 ? " gold" : ""}`} key={i}>
-                {s.logoUrl && <img src={s.logoUrl} alt={s.label} className="sponsor-logo" />}
-                <div className="sponsor-tier">{s.tier}</div>
-                <h3>{s.label}</h3>
-                <div className="sponsor-price">{s.price}</div>
-                <ul>
-                  {s.benefits.map((b, bi) => <li key={bi}>{b}</li>)}
-                </ul>
-              </div>
-            ))}
+            <img src="/venue/venue-map.webp" alt={content.venueName} className="venue-map-img" />
           </div>
         </div>
       </section>
@@ -746,8 +657,9 @@ export default function HomePage() {
         .wrap{ max-width:1120px; margin:0 auto; padding:0 24px; }
         /* ---- สไลด์แบนเนอร์ ---- */
         .landingRoot .promo-slider{ position:relative; background:var(--surf-deep); overflow:hidden; padding:42px 0 0; }
+        .promo-wrap{ position:relative; }
         /* กรอบ 16:9 และแสดงรูปเต็มภาพ (contain) ไม่ครอปขอบ — จอกว้างมากจะมีขอบสีกรมท่าสองข้าง */
-        .promo-track{ position:relative; width:100%; aspect-ratio:16/9; max-height:min(80vh,760px); margin:0 auto; }
+        .promo-track{ position:relative; width:100%; aspect-ratio:16/9; max-height:min(58vh,600px); margin:0 auto; }
         .promo-slide{ position:absolute; inset:0; opacity:0; transition:opacity .7s ease; pointer-events:none; }
         .promo-slide.active{ opacity:1; pointer-events:auto; }
         .promo-slide :global(a){ display:block; width:100%; height:100%; }
@@ -780,18 +692,11 @@ export default function HomePage() {
         @media (max-width:860px){ .poster-section + .hero{ padding-top:56px; } }
         .menu-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
         @media (max-width:860px){ .menu-grid{ grid-template-columns:repeat(2,1fr); gap:12px; } }
-        .menu-cards :global(.menu-card){ display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; padding:24px 18px 18px; background:linear-gradient(160deg,var(--card-a) 0%,var(--card-b) 100%); border:1px solid var(--line); border-top:3px solid var(--gold); border-radius:24px; color:var(--card-ink); box-shadow:0 12px 28px var(--card-shadow); transition:transform .15s, border-color .2s, box-shadow .2s; }
-        .menu-cards :global(.menu-card:hover){ transform:translateY(-3px); border-color:var(--gold-bright); box-shadow:0 16px 34px var(--card-shadow); }
-        .menu-icon{ width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--gold-text); background:radial-gradient(circle at 30% 25%,rgba(221,189,124,.28),rgba(var(--gold-rgb),.08)); border:1.5px solid var(--gold); }
-        .menu-title{ font-weight:600; font-size:16px; line-height:1.4; min-height:2.8em; display:flex; align-items:center; color:var(--card-ink); }
-        .menu-btn{ width:100%; padding:12px 0; background:var(--gold); color:var(--on-gold); font-weight:700; font-size:14px; border-radius:14px; transition:background .15s; }
-        .menu-cards :global(.menu-card:hover) .menu-btn{ background:var(--gold-bright); }
-        @media (max-width:860px){
-          .menu-cards :global(.menu-card){ padding:16px 10px 12px; gap:8px; border-radius:20px; }
-          .menu-icon{ width:56px; height:56px; }
-          .menu-title{ font-size:14px; }
-          .menu-btn{ padding:9px 0; font-size:13px; border-radius:12px; }
-        }
+        .menu-cards :global(.menu-card){ display:block; padding:0; background:none; border:0; border-radius:16px; box-shadow:0 10px 22px var(--card-shadow); overflow:hidden; transition:transform .15s, box-shadow .2s; }
+        .menu-cards :global(.menu-card:hover){ transform:translateY(-4px) scale(1.015); box-shadow:0 16px 32px var(--card-shadow); }
+        .menu-cards :global(.menu-card:active){ transform:scale(.98); }
+        .menu-cards :global(.menu-card:focus-visible){ outline:3px solid var(--gold-bright); outline-offset:3px; }
+        .menu-cards :global(.menu-img){ width:100%; height:auto; aspect-ratio:968/726; display:block; user-select:none; -webkit-user-drag:none; }
         .landingRoot :global(section){ position:relative; padding:96px 0; }
         .landingRoot :global(img){ max-width:100%; display:block; }
 
@@ -955,9 +860,8 @@ export default function HomePage() {
         @media(max-width:720px){ .honor-grid{ grid-template-columns:1fr; } }
 
         .venue-grid{ display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center; }
-        .venue-visual{ background:var(--surf); aspect-ratio:4/3; position:relative; display:flex; align-items:center; justify-content:center; border:1px solid var(--frame); }
-        .venue-visual :global(.blueprint){ opacity:0.35; }
-        .venue-visual .pin{ font-family:'Space Mono',monospace; color:var(--gold-text); font-size:13px; text-align:center; z-index:1; }
+        .venue-visual{ background:var(--surf); aspect-ratio:4/3; position:relative; display:flex; align-items:center; justify-content:center; border:1px solid var(--frame); overflow:hidden; }
+        .venue-map-img{ width:100%; height:100%; object-fit:cover; display:block; }
         .venue-detail{ margin-bottom:26px; }
         .venue-detail .label{ font-family:'Space Mono', monospace; font-size:11px; color:var(--gold-ink); margin-bottom:6px; letter-spacing:0.05em; }
         .venue-detail :global(p){ color:var(--ink); font-size:15px; }
