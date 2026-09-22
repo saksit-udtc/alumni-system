@@ -27,6 +27,14 @@ interface CartLine {
   unitPrice: number;
 }
 
+const SLIP_MAX_BYTES = 10 * 1024 * 1024;
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function MerchShopPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
@@ -44,6 +52,9 @@ export default function MerchShopPage() {
   const [shippingAddress, setShippingAddress] = useState("");
   const [consent, setConsent] = useState(false);
   const [slipFile, setSlipFile] = useState<File | null>(null);
+  const slipInputRef = useRef<HTMLInputElement>(null);
+  const [slipPreviewUrl, setSlipPreviewUrl] = useState<string | null>(null);
+  const [slipPreviewFailed, setSlipPreviewFailed] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // เมื่อกดส่งครั้งแรกแล้ว จะตรวจซ้ำแบบสดทุกครั้งที่แก้ข้อมูล เพื่อให้ข้อความแดงหายทันทีเมื่อกรอกถูก
   const [submitted, setSubmitted] = useState(false);
@@ -200,6 +211,12 @@ export default function MerchShopPage() {
     }
     if (!slipFile) {
       errs.slipFile = "กรุณาแนบไฟล์สลิปโอนเงิน";
+    } else if (slipFile.type && !slipFile.type.startsWith("image/") && slipFile.type !== "application/pdf") {
+      errs.slipFile = "รองรับเฉพาะไฟล์รูปภาพหรือ PDF เท่านั้น";
+    } else if (slipFile.size === 0) {
+      errs.slipFile = "ไฟล์ว่างเปล่า กรุณาเลือกไฟล์สลิปใหม่";
+    } else if (slipFile.size > SLIP_MAX_BYTES) {
+      errs.slipFile = `ไฟล์ใหญ่เกินไป (${formatFileSize(slipFile.size)}) ขนาดต้องไม่เกิน 10 MB`;
     }
     if (!consent) {
       errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนสั่งซื้อ";
@@ -212,6 +229,22 @@ export default function MerchShopPage() {
     const errs = computeErrors();
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
+  }
+
+  useEffect(() => {
+    setSlipPreviewFailed(false);
+    if (!slipFile || !slipFile.type.startsWith("image/")) {
+      setSlipPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(slipFile);
+    setSlipPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [slipFile]);
+
+  function clearSlip() {
+    setSlipFile(null);
+    if (slipInputRef.current) slipInputRef.current.value = "";
   }
 
   useEffect(() => {
@@ -511,12 +544,44 @@ export default function MerchShopPage() {
           </span>
           <span className="text-xs text-stone-400">กรุณาโอนเงินตามยอดรวมด้านบนแล้วแนบรูปสลิปที่นี่ ระบบจะบันทึกคำสั่งซื้อและส่งสลิปให้เจ้าหน้าที่ตรวจสอบในขั้นตอนเดียวกัน</span>
           <input
+            ref={slipInputRef}
             type="file"
             accept="image/*,application/pdf"
             onChange={(e) => setSlipFile(e.target.files?.[0] || null)}
             className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-shadow ${fieldErrors.slipFile ? "border-red-400 focus:ring-red-300 focus:border-red-500" : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"}`}
           />
           {fieldErrors.slipFile && <span className="text-xs text-red-600">{fieldErrors.slipFile}</span>}
+
+          {slipFile && (
+            <div className="mt-2 flex items-start gap-3 rounded-lg border border-cream-200 bg-cream-50 p-2">
+              {slipPreviewUrl && !slipPreviewFailed ? (
+                <a href={slipPreviewUrl} target="_blank" rel="noopener noreferrer" title="คลิกเพื่อดูรูปขนาดเต็ม" className="shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={slipPreviewUrl}
+                    alt="ตัวอย่างสลิปที่เลือก"
+                    onError={() => setSlipPreviewFailed(true)}
+                    className="h-40 w-auto max-w-[9rem] rounded border border-stone-200 bg-white object-contain"
+                  />
+                </a>
+              ) : (
+                <div className="flex h-20 w-16 shrink-0 items-center justify-center rounded border border-stone-200 bg-white text-xs font-semibold text-stone-500">
+                  {slipFile.type === "application/pdf" ? "PDF" : "ไฟล์"}
+                </div>
+              )}
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="truncate font-medium text-stone-700" title={slipFile.name}>
+                  {slipFile.name}
+                </p>
+                <p className="text-xs text-stone-500">{formatFileSize(slipFile.size)}</p>
+                {slipPreviewFailed && <p className="mt-1 text-xs text-stone-400">ไม่สามารถแสดงตัวอย่างไฟล์ชนิดนี้ได้ แต่ยังส่งได้ตามปกติ</p>}
+                {!fieldErrors.slipFile && <p className="mt-1 text-xs text-emerald-600">พร้อมส่ง — ตรวจให้แน่ใจว่าเห็นยอดเงินและวันที่ชัดเจน</p>}
+                <button type="button" onClick={clearSlip} className="mt-1 text-xs text-red-600 underline hover:text-red-700">
+                  ลบไฟล์
+                </button>
+              </div>
+            </div>
+          )}
         </label>
 
         <div className="border-t border-cream-200 pt-3">
