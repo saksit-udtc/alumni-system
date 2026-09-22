@@ -55,6 +55,18 @@ export default function MerchPackageOrderPage() {
   const [shippingFee, setShippingFee] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  // Full-screen image viewer for the package cover photo / included-item
+  // thumbnails — same pattern as the lightbox on /merch's product grid.
+  const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(null);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightbox(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
 
   useEffect(() => {
     fetch("/api/merch/packages")
@@ -261,7 +273,12 @@ export default function MerchPackageOrderPage() {
           <div className="mt-4 grid md:grid-cols-2 gap-6">
             <div className="bg-white border border-cream-200 shadow-md rounded-xl p-5 h-fit space-y-2">
               {pkg.imageUrl && (
-                <img src={pkg.imageUrl} alt={pkg.name} className="w-full aspect-square object-cover rounded-lg" />
+                <img
+                  src={pkg.imageUrl}
+                  alt={pkg.name}
+                  onClick={() => setLightbox({ url: pkg.imageUrl!, alt: pkg.name })}
+                  className="w-full aspect-square object-cover rounded-lg cursor-zoom-in"
+                />
               )}
               <h2 className="font-display font-semibold text-lg text-stone-800">{pkg.name}</h2>
               {pkg.description && <p className="text-sm text-stone-600">{pkg.description}</p>}
@@ -269,7 +286,12 @@ export default function MerchPackageOrderPage() {
                 {pkg.items.map((it) => (
                   <li key={it.packageItemId} className="flex items-center gap-2">
                     {it.productImageUrl ? (
-                      <img src={it.productImageUrl} alt={it.productName} className="w-12 h-12 object-cover rounded-lg border border-cream-200 shrink-0" />
+                      <img
+                        src={it.productImageUrl}
+                        alt={it.productName}
+                        onClick={() => setLightbox({ url: it.productImageUrl!, alt: it.productName })}
+                        className="w-12 h-12 object-cover rounded-lg border border-cream-200 shrink-0 cursor-zoom-in"
+                      />
                     ) : (
                       <div className="w-12 h-12 rounded-lg bg-cream-100 flex items-center justify-center text-stone-400 text-[10px] shrink-0">ไม่มีรูป</div>
                     )}
@@ -532,6 +554,28 @@ export default function MerchPackageOrderPage() {
           </div>
         )}
       </main>
+
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          className="fixed inset-0 z-[58] bg-black/80 flex items-center justify-center p-4 cursor-zoom-out overflow-auto"
+        >
+          <img
+            src={lightbox.url}
+            alt={lightbox.alt}
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-full sm:max-w-[90vw] sm:max-h-[90vh] object-contain rounded-lg"
+          />
+          <button
+            type="button"
+            onClick={() => setLightbox(null)}
+            aria-label="ปิด"
+            className="fixed top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full w-10 h-10 flex items-center justify-center text-xl"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </>
   );
 }
