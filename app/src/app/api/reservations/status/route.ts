@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { phoneLookupVariants } from "@/lib/formValidation";
 
 /**
  * Public status lookup. Requirement #9: requires bookingCode + bookerPhone
@@ -15,9 +16,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "กรุณาระบุเบอร์โทรศัพท์" }, { status: 400 });
   }
 
+  const bookerPhone = { in: phoneLookupVariants(phone) };
   const where = bookingCode
-    ? { bookingCode, bookerPhone: phone }
-    : { bookerPhone: phone };
+    ? { bookingCode, bookerPhone }
+    : { bookerPhone };
 
   const reservations = await prisma.reservation.findMany({
     where,

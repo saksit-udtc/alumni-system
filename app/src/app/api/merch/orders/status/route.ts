@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { phoneLookupVariants } from "@/lib/formValidation";
 import { trackingUrl } from "@/lib/shipping";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +18,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "กรุณาระบุเบอร์โทรศัพท์" }, { status: 400 });
   }
 
+  const bookerPhone = { in: phoneLookupVariants(phone) };
   const where = orderCode
-    ? { orderCode, bookerPhone: phone }
-    : { bookerPhone: phone };
+    ? { orderCode, bookerPhone }
+    : { bookerPhone };
 
   const orders = await prisma.merchOrder.findMany({
     where,

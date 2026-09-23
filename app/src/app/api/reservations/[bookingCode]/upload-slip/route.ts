@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { cleanPhoneForStorage } from "@/lib/formValidation";
 import { uploadObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 import { sendSlipReceivedEmail } from "@/lib/mailer";
 import { holdUntil } from "@/lib/holdPolicy";
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookingCode
     where: { bookingCode: params.bookingCode.toUpperCase() },
   });
 
-  if (!reservation || reservation.bookerPhone !== bookerPhone) {
+  if (!reservation || cleanPhoneForStorage(reservation.bookerPhone) !== cleanPhoneForStorage(bookerPhone)) {
     return NextResponse.json({ error: "ไม่พบข้อมูลการจอง หรือเบอร์โทรศัพท์ไม่ถูกต้อง" }, { status: 404 });
   }
 

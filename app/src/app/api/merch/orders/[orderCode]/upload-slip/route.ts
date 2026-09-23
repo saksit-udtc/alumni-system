@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { cleanPhoneForStorage } from "@/lib/formValidation";
 import { uploadObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 import { sendMerchSlipReceivedEmail } from "@/lib/mailer";
 import crypto from "crypto";
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { orderCode: 
     where: { orderCode: params.orderCode.toUpperCase() },
   });
 
-  if (!order || order.bookerPhone !== bookerPhone) {
+  if (!order || cleanPhoneForStorage(order.bookerPhone) !== cleanPhoneForStorage(bookerPhone)) {
     return NextResponse.json({ error: "ไม่พบข้อมูลการสั่งซื้อ หรือเบอร์โทรศัพท์ไม่ถูกต้อง" }, { status: 404 });
   }
 

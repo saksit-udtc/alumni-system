@@ -29,7 +29,20 @@ export function cleanPhoneForStorage(input: string): string {
   const trimmed = input.trim();
   const hasPlus = trimmed.startsWith("+");
   const digits = trimmed.replace(/[^\d]/g, "");
+  // เบอร์ไทยแบบมีรหัสประเทศ (+66XXXXXXXXX / 66XXXXXXXXX — มือถือมัก autofill แบบนี้)
+  // แปลงเป็นรูปแบบในประเทศ 0XXXXXXXXX เสมอ เพื่อให้บันทึกและค้นหาด้วยรูปแบบเดียวกัน
+  // (เดิมเก็บ "+66..." ทำให้ผู้จองค้นสถานะด้วย "08..." ไม่เจอ)
+  const intl = /^66(\d{9})$/.exec(digits);
+  if (intl && (hasPlus || digits.length === 11)) return `0${intl[1]}`;
   return hasPlus ? `+${digits}` : digits;
+}
+
+/** รูปแบบเบอร์ทั้งหมดที่อาจถูกบันทึกไว้ในฐานข้อมูล — ใช้ค้นหาให้เจอทั้งรายการเก่าที่เก็บ "+66..." และรายการใหม่ "0..." */
+export function phoneLookupVariants(input: string): string[] {
+  const p = cleanPhoneForStorage(input);
+  const variants = new Set([p]);
+  if (/^0\d{9}$/.test(p)) variants.add(`+66${p.slice(1)}`);
+  return Array.from(variants);
 }
 
 export function validateThaiPhone(input: string): string | null {
