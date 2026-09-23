@@ -17,7 +17,14 @@ import { presignedGetUrl, PAYMENT_SLIPS_BUCKET } from "./minio";
  * fully optional and never blocks a booking/order.
  */
 
-export type SlipVerifyStatus = "MATCH" | "AMOUNT_MISMATCH" | "INVALID_SLIP" | "DUPLICATE" | "ERROR" | "SKIPPED";
+export type SlipVerifyStatus =
+  | "MATCH"
+  | "AMOUNT_MISMATCH"
+  | "ACCOUNT_MISMATCH"
+  | "INVALID_SLIP"
+  | "DUPLICATE"
+  | "ERROR"
+  | "SKIPPED";
 
 export interface SlipVerifyResult {
   status: SlipVerifyStatus;
@@ -37,6 +44,9 @@ interface EasySlipV2Response {
       receiver?: { bank?: { name?: string }; account?: { name?: { th?: string; en?: string } } };
     };
     isDuplicate: boolean;
+    // มีมาเฉพาะเมื่อส่ง matchAccount: true — null = บัญชีผู้รับในสลิปไม่ตรงกับบัญชีรับเงิน
+    // ที่ผูกไว้กับสาขา (API key) นี้ใน EasySlip dashboard ("จัดการบัญชี")
+    matchedAccount?: unknown | null;
   };
   error?: { code: string; message: string };
 }
@@ -64,7 +74,7 @@ export async function verifySlipByUrl(imageUrl: string, expectedAmount: number):
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ url: imageUrl, checkDuplicate: true }),
+      body: JSON.stringify({ url: imageUrl, checkDuplicate: true, matchAccount: true }),
       // EasySlip is an external network call — don't let a hung request
       // block whatever fire-and-forget task called this indefinitely.
       signal: AbortSignal.timeout(15_000),
@@ -83,6 +93,11 @@ export async function verifySlipByUrl(imageUrl: string, expectedAmount: number):
     if (code === "SLIP_PENDING") {
       return { status: "ERROR", message: "ธนาคารต้นทางยังไม่ส่งข้อมูลสลิปนี้เข้าระบบ (พบบ่อยกับสลิปกรุงเทพ) ลองตรวจสอบใหม่ภายหลัง" };
     }
+    // EasySlip v2 ตอบ VALIDATION_ERROR "Please provide either a payload string..." เมื่ออ่าน QR
+    // สลิปจากรูปไม่ได้ (รูปไม่ใช่สลิป/ไม่มี QR/ถูกครอบตัด) — ยืนยันจากการทดสอบจริงกับรูปที่ไม่มี QR
+    if (code === "VALIDATION_ERROR" && /provide either a payload/i.test(json.error?.message || "")) {
+      return { status: "INVALID_SLIP", message: "อ่าน QR ในรูปสลิปไม่ได้ (อาจไม่ใช่สลิปโอนเงิน รูปไม่ชัด หรือ QR ถูกครอบตัด)" };
+    }
     if (code === "QUOTA_EXCEEDED" || code === "RATE_LIMIT_EXCEEDED") {
       return { status: "ERROR", message: "โควต้าการตรวจสอบสลิปของ EasySlip เต็มแล้วในรอบนี้" };
     }
@@ -96,6 +111,17 @@ export async function verifySlipByUrl(imageUrl: string, expectedAmount: number):
     return {
       status: "DUPLICATE",
       message: `สลิปนี้เคยถูกใช้ยืนยันการชำระเงินรายการอื่นมาแล้ว (เลขอ้างอิง ${slip.transRef})`,
+      transRef: slip.transRef,
+      actualAmount: Number.isFinite(actualAmount) ? actualAmount : undefined,
+    };
+  }
+
+  if ("matchedAccount" in json.data && json.data.matchedAccount === null) {
+    const receiverName = slip.receiver?.account?.name?.th || slip.receiver?.account?.name?.en || "ไม่ทราบชื่อ";
+    const receiverBank = slip.receiver?.bank?.name ? ` (${slip.receiver.bank.name})` : "";
+    return {
+      status: "ACCOUNT_MISMATCH",
+      message: `บัญชีผู้รับในสลิปไม่ใช่บัญชีรับเงินของงาน — ผู้รับ: ${receiverName}${receiverBank}`,
       transRef: slip.transRef,
       actualAmount: Number.isFinite(actualAmount) ? actualAmount : undefined,
     };

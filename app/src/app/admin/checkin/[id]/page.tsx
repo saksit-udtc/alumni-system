@@ -3,6 +3,15 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
+// ข้อความเดียวกับ STATUS_LABEL ในหน้า /admin/reservations
+const PAYMENT_STATUS_TH: Record<string, string> = {
+  pending: "รอชำระเงิน",
+  awaiting_verify: "รอตรวจสอบสลิป",
+  confirmed: "ยืนยันแล้ว",
+  rejected: "ปฏิเสธ",
+  expired: "หมดเวลา",
+};
+
 export default function AdminCheckinDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [reservation, setReservation] = useState<any>(null);
@@ -56,7 +65,7 @@ export default function AdminCheckinDetailPage() {
         <div className="text-stone-700">
           สถานะการชำระเงิน:{" "}
           <span className={reservation.paymentStatus === "confirmed" ? "text-emerald-600 font-medium" : "text-stone-500"}>
-            {reservation.paymentStatus}
+            {PAYMENT_STATUS_TH[reservation.paymentStatus] ?? reservation.paymentStatus}
           </span>
         </div>
         <div className="text-stone-700">เช็คอิน: {reservation.checkedIn ? `✅ เมื่อ ${new Date(reservation.checkedInAt).toLocaleString("th-TH")}` : "ยังไม่เช็คอิน"}</div>

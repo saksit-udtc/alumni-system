@@ -129,7 +129,7 @@ export async function bookTable(input: BookTableInput) {
 
     if (bookingType === "full_table") {
       if (table.seatsReserved !== 0) {
-        throw new BookingError("TABLE_NOT_EMPTY", "โต๊ะนี้มีการจองบางส่วนแล้ว ไม่สามารถจองทั้งโต๊ะได้");
+        throw new BookingError("TABLE_NOT_EMPTY", "โต๊ะนี้ถูกจองไปแล้ว กรุณากลับไปเลือกโต๊ะอื่น");
       }
       if (seatCount !== table.capacity) {
         throw new BookingError(

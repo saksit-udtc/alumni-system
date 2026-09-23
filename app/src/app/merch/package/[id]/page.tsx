@@ -6,6 +6,16 @@ import SiteNav from "@/app/components/site-nav";
 import PageTitle from "@/app/components/page-title";
 import PayQr from "@/app/components/pay-qr";
 import { generatePromptPayPayload } from "@/lib/promptpay";
+
+// เรียงไซส์เสื้อจากเล็กไปใหญ่ (API คืนตามลำดับแถวสต๊อก ซึ่งอาจเป็น L ก่อน S) — ไซส์ที่ไม่รู้จักต่อท้าย
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "6XL"];
+function sortSizes(sizes: string[]): string[] {
+  const rank = (s: string) => {
+    const i = SIZE_ORDER.indexOf(s.trim().toUpperCase());
+    return i === -1 ? SIZE_ORDER.length : i;
+  };
+  return [...sizes].sort((a, b) => rank(a) - rank(b));
+}
 import {
   validateNamePart,
   validateThaiPhone,
@@ -394,6 +404,7 @@ export default function MerchPackageOrderPage() {
                   className={inputClass("bookerEmail")}
                 />
                 {fieldErrors.bookerEmail && <p className="text-xs text-red-600 mt-1">{fieldErrors.bookerEmail}</p>}
+                <p className="text-xs text-stone-400 mt-1">ใช้แจ้งสถานะคำสั่งซื้อ (หากไม่พบอีเมลในกล่องจดหมายเข้า กรุณาตรวจสอบในโฟลเดอร์อีเมลขยะ (Junk/Spam))</p>
               </div>
 
               <div>
@@ -431,7 +442,7 @@ export default function MerchPackageOrderPage() {
                         className={inputClass(`itemSize-${it.packageItemId}`)}
                       >
                         <option value="">-- เลือกไซส์ --</option>
-                        {it.availableSizes.map((s) => (
+                        {sortSizes(it.availableSizes).map((s) => (
                           <option key={s} value={s}>
                             {s}
                           </option>
@@ -545,6 +556,9 @@ export default function MerchPackageOrderPage() {
             <h2 className="text-xl font-display font-semibold text-emerald-600">สั่งซื้อและส่งสลิปสำเร็จ</h2>
             <p className="text-stone-600">รหัสคำสั่งซื้อของท่านคือ {orderCode}</p>
             <p className="text-sm text-stone-500">เจ้าหน้าที่จะตรวจสอบสลิปการโอนเงินโดยเร็วที่สุด ท่านสามารถตรวจสอบสถานะได้ที่หน้าตรวจสอบคำสั่งซื้อ</p>
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              ระบบส่งอีเมลยืนยันไปที่ {bookerEmail} แล้ว หากไม่พบอีเมลในกล่องจดหมายเข้า กรุณาตรวจสอบในโฟลเดอร์อีเมลขยะ (Junk/Spam)
+            </p>
             <button
               onClick={() => router.push(`/merch/status?orderCode=${orderCode}&phone=${encodeURIComponent(bookerPhone)}`)}
               className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-4 py-2 font-medium"

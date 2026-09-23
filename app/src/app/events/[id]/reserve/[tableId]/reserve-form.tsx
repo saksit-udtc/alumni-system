@@ -317,6 +317,9 @@ export default function ReserveForm({
         <p className="text-sm text-stone-500">
           เจ้าหน้าที่จะตรวจสอบสลิปการโอนเงินโดยเร็วที่สุด ท่านสามารถตรวจสอบสถานะได้ที่หน้าตรวจสอบการจอง
         </p>
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          ระบบส่งอีเมลยืนยันไปที่ {bookerEmail} แล้ว หากไม่พบอีเมลในกล่องจดหมายเข้า กรุณาตรวจสอบในโฟลเดอร์อีเมลขยะ (Junk/Spam)
+        </p>
         <button
           onClick={() => router.push(`/status?bookingCode=${bookingCode}&phone=${encodeURIComponent(bookerPhone)}`)}
           className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-4 py-2 font-medium"
@@ -418,7 +421,7 @@ export default function ReserveForm({
           className={inputClass("bookerEmail")}
         />
         {fieldErrors.bookerEmail && <p className="text-xs text-red-600 mt-1">{fieldErrors.bookerEmail}</p>}
-        <p className="text-xs text-stone-400 mt-1">ใช้ส่ง QR Code ยืนยันการจองให้ทางอีเมลนี้หลังตรวจสอบสลิปแล้ว</p>
+        <p className="text-xs text-stone-400 mt-1">ใช้ส่ง QR Code ยืนยันการจองให้ทางอีเมลนี้หลังตรวจสอบสลิปแล้ว (หากไม่พบอีเมลในกล่องจดหมายเข้า กรุณาตรวจสอบในโฟลเดอร์อีเมลขยะ (Junk/Spam))</p>
       </div>
 
       {maxCompanions > 0 && (

@@ -171,7 +171,7 @@ export default function SupportRegisterForm({ kind }: { kind: Kind }) {
             รหัสลงทะเบียนของคุณ <span className="font-mono font-semibold text-maroon-700">{done.code}</span>
           </p>
           <p className="text-sm text-stone-600">ยอดชำระ {done.amount.toLocaleString("th-TH")} บาท — เจ้าหน้าที่จะตรวจสอบสลิปและติดต่อกลับตามเบอร์โทร/อีเมลที่ระบุ</p>
-          <p className="text-xs text-stone-400">กรุณาจดรหัสนี้ไว้เพื่ออ้างอิง</p>
+          <p className="text-xs text-stone-400">กรุณาจดรหัสนี้ไว้เพื่ออ้างอิง — หากไม่พบอีเมลในกล่องจดหมายเข้า กรุณาตรวจสอบในโฟลเดอร์อีเมลขยะ (Junk/Spam)</p>
           <Link href="/" className="inline-block mt-2 bg-maroon-700 hover:bg-maroon-800 text-white rounded-lg px-5 py-2 text-sm font-semibold">
             กลับหน้าแรก
           </Link>

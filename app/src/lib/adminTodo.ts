@@ -11,7 +11,7 @@ import type { AdminRole } from "@/lib/auth";
  */
 
 // ผลตรวจสลิป EasySlip ที่ต้องให้เจ้าหน้าที่ดูเป็นพิเศษ (SKIPPED/MATCH ไม่นับ)
-export const SUSPICIOUS_SLIP = ["AMOUNT_MISMATCH", "INVALID_SLIP", "DUPLICATE", "ERROR"];
+export const SUSPICIOUS_SLIP = ["AMOUNT_MISMATCH", "ACCOUNT_MISMATCH", "INVALID_SLIP", "DUPLICATE", "ERROR"];
 export const LOW_STOCK_THRESHOLD = 5;
 
 export interface NotificationItem {
