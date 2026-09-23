@@ -300,13 +300,36 @@ export default function HomePage() {
           {[
             { href: bookHref, onClick: goBook, title: "จองโต๊ะงานเลี้ยง", img: "/menu/menu-booking.webp" },
             { href: "/merch", title: "สั่งซื้อของที่ระลึก", img: "/menu/menu-merch.webp" },
-            { href: "/distinguished-alumni", title: "รับโล่ศิษย์เก่าดีเด่น", img: "/menu/menu-distinguished.webp" },
-            { href: "/sponsor", title: "รับโล่ผู้มีอุปการคุณ", img: "/menu/menu-benefactor.webp" },
-          ].map((c) => (
-            <Link key={c.title} href={c.href} onClick={c.onClick} className="menu-card" aria-label={c.title}>
-              <img src={c.img} alt={c.title} className="menu-img" width={968} height={726} draggable={false} />
-            </Link>
-          ))}
+            {
+              href: "https://forms.gle/WVLrDEqJfT4k5zzGA",
+              title: "รับโล่ศิษย์เก่าดีเด่น",
+              img: "/menu/menu-distinguished.webp",
+              external: true,
+            },
+            {
+              href: "https://forms.gle/DvPD8i5pMfMVsRLTA",
+              title: "รับโล่ผู้มีอุปการคุณ",
+              img: "/menu/menu-benefactor.webp",
+              external: true,
+            },
+          ].map((c) =>
+            c.external ? (
+              <a
+                key={c.title}
+                href={c.href}
+                target="_blank"
+                rel="noreferrer"
+                className="menu-card"
+                aria-label={c.title}
+              >
+                <img src={c.img} alt={c.title} className="menu-img" width={968} height={726} draggable={false} />
+              </a>
+            ) : (
+              <Link key={c.title} href={c.href} onClick={c.onClick} className="menu-card" aria-label={c.title}>
+                <img src={c.img} alt={c.title} className="menu-img" width={968} height={726} draggable={false} />
+              </Link>
+            )
+          )}
         </div>
       </section>
 
