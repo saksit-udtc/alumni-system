@@ -42,6 +42,8 @@ interface LandingContent {
   merchItems: MerchItem[];
   sponsors: SponsorTier[];
   faq: FaqItem[];
+  // เปิด/ปิดแต่ละบล็อก (ตั้งค่าที่ /admin/landing) — ไม่มีค่า = แสดง
+  visibleSections?: Partial<Record<LandingBlock, boolean>>;
 }
 
 interface HomeBannerItem { id: string; title: string | null; linkUrl: string | null; imageUrl: string }
@@ -90,6 +92,8 @@ const SOUVENIR_IMAGES: Record<MerchItem["icon"], { front: string; back: string }
   coin: { front: "/souvenir/prize-vishnu-front.webp", back: "/souvenir/prize-vishnu-back.webp" },
   cup: { front: "/souvenir/cup-front.webp", back: "/souvenir/cup-back.webp" },
 };
+
+type LandingBlock = "hero" | "tickets" | "merch" | "schedule" | "honorGuests" | "venue" | "sponsors" | "faq" | "finalCta";
 
 function pad2(n: number) {
   return String(Math.max(0, n)).padStart(2, "0");
@@ -235,6 +239,12 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
 
   // ลิงก์เมนูกำหนดการ/สถานที่/คำถาม: หน้าแรกพาไปหน้ารายละเอียดงาน, หน้ารายละเอียดงานเลื่อนในหน้าเดียวกัน
   const anchorBase = variant === "home" ? LANDING_HREF : "";
+  // บล็อกที่แอดมินซ่อนไว้ (หน้าแรกไม่ได้โหลด content → ถือว่าแสดงทุกบล็อกสำหรับลิงก์เมนู)
+  // honorGuests/sponsors ค่าเริ่มต้นซ่อน (ต้องเปิดเองในแอดมิน) ส่วนบล็อกอื่นค่าเริ่มต้นแสดง
+  const show = (k: LandingBlock) => {
+    const v = content?.visibleSections?.[k];
+    return k === "honorGuests" || k === "sponsors" ? v === true : v !== false;
+  };
 
   const categories = ["ทั้งหมด", ...Array.from(new Set(gallery.map((g) => g.category)))];
   const filteredGallery = activeCategory === "ทั้งหมด" ? gallery : gallery.filter((g) => g.category === activeCategory);
@@ -253,9 +263,9 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           </Link>
           <div className="nav-links">
             {variant === "home" && <Link href={LANDING_HREF}>รายละเอียดงาน 89 ปี</Link>}
-            <a href={`${anchorBase}#schedule`}>กำหนดการ</a>
-            <a href={`${anchorBase}#venue`}>สถานที่</a>
-            <a href={`${anchorBase}#faq`}>คำถาม</a>
+            {show("schedule") && <a href={`${anchorBase}#schedule`}>กำหนดการ</a>}
+            {show("venue") && <a href={`${anchorBase}#venue`}>สถานที่</a>}
+            {show("faq") && <a href={`${anchorBase}#faq`}>คำถาม</a>}
             <Link href="/status">ตรวจสอบการจอง</Link>
             <Link href="/admin/login" style={{ opacity: 0.6, fontSize: 12 }}>เจ้าหน้าที่</Link>
           </div>
@@ -265,11 +275,16 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           {variant === "home" && (
             <Link href={LANDING_HREF} onClick={() => setMobileOpen(false)}>รายละเอียดงาน 89 ปี</Link>
           )}
-          {[
-            [`${anchorBase}#schedule`, "กำหนดการ"],
-            [`${anchorBase}#venue`, "สถานที่"],
-            [`${anchorBase}#faq`, "คำถาม"],
-          ].map(([href, label]) => (
+          {(
+            [
+              ["schedule", `${anchorBase}#schedule`, "กำหนดการ"],
+              ["venue", `${anchorBase}#venue`, "สถานที่"],
+              ["faq", `${anchorBase}#faq`, "คำถาม"],
+            ] as const
+          )
+            .filter(([k]) => show(k))
+            .map(([, ...rest]) => rest)
+            .map(([href, label]) => (
             <a key={href} href={href} onClick={() => setMobileOpen(false)}>{label}</a>
           ))}
           <Link href="/status" onClick={() => setMobileOpen(false)}>ตรวจสอบการจอง</Link>
@@ -353,6 +368,7 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
       </>)}
 
       {variant === "full" && content && (<>
+      {show("hero") && (
       <section
         className="hero"
         id="home"
@@ -394,7 +410,9 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           </div>
         </div>
       </section>
+      )}
 
+      {show("tickets") && (
       <section id="tickets">
         <div className="wrap">
           <div className="section-head">
@@ -422,7 +440,9 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           </div>
         </div>
       </section>
+      )}
 
+      {show("merch") && (
       <section id="merch">
         <div className="wrap">
           <div className="section-head">
@@ -472,7 +492,9 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           </div>
         </div>
       </section>
+      )}
 
+      {show("schedule") && (
       <section id="schedule" style={{ background: "var(--bg-alt)" }}>
         <div className="wrap">
           <div className="section-head">
@@ -492,7 +514,33 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           </div>
         </div>
       </section>
+      )}
 
+      {show("honorGuests") && (
+      <section className="honor-band" id="honor">
+        <div className="wrap">
+          <div className="section-head">
+            <div className="kicker" style={{ color: "var(--gold-text)" }}>แขกผู้มีเกียรติ</div>
+            <h2 style={{ color: "var(--on-surf)" }}>แด่ครูผู้สร้างช่างฝีมือ</h2>
+            <p style={{ color: "var(--on-surf-dim)" }}>แม้ออกจากรั้ววิทยาลัยไปนานเพียงใด บทเรียนของครูยังคงอยู่เสมอ</p>
+          </div>
+          <div className="honor-grid">
+            {content.honorGuests.map((g, i) => (
+              <div className="honor-card" key={i}>
+                {g.photoUrl ? (
+                  <img src={g.photoUrl} alt={g.name} className="honor-avatar honor-avatar-photo" />
+                ) : (
+                  <div className="honor-avatar">{g.name.charAt(0)}</div>
+                )}
+                <h4>{g.name}</h4>
+                <p>{g.role}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      )}
+      {show("venue") && (
       <section id="venue">
         <div className="wrap venue-grid">
           <div>
@@ -519,7 +567,33 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           </div>
         </div>
       </section>
+      )}
 
+      {show("sponsors") && (
+      <section id="sponsors">
+        <div className="wrap">
+          <div className="section-head">
+            <div className="kicker">ร่วมเป็นส่วนหนึ่ง</div>
+            <h2>เปิดรับผู้สนับสนุน</h2>
+            <p>การสนับสนุนของท่านช่วยให้ค่ำคืนนี้เกิดขึ้นได้ และสมทบทุนจัดซื้อรถมินิบัสสำหรับนักเรียน-นักศึกษา</p>
+          </div>
+          <div className="sponsor-grid">
+            {content.sponsors.map((sp, i) => (
+              <div className={`sponsor-card${i === 0 ? " gold" : ""}`} key={i}>
+                {sp.logoUrl && <img src={sp.logoUrl} alt={sp.label} className="sponsor-logo" />}
+                <div className="sponsor-tier">{sp.tier}</div>
+                <h3>{sp.label}</h3>
+                <div className="sponsor-price">{sp.price}</div>
+                <ul>
+                  {sp.benefits.map((b, bi) => <li key={bi}>{b}</li>)}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      )}
+      {show("faq") && (
       <section id="faq" style={{ background: "var(--bg-alt)" }}>
         <div className="wrap" style={{ maxWidth: 820 }}>
           <div className="section-head">
@@ -538,7 +612,9 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           </div>
         </div>
       </section>
+      )}
 
+      {show("finalCta") && (
       <section className="final-cta">
         <div className="blueprint" style={{ opacity: 0.2 }} />
         <div className="wrap">
@@ -549,6 +625,7 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           <Link href={bookHref} onClick={goBook} className="btn-primary">จองโต๊ะการเลี้ยงตอนนี้</Link>
         </div>
       </section>
+      )}
       </>)}
 
       <footer>

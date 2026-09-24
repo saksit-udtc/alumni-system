@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DEFAULT_LANDING_CONTENT } from "@/lib/landingContent";
+import { DEFAULT_LANDING_CONTENT, DEFAULT_VISIBLE_SECTIONS, LANDING_SECTION_KEYS, LANDING_SECTION_LABELS, type LandingVisibleSections } from "@/lib/landingContent";
 
 interface TimelineItem { time: string; title: string; description: string }
 interface HonorGuest { name: string; role: string; photoUrl: string }
@@ -30,6 +30,7 @@ interface LandingContent {
   merchItems: MerchItem[];
   sponsors: SponsorTier[];
   faq: FaqItem[];
+  visibleSections: LandingVisibleSections;
 }
 
 interface GalleryImage {
@@ -55,7 +56,9 @@ function ArrayEditor<T>({
   setItems,
   makeEmpty,
   renderRow,
+  footer,
 }: {
+  footer?: React.ReactNode;
   title: string;
   hint?: string;
   items: T[];
@@ -101,6 +104,61 @@ function ArrayEditor<T>({
       >
         + เพิ่มรายการ
       </button>
+      {footer}
+    </div>
+  );
+}
+
+type SectionId = "visibility" | "main" | "timeline" | "honorGuests" | "merchItems" | "sponsors" | "faq";
+
+// ฟิลด์ของแต่ละบล็อก — ใช้กับปุ่ม "บันทึกส่วนนี้" (บันทึกเฉพาะฟิลด์ของบล็อกนั้น
+// ทับลงบนข้อมูลล่าสุดที่อยู่ในเซิร์ฟเวอร์ ส่วนอื่นที่แก้ค้างไว้ยังไม่ถูกบันทึก)
+const SECTION_FIELDS: Record<SectionId, (keyof LandingContent)[]> = {
+  visibility: ["visibleSections"],
+  main: [
+    "heroTitleLine1", "heroTitleLine2", "heroLead", "eventDateISO", "registrationTime",
+    "eventDateLabel", "eventDateShortLabel", "venueName", "seatCapacityLabel", "venueAddress",
+    "parkingNote", "mapUrl", "pricePerSeat", "pricePerTable", "heroImageUrl",
+  ],
+  timeline: ["timeline"],
+  honorGuests: ["honorGuests"],
+  merchItems: ["merchItems"],
+  sponsors: ["sponsors"],
+  faq: ["faq"],
+};
+
+function pickFields(c: LandingContent, keys: (keyof LandingContent)[]): Partial<LandingContent> {
+  const out: Partial<LandingContent> = {};
+  for (const k of keys) (out as Record<string, unknown>)[k] = c[k];
+  return out;
+}
+
+function SectionSaveBar({
+  dirty,
+  saving,
+  msg,
+  onSave,
+}: {
+  dirty: boolean;
+  saving: boolean;
+  msg: string;
+  onSave: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-t border-cream-200 pt-3">
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={saving || !dirty}
+        className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {saving ? "กำลังบันทึก..." : "บันทึกส่วนนี้"}
+      </button>
+      {dirty ? (
+        <span className="text-xs text-amber-700">มีการแก้ไขที่ยังไม่บันทึก</span>
+      ) : msg ? (
+        <span className={`text-xs ${msg.includes("เรียบร้อย") ? "text-emerald-700" : "text-red-600"}`}>{msg}</span>
+      ) : null}
     </div>
   );
 }
@@ -120,6 +178,10 @@ async function uploadLandingImage(file: File): Promise<string> {
 
 export default function AdminLandingPage() {
   const [content, setContent] = useState<LandingContent | null>(null);
+  // ข้อมูลล่าสุดที่บันทึกในเซิร์ฟเวอร์ — ใช้เทียบว่าบล็อกไหนแก้ค้าง และเป็นฐานตอนบันทึกทีละบล็อก
+  const [saved, setSaved] = useState<LandingContent | null>(null);
+  const [sectionSaving, setSectionSaving] = useState<SectionId | null>(null);
+  const [sectionMsg, setSectionMsg] = useState<Partial<Record<SectionId, string>>>({});
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -139,7 +201,10 @@ export default function AdminLandingPage() {
     fetch("/api/admin/landing")
       .then((r) => r.json())
       .then((d) => {
-        if (d.content) setContent(d.content);
+        if (d.content) {
+          setContent(d.content);
+          setSaved(d.content);
+        }
         else setLoadError("โหลดข้อมูลไม่สำเร็จ");
       })
       .catch(() => setLoadError("โหลดข้อมูลไม่สำเร็จ"));
@@ -170,11 +235,49 @@ export default function AdminLandingPage() {
         return;
       }
       setContent(data.content);
+      setSaved(data.content);
+      setSectionMsg({});
       setSaveMsg("บันทึกเรียบร้อยแล้ว");
     } finally {
       setSaving(false);
     }
   }
+
+  function isDirty(id: SectionId): boolean {
+    if (!content || !saved) return false;
+    const keys = SECTION_FIELDS[id];
+    return JSON.stringify(pickFields(content, keys)) !== JSON.stringify(pickFields(saved, keys));
+  }
+
+  // บันทึกเฉพาะบล็อกเดียว: เอาข้อมูลล่าสุดในเซิร์ฟเวอร์ (saved) แล้วแทนเฉพาะฟิลด์ของบล็อกนี้
+  async function saveSection(id: SectionId) {
+    if (!content || !saved) return;
+    const keys = SECTION_FIELDS[id];
+    setSectionSaving(id);
+    setSectionMsg((m) => ({ ...m, [id]: "" }));
+    try {
+      const res = await fetch("/api/admin/landing", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...saved, ...pickFields(content, keys) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.content) {
+        setSectionMsg((m) => ({ ...m, [id]: data.error || "บันทึกไม่สำเร็จ" }));
+        return;
+      }
+      setSaved(data.content);
+      // อัปเดตเฉพาะฟิลด์ของบล็อกนี้ในฟอร์ม — บล็อกอื่นที่แก้ค้างไว้ยังอยู่
+      setContent((c) => (c ? { ...c, ...pickFields(data.content, keys) } : c));
+      setSectionMsg((m) => ({ ...m, [id]: "บันทึกเรียบร้อยแล้ว" }));
+    } finally {
+      setSectionSaving(null);
+    }
+  }
+
+  const saveBar = (id: SectionId) => (
+    <SectionSaveBar dirty={isDirty(id)} saving={sectionSaving === id} msg={sectionMsg[id] || ""} onSave={() => saveSection(id)} />
+  );
 
   // เติมฟอร์มด้วยข้อมูลตามโปสเตอร์ (ค่าเริ่มต้นในโค้ด) — ยังไม่บันทึกจนกว่าจะกด "บันทึกทั้งหมด"
   // คงรูปภาพที่อัปโหลดไว้แล้ว (ภาพพื้นหลัง, รูปแขกผู้มีเกียรติ, รูปของที่ระลึก, โลโก้ผู้สนับสนุน)
@@ -185,6 +288,7 @@ export default function AdminLandingPage() {
     setContent({
       ...d,
       heroImageUrl: content.heroImageUrl,
+      visibleSections: content.visibleSections,
       mapUrl: content.mapUrl || d.mapUrl,
       honorGuests: content.honorGuests,
       merchItems: d.merchItems.map((m, i) => ({ ...m, imageUrl: content.merchItems[i]?.imageUrl || "" })),
@@ -266,7 +370,7 @@ export default function AdminLandingPage() {
       <div>
         <h1 className="text-2xl font-display font-semibold text-stone-800">จัดการหน้าแรก (Landing 89 ปี)</h1>
         <p className="text-sm text-stone-500 mt-0.5">
-          แก้ไขข้อมูลที่แสดงบนหน้าแรกของเว็บไซต์ — บันทึกด้วยปุ่ม &quot;บันทึกทั้งหมด&quot; ด้านล่างสุด ยกเว้นคลังภาพซึ่งบันทึกทันทีที่อัปโหลด/ลบ
+          แก้ไขข้อมูลที่แสดงบนหน้ารายละเอียดงาน — บันทึกทีละบล็อกด้วยปุ่ม &quot;บันทึกส่วนนี้&quot; ท้ายแต่ละบล็อก หรือบันทึกทุกบล็อกพร้อมกันด้วย &quot;บันทึกทั้งหมด&quot; ด้านล่างสุด (คลังภาพบันทึกทันทีที่อัปโหลด/ลบ)
         </p>
         <button
           type="button"
@@ -278,6 +382,35 @@ export default function AdminLandingPage() {
       </div>
 
       <form onSubmit={save} className="space-y-4">
+        <div className={cardCls}>
+          <h2 className={sectionTitleCls}>เปิด/ปิดการแสดงผลแต่ละบล็อก</h2>
+          <p className="text-xs text-stone-500 -mt-2">
+            ติ๊กออกเพื่อซ่อนบล็อกนั้นจากหน้ารายละเอียดงาน (/homecoming-89) — ข้อมูลในบล็อกยังเก็บไว้ เปิดกลับได้ทุกเมื่อ · มีผลหลังกด &quot;บันทึกทั้งหมด&quot;
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {LANDING_SECTION_KEYS.map((k) => {
+              const vs = content.visibleSections ?? DEFAULT_VISIBLE_SECTIONS;
+              const on = vs[k] !== false;
+              return (
+                <label
+                  key={k}
+                  className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${on ? "border-emerald-300 bg-emerald-50" : "border-stone-200 bg-stone-50 text-stone-400"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={(e) => setContent({ ...content, visibleSections: { ...vs, [k]: e.target.checked } })}
+                    className="w-4 h-4 accent-emerald-600"
+                  />
+                  <span className="flex-1">{LANDING_SECTION_LABELS[k]}</span>
+                  <span className={`text-xs font-medium ${on ? "text-emerald-700" : "text-stone-400"}`}>{on ? "แสดง" : "ซ่อน"}</span>
+                </label>
+              );
+            })}
+          </div>
+          {saveBar("visibility")}
+        </div>
+
         <div className={cardCls}>
           <h2 className={sectionTitleCls}>ข้อมูลงานหลัก</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -375,9 +508,11 @@ export default function AdminLandingPage() {
             {heroImgError && <span className="text-xs text-red-600">{heroImgError}</span>}
             <span className="text-xs text-stone-400">แนะนำรูปแนวนอนขนาดใหญ่ (1600×900px ขึ้นไป) จะแสดงเป็นพื้นหลังส่วน Hero บนสุดของหน้าแรก หากไม่อัปโหลด จะใช้พื้นหลังไล่สีเดิม</span>
           </label>
+          {saveBar("main")}
         </div>
 
         <ArrayEditor<TimelineItem>
+          footer={saveBar("timeline")}
           title="กำหนดการ (Timeline)"
           hint="เรียงตามลำดับเวลาในคืนงาน"
           items={content.timeline}
@@ -393,6 +528,7 @@ export default function AdminLandingPage() {
         />
 
         <ArrayEditor<HonorGuest>
+          footer={saveBar("honorGuests")}
           title="รายชื่อคุณครู / แขกผู้มีเกียรติ"
           items={content.honorGuests}
           setItems={(honorGuests) => setContent({ ...content, honorGuests })}
@@ -429,6 +565,7 @@ export default function AdminLandingPage() {
         />
 
         <ArrayEditor<MerchItem>
+          footer={saveBar("merchItems")}
           title="ของที่ระลึก"
           hint="อัปโหลดรูปจริงของสินค้าเพื่อแสดงแทนไอคอน — หากไม่อัปโหลด การ์ดจะแสดงไอคอนตามที่เลือกด้านล่างแทน"
           items={content.merchItems}
@@ -475,6 +612,7 @@ export default function AdminLandingPage() {
         />
 
         <ArrayEditor<SponsorTier>
+          footer={saveBar("sponsors")}
           title="ระดับผู้สนับสนุน"
           items={content.sponsors}
           setItems={(sponsors) => setContent({ ...content, sponsors })}
@@ -521,6 +659,7 @@ export default function AdminLandingPage() {
         />
 
         <ArrayEditor<FaqItem>
+          footer={saveBar("faq")}
           title="คำถามที่พบบ่อย (FAQ)"
           items={content.faq}
           setItems={(faq) => setContent({ ...content, faq })}

@@ -39,6 +39,34 @@ export interface LandingFaqItem {
   answer: string;
 }
 
+// บล็อกของหน้า /homecoming-89 ที่แอดมินเปิด/ปิดการแสดงผลได้ (/admin/landing)
+export const LANDING_SECTION_KEYS = ["hero", "tickets", "merch", "schedule", "honorGuests", "venue", "sponsors", "faq", "finalCta"] as const;
+export type LandingSectionKey = (typeof LANDING_SECTION_KEYS)[number];
+export const LANDING_SECTION_LABELS: Record<LandingSectionKey, string> = {
+  hero: "ส่วนหัว (ชื่องาน + นับถอยหลัง + รายละเอียดงาน)",
+  tickets: "จองโต๊ะงานเลี้ยง (บัตร/ราคา)",
+  merch: "ของที่ระลึก + ตารางไซซ์เสื้อ",
+  schedule: "กำหนดการ",
+  honorGuests: "รายชื่อคุณครู / แขกผู้มีเกียรติ",
+  venue: "สถานที่จัดงาน",
+  sponsors: "ระดับผู้สนับสนุน",
+  faq: "คำถามที่พบบ่อย (FAQ)",
+  finalCta: "ปิดท้าย \"มาเจอกันนะ\" + ปุ่มจองโต๊ะ",
+};
+export type LandingVisibleSections = Record<LandingSectionKey, boolean>;
+export const DEFAULT_VISIBLE_SECTIONS: LandingVisibleSections = {
+  hero: true,
+  tickets: true,
+  merch: true,
+  schedule: true,
+  // สองบล็อกนี้ถูกซ่อนจากหน้าเว็บมาตั้งแต่ปรับดีไซน์ (22 ก.ย.) — ค่าเริ่มต้น "ซ่อน" เพื่อให้หน้าไม่เปลี่ยนจนกว่าแอดมินจะเปิดเอง
+  honorGuests: false,
+  venue: true,
+  sponsors: false,
+  faq: true,
+  finalCta: true,
+};
+
 export interface LandingContent {
   eventDateISO: string; // ISO datetime with offset, drives the countdown
   eventDateLabel: string; // long Thai label, e.g. "วันเสาร์ที่ 20 ธันวาคม 2569"
@@ -60,6 +88,8 @@ export interface LandingContent {
   merchItems: LandingMerchItem[];
   sponsors: LandingSponsorTier[];
   faq: LandingFaqItem[];
+  // เปิด/ปิดการแสดงผลแต่ละบล็อก — ค่าที่ไม่มีในข้อมูลเก่า = แสดง (true)
+  visibleSections: LandingVisibleSections;
 }
 
 // ค่าเริ่มต้นอ้างอิงตามโปสเตอร์งาน "ประเพณี คืนสู่เหย้า 89 ปี เทคนิคอุดร"
@@ -114,6 +144,7 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     { question: "จะได้รับ QR Code เข้างานเมื่อไหร่?", answer: "หลังจากเจ้าหน้าที่ตรวจสอบสลิปและยืนยันการชำระเงินแล้ว ระบบจะส่ง QR Code เข้างานให้ทันที" },
     { question: "ส่งภาพเก่าสมัยเรียนเข้าร่วมได้ไหม?", answer: "ได้ครับ สามารถส่งภาพเก่าเข้ามาได้ ภาพที่คัดเลือกอาจนำขึ้นจอใหญ่ในค่ำคืนงาน" },
   ],
+  visibleSections: DEFAULT_VISIBLE_SECTIONS,
 };
 
 const MERCH_ICONS: LandingMerchItem["icon"][] = ["polo", "tshirt", "coin", "cup"];
@@ -134,6 +165,15 @@ function arr<T>(v: unknown, fallback: T[]): T[] {
  * body) on top of the defaults, field by field — so a missing or malformed
  * key never crashes the homepage or admin form, it just falls back.
  */
+function sanitizeVisibleSections(input: unknown): LandingVisibleSections {
+  const raw = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  const out = { ...DEFAULT_VISIBLE_SECTIONS };
+  for (const k of LANDING_SECTION_KEYS) {
+    if (typeof raw[k] === "boolean") out[k] = raw[k] as boolean;
+  }
+  return out;
+}
+
 export function sanitizeLandingContent(input: unknown): LandingContent {
   const raw = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const d = DEFAULT_LANDING_CONTENT;
@@ -192,5 +232,6 @@ export function sanitizeLandingContent(input: unknown): LandingContent {
     merchItems: merchItems.length ? merchItems : d.merchItems,
     sponsors: sponsors.length ? sponsors : d.sponsors,
     faq: faq.length ? faq : d.faq,
+    visibleSections: sanitizeVisibleSections(raw.visibleSections),
   };
 }
