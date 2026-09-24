@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { SIZES, CHEST, LENGTH } from "@/app/components/size-chart";
 
 interface EventItem {
   id: string;
@@ -452,13 +453,16 @@ export default function HomePage() {
           </div>
           <div className="merch-size-block">
             <div className="spec-label" style={{ color: "var(--gold-ink)", marginBottom: 10 }}>ตารางไซซ์เสื้อ (นิ้ว) — ใช้ได้ทั้งคอปกและคอกลม</div>
-            <table className="size-table">
-              <tbody>
-                <tr><th>ไซซ์</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>2XL</th><th>3XL</th></tr>
-                <tr><td>รอบอก</td><td>38</td><td>40</td><td>42</td><td>44</td><td>46</td><td>48</td></tr>
-                <tr><td>ความยาว</td><td>26</td><td>27</td><td>28</td><td>29</td><td>30</td><td>31</td></tr>
-              </tbody>
-            </table>
+            {/* ใช้ข้อมูลชุดเดียวกับตารางไซซ์ในหน้าสั่งซื้อของที่ระลึก (components/size-chart.tsx) — แก้ที่เดียวตรงกันทั้งสองหน้า */}
+            <div className="size-table-wrap">
+              <table className="size-table">
+                <tbody>
+                  <tr><th>ไซซ์</th>{SIZES.map((s) => <th key={s}>{s}</th>)}</tr>
+                  <tr><td>รอบอก</td>{CHEST.map((v, i) => <td key={i}>{v}</td>)}</tr>
+                  <tr><td>ความยาว</td>{LENGTH.map((v, i) => <td key={i}>{v}</td>)}</tr>
+                </tbody>
+              </table>
+            </div>
             <p className="size-note">หน่วยเป็นนิ้ว วัดจากตัวเสื้อ อาจคลาดเคลื่อนได้เล็กน้อยตามการตัดเย็บ · เลือกแบบเสื้อและไซซ์ได้ตอนลงทะเบียน ส่วนเหรียญและแก้วสั่งซื้อเพิ่มเติมได้ในระบบเดียวกัน</p>
             <Link href={bookHref} onClick={goBook} className="btn-primary" style={{ background: "var(--btn-dark-bg)", color: "var(--btn-dark-fg)", display: "inline-block" }}>จองโต๊ะการเลี้ยงพร้อมเลือกของที่ระลึก</Link>
           </div>
@@ -852,8 +856,9 @@ export default function HomePage() {
         .lightbox-close:hover{ color:var(--gold-text); }
         @media(max-width:640px){ .lightbox-overlay{ padding:16px; } .lightbox-close{ top:10px; right:12px; font-size:30px; } }
         .merch-price-badge{ position:absolute; top:12px; right:12px; background:var(--gold); color:var(--on-gold); font-family:'Space Mono',monospace; font-size:10.5px; padding:5px 10px; font-weight:700; z-index:2; }
-        .merch-size-block{ max-width:640px; }
-        .size-table{ width:100%; border-collapse:collapse; margin-bottom:10px; font-size:13px; }
+        .merch-size-block{ max-width:760px; }
+        .size-table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+        .size-table{ width:100%; min-width:520px; border-collapse:collapse; margin-bottom:10px; font-size:13px; }
         .size-table :global(th), .size-table :global(td){ border:1px solid var(--frame); padding:8px 6px; text-align:center; font-family:'Space Mono', monospace; color:var(--head); }
         .size-table :global(th){ background:var(--btn-dark-bg); color:var(--btn-dark-fg); font-weight:400; }
         .size-note{ font-size:12.5px; color:var(--slate); margin-bottom:26px; }
