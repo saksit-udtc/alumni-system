@@ -8,7 +8,7 @@ import PayQr from "@/app/components/pay-qr";
 import { generatePromptPayPayload } from "@/lib/promptpay";
 
 // เรียงไซส์เสื้อจากเล็กไปใหญ่ (API คืนตามลำดับแถวสต๊อก ซึ่งอาจเป็น L ก่อน S) — ไซส์ที่ไม่รู้จักต่อท้าย
-const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "6XL"];
+const SIZE_ORDER = ["SS", "S", "M", "L", "XL", "3L", "4L", "6L", "8L"];
 function sortSizes(sizes: string[]): string[] {
   const rank = (s: string) => {
     const i = SIZE_ORDER.indexOf(s.trim().toUpperCase());

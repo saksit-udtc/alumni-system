@@ -1,10 +1,10 @@
 // ตารางไซซ์เสื้อ + รูปวิธีวัด — แสดงเมื่อสินค้าตั้งค่า "ต้องเลือกไซส์" (requiresSize)
 // ปรับค่าตารางได้ที่ SIZES / CHEST / LENGTH (หน่วยนิ้ว) — หน้าแรก (app/page.tsx) ใช้ค่าชุดเดียวกันนี้
-export const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
-// 4XL/5XL เป็นค่าประมาณต่อเนื่องจากลำดับเดิม (อก +2 นิ้ว, ยาว +1 นิ้ว ต่อไซส์)
-// — ควรตรวจสอบกับเสื้อจริงแล้วแก้ค่า 2 ตัวท้ายของแต่ละแถวให้ตรง
-export const CHEST = [38, 40, 42, 44, 46, 48, 50, 52]; // รอบอก
-export const LENGTH = [26, 27, 28, 29, 30, 31, 32, 33]; // ความยาว
+// ตามตารางไซซ์จากผู้ผลิต (BCS Sport) — เสื้อโปโล 89 ปี
+// ถ้าแก้รายการไซซ์ ต้องแก้ให้ตรงกันใน merch/shop-parts.tsx, admin/merch/products/page.tsx และ merch/package/[id]/page.tsx ด้วย
+export const SIZES = ["SS", "S", "M", "L", "XL", "3L", "4L", "6L", "8L"];
+export const CHEST = [36, 38, 40, 42, 44, 46, 48, 52, 56]; // รอบอก
+export const LENGTH = [25.5, 26.5, 27.5, 28.5, 29.5, 30, 30.5, 31.5, 32.5]; // ความยาว
 
 export default function SizeChart({ className = "" }: { className?: string }) {
   return (

@@ -18,7 +18,7 @@ export interface ShopProduct {
   stock: Record<string, number>;
 }
 
-export const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+export const SIZES = ["SS", "S", "M", "L", "XL", "3L", "4L", "6L", "8L"];
 
 // Products with this many units (or fewer) left in total get a "low stock"
 // badge on the shop grid / detail view.
