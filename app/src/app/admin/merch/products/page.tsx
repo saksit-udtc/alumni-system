@@ -14,6 +14,9 @@ interface Product {
   // Extra gallery photos (the cover image above is separate) + optional
   // size-chart image — both shown on the shop's product detail view.
   images: { id: string; imageUrl: string }[];
+  // Back-side photo (front = imageUrl). When set the shop shows a
+  // ด้านหน้า/ด้านหลัง toggle instead of the extra-photo gallery.
+  backImageUrl: string | null;
   sizeGuideUrl: string | null;
   stock: Record<string, number>;
 }
@@ -167,6 +170,17 @@ export default function AdminMerchProductsPage() {
   async function deleteGalleryImage(id: string, imageId: string) {
     if (!confirm("ลบรูปนี้?")) return;
     await withMedia(id, () => fetch(`/api/admin/merch/products/${id}/gallery/${imageId}`, { method: "DELETE" }));
+  }
+
+  async function uploadBackImage(id: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    await withMedia(id, () => fetch(`/api/admin/merch/products/${id}/back-image`, { method: "POST", body: formData }));
+  }
+
+  async function deleteBackImage(id: string) {
+    if (!confirm("ลบรูปด้านหลัง?")) return;
+    await withMedia(id, () => fetch(`/api/admin/merch/products/${id}/back-image`, { method: "DELETE" }));
   }
 
   async function uploadSizeGuide(id: string, file: File) {
@@ -325,6 +339,7 @@ export default function AdminMerchProductsPage() {
                     <div className="font-display font-semibold text-stone-800">{p.name}</div>
                     {p.description && <div className="text-xs text-stone-400">{p.description}</div>}
                     <div className="text-sm text-maroon-700 font-medium">{Number(p.price).toLocaleString()} บาท</div>
+                    <div className="text-xs text-stone-500 mt-1">รูปด้านหน้า (รูปหลัก)</div>
                     <input
                       type="file"
                       accept="image/*"
@@ -375,7 +390,45 @@ export default function AdminMerchProductsPage() {
                 )}
 
                 <div>
-                  <div className="text-xs text-stone-500 mb-1">รูปเพิ่มเติม (สูงสุด 10 รูป — รูปหลักคือรูปที่อัปโหลดด้านบน)</div>
+                  <div className="text-xs text-stone-500 mb-1">
+                    รูปด้านหลังของสินค้า — ถ้าใส่ หน้าร้านจะให้กดดู &quot;ด้านหน้า / ด้านหลัง&quot; ได้ (ด้านหน้าคือรูปหลักด้านบน) แทนรูปเพิ่มเติม
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {p.imageUrl && (
+                      <div className="text-center">
+                        <img src={p.imageUrl} alt="ด้านหน้า" className="w-16 h-16 object-contain bg-white rounded-lg border border-cream-200" />
+                        <div className="text-[10px] text-stone-400">ด้านหน้า</div>
+                      </div>
+                    )}
+                    {p.backImageUrl && (
+                      <div className="relative text-center">
+                        <img src={p.backImageUrl} alt="ด้านหลัง" className="w-16 h-16 object-contain bg-white rounded-lg border border-cream-200" />
+                        <div className="text-[10px] text-stone-400">ด้านหลัง</div>
+                        <button
+                          type="button"
+                          onClick={() => deleteBackImage(p.id)}
+                          aria-label="ลบรูปด้านหลัง"
+                          className="absolute -top-1.5 -right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full w-5 h-5 text-xs leading-none flex items-center justify-center"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="text-xs"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadBackImage(p.id, file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-stone-500 mb-1">รูปเพิ่มเติม (สูงสุด 10 รูป — รูปหลักคือรูปที่อัปโหลดด้านบน · ไม่แสดงในหน้าร้านถ้าใส่รูปด้านหลังแล้ว)</div>
                   <div className="flex flex-wrap gap-2 items-center">
                     {p.images.map((img) => (
                       <div key={img.id} className="relative">

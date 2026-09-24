@@ -12,6 +12,9 @@ export interface ShopProduct {
   imageUrl: string | null;
   // Cover image first, then extra gallery photos (built server-side).
   images: string[];
+  // Back-side photo; with imageUrl as the front the detail view switches to
+  // a ด้านหน้า/ด้านหลัง toggle instead of the gallery.
+  backImageUrl: string | null;
   sizeGuideUrl: string | null;
   // "" -> qty for non-sized products; per-size key otherwise. A missing
   // key means 0 in stock, same as an explicit 0.
@@ -183,13 +186,22 @@ export function ProductModal({
   onQty: (n: number) => void;
   onAdd: () => void;
   onClose: () => void;
-  onZoom: (url: string, alt: string) => void;
+  // pair = รูปด้านหน้า/ด้านหลัง — ภาพขยายจะให้คลิกพลิกหน้า/หลังได้
+  onZoom: (url: string, alt: string, pair?: { front: string; back: string }) => void;
   // True while the full-screen image lightbox is open on top, so Escape
   // closes only that layer instead of both.
   escapeDisabled: boolean;
 }) {
   const [index, setIndex] = useState(0);
-  const images = product.images.length > 0 ? product.images : product.imageUrl ? [product.imageUrl] : [];
+  // มีรูปด้านหลัง → แสดงแค่ ด้านหน้า/ด้านหลัง (แทนแกลเลอรีรูปเดิม)
+  const frontBack = !!(product.imageUrl && product.backImageUrl);
+  const images = frontBack
+    ? [product.imageUrl as string, product.backImageUrl as string]
+    : product.images.length > 0
+      ? product.images
+      : product.imageUrl
+        ? [product.imageUrl]
+        : [];
   const current = images[Math.min(index, Math.max(0, images.length - 1))];
 
   useEffect(() => {
@@ -239,7 +251,24 @@ export function ProductModal({
         <div className="grid sm:grid-cols-2 gap-5 p-4 sm:p-6">
           <div className="flex flex-col gap-2">
             <div className="relative">
-              {current ? (
+              {current && frontBack ? (
+                // คลิกครั้งแรก = ขยายเป็นภาพใหญ่พื้นขาว แล้วค่อยคลิกที่ภาพใหญ่เพื่อพลิกหน้า/หลัง
+                <button
+                  type="button"
+                  onClick={() => onZoom(current, product.name, { front: images[0], back: images[1] })}
+                  className="relative block w-full cursor-zoom-in"
+                  aria-label="ดูภาพขยาย (พลิกดูด้านหลังได้)"
+                >
+                  <img
+                    src={current}
+                    alt={`${product.name} (ด้านหน้า)`}
+                    className="w-full aspect-square rounded-xl object-contain bg-white border border-cream-200 p-2"
+                  />
+                  <span className="absolute right-2 bottom-2 rounded-full bg-stone-800/85 text-white text-xs px-2.5 py-1 pointer-events-none">
+                    แตะเพื่อขยาย · ดูด้านหลังได้
+                  </span>
+                </button>
+              ) : current ? (
                 <button
                   type="button"
                   onClick={() => onZoom(current, product.name)}
@@ -253,7 +282,7 @@ export function ProductModal({
                   ไม่มีรูปภาพ
                 </div>
               )}
-              {images.length > 1 && (
+              {!frontBack && images.length > 1 && (
                 <>
                   <button
                     type="button"
@@ -274,7 +303,7 @@ export function ProductModal({
                 </>
               )}
             </div>
-            {images.length > 1 && (
+            {!frontBack && images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {images.map((url, i) => (
                   <button

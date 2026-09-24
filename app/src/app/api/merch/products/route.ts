@@ -35,6 +35,9 @@ export async function GET() {
         ...(p.imageKey ? [publicMerchProductUrl(p.imageKey)] : []),
         ...p.images.map((img) => publicMerchProductUrl(img.imageKey)),
       ],
+      // Back-side photo — with imageUrl as the front, the detail view shows a
+      // ด้านหน้า/ด้านหลัง toggle instead of the gallery above.
+      backImageUrl: p.backImageKey ? publicMerchProductUrl(p.backImageKey) : null,
       sizeGuideUrl: p.sizeGuideKey ? publicMerchProductUrl(p.sizeGuideKey) : null,
       // requiresSize: false -> { "": <qty> }. requiresSize: true -> one
       // entry per size, e.g. { "M": 3, "L": 0 }. A size/slot with no stock

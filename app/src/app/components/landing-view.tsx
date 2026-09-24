@@ -83,6 +83,14 @@ function MerchIcon({ icon }: { icon: MerchItem["icon"] }) {
   );
 }
 
+// รูปสินค้าที่ระลึก ด้านหน้า/ด้านหลัง (public/souvenir — มาจากโฟลเดอร์ souvenir) จับคู่กับการ์ดตาม icon ของแต่ละรายการ
+const SOUVENIR_IMAGES: Record<MerchItem["icon"], { front: string; back: string }> = {
+  polo: { front: "/souvenir/staff-polo-front.webp", back: "/souvenir/staff-polo-back.webp" },
+  tshirt: { front: "/souvenir/staff-crew-front.webp", back: "/souvenir/staff-crew-back.webp" },
+  coin: { front: "/souvenir/prize-vishnu-front.webp", back: "/souvenir/prize-vishnu-back.webp" },
+  cup: { front: "/souvenir/cup-front.webp", back: "/souvenir/cup-back.webp" },
+};
+
 function pad2(n: number) {
   return String(Math.max(0, n)).padStart(2, "0");
 }
@@ -101,6 +109,21 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
   const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
   const [countdown, setCountdown] = useState({ d: "--", h: "--", m: "--", s: "--" });
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  // รูปที่พลิกดูด้านหลังได้ (สินค้าที่ระลึก): กดรูปในหน้าต่างขยายเพื่อสลับหน้า/หลัง
+  const [lightboxFlip, setLightboxFlip] = useState<{ front: string; back: string; alt: string } | null>(null);
+  const [flipping, setFlipping] = useState(false);
+  function closeLightbox() {
+    setLightboxImage(null);
+    setLightboxFlip(null);
+  }
+  function flipLightbox() {
+    if (!lightboxFlip || flipping) return;
+    setFlipping(true);
+    setTimeout(() => {
+      setLightboxImage((cur) => (cur === lightboxFlip.back ? lightboxFlip.front : lightboxFlip.back));
+      setFlipping(false);
+    }, 150);
+  }
   const router = useRouter();
   const [banners, setBanners] = useState<HomeBannerItem[]>([]);
   const [bannerSeconds, setBannerSeconds] = useState(5);
@@ -199,7 +222,7 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
   useEffect(() => {
     if (!lightboxImage) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setLightboxImage(null);
+      if (e.key === "Escape") closeLightbox();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -276,7 +299,7 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
 
       {variant === "home" && (<>
       {banners.length > 0 && (
-        <section className="promo-slider" aria-label="ประชาสัมพันธ์">
+        <section className="promo-slider with-menu" aria-label="ประชาสัมพันธ์">
           <div className="wrap promo-wrap">
           <div className="promo-track">
             {banners.map((b, i) => {
@@ -306,39 +329,28 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
 
       <section className={`menu-cards${banners.length > 0 ? " after-slider" : ""}`} aria-label="เมนูหลัก">
         <div className="wrap menu-grid">
+          {/* การ์ดเมนูแบบข้อความล้วน (ไม่มีไอคอน/ปุ่ม) — ทั้งการ์ดกดได้ */}
           {[
-            { href: bookHref, onClick: goBook, title: "จองโต๊ะงานเลี้ยง", img: "/menu/menu-booking.webp" },
-            { href: "/merch", title: "สั่งซื้อของที่ระลึก", img: "/menu/menu-merch.webp" },
-            {
-              href: "https://forms.gle/WVLrDEqJfT4k5zzGA",
-              title: "รับโล่ศิษย์เก่าดีเด่น",
-              img: "/menu/menu-distinguished.webp",
-              external: true,
-            },
-            {
-              href: "https://forms.gle/DvPD8i5pMfMVsRLTA",
-              title: "รับโล่ผู้มีอุปการคุณ",
-              img: "/menu/menu-benefactor.webp",
-              external: true,
-            },
-          ].map((c) =>
-            c.external ? (
-              <a
-                key={c.title}
-                href={c.href}
-                target="_blank"
-                rel="noreferrer"
-                className="menu-card"
-                aria-label={c.title}
-              >
-                <img src={c.img} alt={c.title} className="menu-img" width={968} height={726} draggable={false} />
-              </a>
+            { href: bookHref, onClick: goBook, title: "จองโต๊ะงานเลี้ยง", lines: ["จองโต๊ะ", "งานเลี้ยง"], big: true },
+            { href: "/merch", title: "สั่งซื้อของที่ระลึก", lines: ["สั่งซื้อ", "ของที่ระลึก"], big: true },
+            { href: "https://forms.gle/WVLrDEqJfT4k5zzGA", title: "รับโล่ศิษย์เก่าดีเด่น", lines: ["รับโล่", "ศิษย์เก่าดีเด่น"], note: "ใช้ลดหย่อนภาษีได้", external: true },
+            { href: "https://forms.gle/DvPD8i5pMfMVsRLTA", title: "รับโล่ผู้มีอุปการคุณ", lines: ["รับโล่", "ผู้มีอุปการคุณ"], note: "ใช้ลดหย่อนภาษีได้", external: true },
+          ].map((c) => {
+            // แบ่ง 2 บรรทัดเอง (เบราว์เซอร์ตัดคำไทยกลางคำได้ เช่น "ดี/เด่น")
+            const inner = (
+              <span className="menu-body">
+                <span className={`menu-title${"big" in c && c.big ? " big" : ""}`}>
+                  {c.lines.map((l) => <span key={l} className="menu-line">{l}</span>)}
+                </span>
+                {"note" in c && c.note ? <span className="menu-note">{c.note}</span> : null}
+              </span>
+            );
+            return c.external ? (
+              <a key={c.title} href={c.href} target="_blank" rel="noreferrer" className="menu-card">{inner}</a>
             ) : (
-              <Link key={c.title} href={c.href} onClick={c.onClick} className="menu-card" aria-label={c.title}>
-                <img src={c.img} alt={c.title} className="menu-img" width={968} height={726} draggable={false} />
-              </Link>
-            )
-          )}
+              <Link key={c.title} href={c.href} onClick={c.onClick} className="menu-card">{inner}</Link>
+            );
+          })}
         </div>
       </section>
 
@@ -440,27 +452,30 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
             <p>เสื้อคอโปโล เสื้อคอกลม แก้วที่ระลึก และเหรียญพระวิษณุกรรม เปิดให้สั่งซื้อเพิ่มเติมได้</p>
           </div>
           <div className="merch-items-grid">
-            {content.merchItems.map((item, i) => (
-              <div className="merch-item" key={i}>
-                <div className="merch-visual">
-                  <div className="blueprint" />
-                  <div className="merch-price-badge">{item.badge}</div>
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="merch-photo merch-photo-clickable"
-                      onClick={() => setLightboxImage(item.imageUrl)}
-                    />
-                  ) : (
-                    <div className="shirt-mark"><MerchIcon icon={item.icon} /></div>
-                  )}
+            {content.merchItems.map((item, i) => {
+              const pic = SOUVENIR_IMAGES[item.icon];
+              return (
+                <div className="merch-item" key={i}>
+                  <button
+                    type="button"
+                    className="souvenir-visual"
+                    onClick={() => {
+                      setLightboxFlip({ front: pic.front, back: pic.back, alt: item.name });
+                      setLightboxImage(pic.front);
+                    }}
+                    aria-label={`ขยายรูป ${item.name}`}
+                  >
+                    <div className="merch-price-badge">{item.badge}</div>
+                    <img src={pic.front} alt={item.name} className="souvenir-photo" loading="lazy" />
+                    <span className="flip-badge" aria-hidden="true">↻ ด้านหลัง</span>
+                  </button>
+                  <h4>{item.name}</h4>
+                  <p>{item.description}</p>
                 </div>
-                <h4>{item.name}</h4>
-                <p>{item.description}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
+          <p className="souvenir-hint">กดที่รูปเพื่อขยาย แล้วกดที่รูปอีกครั้งเพื่อพลิกดูด้านหลัง</p>
           <div className="merch-size-block">
             <div className="spec-label" style={{ color: "var(--gold-ink)", marginBottom: 10 }}>ตารางไซซ์เสื้อ (นิ้ว) — ใช้ได้ทั้งคอปกและคอกลม</div>
             {/* ใช้ข้อมูลชุดเดียวกับตารางไซซ์ในหน้าสั่งซื้อของที่ระลึก (components/size-chart.tsx) — แก้ที่เดียวตรงกันทั้งสองหน้า */}
@@ -569,16 +584,31 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
       )}
 
       {lightboxImage && (
-        <div className="lightbox-overlay" onClick={() => setLightboxImage(null)}>
+        <div className="lightbox-overlay" onClick={closeLightbox}>
           <button
             type="button"
             className="lightbox-close"
-            onClick={() => setLightboxImage(null)}
+            onClick={closeLightbox}
             aria-label="ปิด"
           >
             ×
           </button>
-          <img src={lightboxImage} alt="" className="lightbox-image" onClick={(e) => e.stopPropagation()} />
+          {lightboxFlip ? (
+            <div className="lightbox-flip" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={lightboxImage}
+                alt={`${lightboxFlip.alt}${lightboxImage === lightboxFlip.back ? " (ด้านหลัง)" : ""}`}
+                className={`lightbox-image flip-frame${flipping ? " flipping" : ""}`}
+                onClick={flipLightbox}
+              />
+              <p className="lightbox-caption">
+                {lightboxFlip.alt}
+                {lightboxImage === lightboxFlip.back ? " (ด้านหลัง)" : ""} · กดที่รูปเพื่อพลิกดูอีกด้าน
+              </p>
+            </div>
+          ) : (
+            <img src={lightboxImage} alt="" className="lightbox-image" onClick={(e) => e.stopPropagation()} />
+          )}
         </div>
       )}
 
@@ -694,7 +724,8 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         .landingRoot :global(a){ color:inherit; text-decoration:none; }
         .wrap{ max-width:1120px; margin:0 auto; padding:0 24px; }
         /* ---- สไลด์แบนเนอร์ ---- */
-        .landingRoot .promo-slider{ position:relative; background:var(--surf-deep); overflow:hidden; padding:42px 0 0; }
+        /* padding-top ต้องมากกว่าความสูงแถบเมนูด้านบน (header fixed สูง ~41px) ไม่งั้นแถบเมนูจะบังขอบบนของภาพสไลด์ */
+        .landingRoot .promo-slider{ position:relative; background:var(--surf-deep); overflow:hidden; padding:50px 0 0; }
         .promo-wrap{ position:relative; }
         /* กรอบ 16:9 และแสดงรูปเต็มภาพ (contain) ไม่ครอปขอบ — จอกว้างมากจะมีขอบสีกรมท่าสองข้าง */
         .promo-track{ position:relative; width:100%; aspect-ratio:16/9; max-height:min(58vh,600px); margin:0 auto; }
@@ -711,8 +742,16 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         /* ---- การ์ดเมนู 4 ใบ (โทนกรมท่า-ทอง เหมือนส่วนอื่นของเว็บ) ---- */
         /* การ์ดอยู่ใต้สไลด์ (ไม่ซ้อนทับ) เว้นช่องว่างจากขอบล่างสไลด์ 8px (มือถือ 5px); ถ้าไม่มีสไลด์ให้เว้นที่ให้แถบเมนูบนสุด (fixed) */
         .landingRoot .menu-cards{ position:relative; padding:70px 0 8px; background:var(--surf-deep); }
-        .landingRoot .menu-cards.after-slider{ padding-top:8px; }
-        @media (max-width:860px){ .landingRoot .menu-cards.after-slider{ padding-top:5px; } }
+        /* การ์ดเมนูซ้อนทับขอบล่างของสไลด์เล็กน้อย (--menu-overlap) — น้อยพอไม่บังบรรทัดล่างสุดของภาพ ("ณ วิทยาลัยเทคนิคอุดรธานี") */
+        .landingRoot{ --menu-overlap:28px; }
+        @media (max-width:860px){ .landingRoot{ --menu-overlap:14px; } }
+        .landingRoot .menu-cards.after-slider{
+          z-index:2; padding-top:0; margin-top:calc(-1 * var(--menu-overlap));
+          background:linear-gradient(to bottom, transparent var(--menu-overlap), var(--surf-deep) var(--menu-overlap));
+        }
+        .landingRoot .menu-cards.after-slider .menu-grid{ max-width:calc((min(100vw, 1120px) - 48px) * 0.78125); gap:14px; }
+        @media (max-width:860px){ .landingRoot .menu-cards.after-slider .menu-grid{ max-width:none; gap:10px; } }
+        .landingRoot .promo-slider.with-menu .promo-dots{ bottom:calc(var(--menu-overlap) + 10px); }
         .landingRoot .poster-section{ padding:40px 0 8px; background:var(--surf-deep); text-align:center; }
         .poster-title{ font-size:clamp(20px,2.6vw,26px); font-weight:700; color:var(--on-surf); margin:0 0 18px; }
         .poster-frame{ display:block; width:100%; max-width:640px; margin:0 auto; padding:0; border:0; background:none; border-radius:18px; overflow:hidden; cursor:zoom-in; box-shadow:0 14px 34px var(--card-shadow); border-top:3px solid var(--gold); }
@@ -730,11 +769,24 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         @media (max-width:860px){ .poster-section + .hero{ padding-top:56px; } }
         .menu-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
         @media (max-width:860px){ .menu-grid{ grid-template-columns:repeat(2,1fr); gap:12px; } }
-        .menu-cards :global(.menu-card){ display:block; padding:0; background:none; border:0; border-radius:16px; box-shadow:0 10px 22px var(--card-shadow); overflow:hidden; transition:transform .15s, box-shadow .2s; }
-        .menu-cards :global(.menu-card:hover){ transform:translateY(-4px) scale(1.015); box-shadow:0 16px 32px var(--card-shadow); }
-        .menu-cards :global(.menu-card:active){ transform:scale(.98); }
+        .menu-cards :global(.menu-card){ display:flex; align-items:center; justify-content:center; text-align:center; min-height:96px; padding:18px 14px; background:linear-gradient(160deg,var(--card-a) 0%,var(--card-b) 100%); border:1px solid var(--line); border-top:3px solid var(--gold); border-radius:18px; color:var(--card-ink); box-shadow:0 12px 28px var(--card-shadow); transition:transform .15s, border-color .2s, box-shadow .2s; }
+        /* เด้งขึ้นเมื่อชี้เมาส์ (ปรับแรงขึ้นทีละขั้น: -3px → -3.6px → -4.3px → -6.5px) */
+        .menu-cards :global(.menu-card:hover){ transform:translateY(-6.5px); border-color:var(--gold-bright); box-shadow:0 20px 42px var(--card-shadow); }
+        .menu-cards :global(.menu-card:hover) .menu-title{ color:var(--gold-text); }
         .menu-cards :global(.menu-card:focus-visible){ outline:3px solid var(--gold-bright); outline-offset:3px; }
-        .menu-cards :global(.menu-img){ width:100%; height:auto; aspect-ratio:968/726; display:block; user-select:none; -webkit-user-drag:none; }
+        .menu-title{ font-weight:700; font-size:22px; line-height:1.35; color:var(--card-ink); transition:color .15s; }
+        .menu-line{ display:block; white-space:nowrap; }
+        .menu-body{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+        .menu-title.big{ font-size:28px; line-height:1.25; }
+        /* ป้าย "ใช้ลดหย่อนภาษีได้" ใต้ชื่อเมนูรับโล่ */
+        .menu-note{ display:inline-block; padding:3px 12px; border-radius:999px; background:var(--gold); color:var(--on-gold); font-size:13px; font-weight:700; white-space:nowrap; }
+        @media (max-width:860px){
+          .menu-cards :global(.menu-card){ min-height:72px; padding:12px 10px; border-radius:14px; }
+          .menu-title{ font-size:18px; }
+          .menu-title.big{ font-size:22px; }
+          .menu-body{ gap:6px; }
+          .menu-note{ font-size:12px; padding:2px 10px; }
+        }
         .landingRoot :global(section){ position:relative; padding:96px 0; }
         .landingRoot :global(img){ max-width:100%; display:block; }
 
@@ -760,7 +812,8 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           border-bottom:1px solid rgba(var(--gold-rgb),0.2);
         }
         .nav{ display:flex; align-items:center; justify-content:space-between; max-width:1120px; margin:0 auto; padding:5px 16px; gap:12px; }
-        .brand{ display:flex; align-items:center; gap:8px; color:var(--on-surf); }
+        /* .brand เป็น <Link> (คอมโพเนนต์ลูก) — styled-jsx แบบ scoped ใช้กับมันไม่ได้ ต้องใช้ :global ไม่งั้นโลโก้กับชื่อจะซ้อนเป็น 2 บรรทัด แถบบนสูงเกิน */
+        .nav :global(.brand){ display:flex; align-items:center; gap:8px; color:var(--on-surf); }
         .brand-logo{ width:30px; height:30px; object-fit:contain; }
         .brand-text{ font-family:'IBM Plex Sans Thai', sans-serif; font-weight:600; font-size:13px; letter-spacing:0.01em; color: var(--on-surf); }
         .nav-links{ display:flex; gap:16px; align-items:center; }
@@ -859,6 +912,18 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         .merch-visual :global(.shirt-mark){ z-index:1; color:var(--gold-text); }
         .merch-visual :global(.merch-photo){ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; }
         .merch-visual :global(.merch-photo-clickable){ cursor:zoom-in; }
+        /* การ์ดรูปสินค้าที่ระลึก (พื้นขาว รูปพื้นใส) — กดเพื่อขยาย + พลิกดูด้านหลัง */
+        .souvenir-visual{ position:relative; display:block; width:100%; aspect-ratio:1/1; padding:0; border:1px solid var(--line); border-radius:16px; background:#fff; overflow:hidden; cursor:zoom-in; transition:transform .15s, box-shadow .2s; }
+        .souvenir-visual:hover{ transform:scale(1.03); box-shadow:0 12px 26px var(--card-shadow); }
+        .souvenir-visual:focus-visible{ outline:3px solid var(--gold-bright); outline-offset:3px; }
+        .souvenir-photo{ width:100%; height:100%; object-fit:contain; padding:14px; display:block; }
+        .flip-badge{ position:absolute; right:10px; bottom:10px; padding:3px 10px; border-radius:999px; background:rgba(14,42,71,.9); color:#fff; font-size:12px; z-index:2; }
+        .souvenir-hint{ text-align:center; font-size:13px; color:var(--slate); margin:-28px 0 40px; }
+        .lightbox-flip{ display:flex; flex-direction:column; align-items:center; max-width:min(90vw,640px); width:100%; }
+        .lightbox-flip .flip-frame{ width:100%; aspect-ratio:1/1; background:#fff; border-radius:20px; padding:16px; cursor:pointer; transition:transform .15s ease; }
+        .lightbox-flip .flip-frame.flipping{ transform:scaleX(0); }
+        .lightbox-caption{ color:var(--paper); font-size:14px; margin-top:12px; text-align:center; }
+        @media (prefers-reduced-motion: reduce){ .souvenir-visual, .lightbox-flip .flip-frame{ transition:none; } }
         .book-toast{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:600; max-width:calc(100vw - 32px); padding:14px 24px; border-radius:14px; background:var(--gold); color:var(--on-gold); font-weight:700; font-size:15px; text-align:center; box-shadow:0 12px 30px rgba(0,0,0,.35); animation:toastIn .2s ease; }
         @keyframes toastIn{ from{ opacity:0; transform:translate(-50%,10px); } to{ opacity:1; transform:translate(-50%,0); } }
         .lightbox-overlay{ position:fixed; inset:0; background:rgba(10,14,20,0.92); z-index:500; display:flex; align-items:center; justify-content:center; padding:40px; cursor:zoom-out; }

@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
       active: p.active,
       imageUrl: p.imageKey ? publicMerchProductUrl(p.imageKey) : null,
       images: p.images.map((img) => ({ id: img.id, imageUrl: publicMerchProductUrl(img.imageKey) })),
+      backImageUrl: p.backImageKey ? publicMerchProductUrl(p.backImageKey) : null,
       sizeGuideUrl: p.sizeGuideKey ? publicMerchProductUrl(p.sizeGuideKey) : null,
       stock: Object.fromEntries(p.stocks.map((s) => [s.size ?? "", s.quantity])),
     })),

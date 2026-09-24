@@ -271,6 +271,10 @@ model MerchProduct {
   // Cover image (shown first / used by POS + admin thumbnails). Extra
   // gallery photos live in MerchProductImage below.
   imageKey     String?
+  // Optional back-side photo (e.g. back of a shirt). When set, the shop's
+  // product detail view shows a ด้านหน้า/ด้านหลัง toggle (imageKey = front)
+  // instead of the extra-photo gallery.
+  backImageKey String?
   // Optional size-chart image (e.g. shirt measurements) shown on the shop's
   // product detail view — uploaded by admin, null for products without one.
   sizeGuideKey String?

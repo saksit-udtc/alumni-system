@@ -60,7 +60,26 @@ export default function MerchShopPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; alt: string; pair?: { front: string; back: string } } | null>(null);
+  // ภาพขยายแบบมีด้านหน้า/หลัง: คลิกที่ภาพเพื่อพลิก (หดแนวนอน → เปลี่ยนรูป → ขยายกลับ)
+  const [lightboxFlipping, setLightboxFlipping] = useState(false);
+  function flipLightbox() {
+    if (!lightbox?.pair || lightboxFlipping) return;
+    const { front, back } = lightbox.pair;
+    setLightboxFlipping(true);
+    setTimeout(() => {
+      setLightbox((lb) => (lb ? { ...lb, url: lb.url === back ? front : back } : lb));
+      setLightboxFlipping(false);
+    }, 160);
+  }
+  useEffect(() => {
+    if (!lightbox) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightbox(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
   // Product currently open in the detail modal (null = closed).
   const [detailId, setDetailId] = useState<string | null>(null);
   // Short confirmation shown after adding to cart.
@@ -337,7 +356,8 @@ export default function MerchShopPage() {
       {loading && <p className="text-stone-500">กำลังโหลด...</p>}
       {!loading && products.length === 0 && merchPackages.length === 0 && <p className="text-stone-500">ยังไม่มีสินค้าเปิดขายในขณะนี้</p>}
 
-      <div className="grid grid-cols-4 gap-2 sm:gap-4">
+      {/* มือถือ 2×2, จอใหญ่ 4 คอลัมน์ */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {products.map((p) => {
           const soldOut = totalStock(p) <= 0;
           const quickRemaining = remainingForSize(p, "");
@@ -362,12 +382,12 @@ export default function MerchShopPage() {
                 <button
                   type="button"
                   onClick={() => setDetailId(p.id)}
-                  className="text-left text-xs sm:text-base leading-snug font-display font-semibold text-stone-800 hover:text-maroon-700 transition-colors"
+                  className="text-left text-sm sm:text-base leading-snug font-display font-semibold text-stone-800 hover:text-maroon-700 transition-colors"
                 >
                   {p.name}
                 </button>
                 {p.description && <p className="hidden sm:block text-xs text-stone-500 line-clamp-2">{p.description}</p>}
-                <p className="text-xs sm:text-base font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
+                <p className="text-sm sm:text-base font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
                 <div className="mt-auto pt-2 flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
@@ -381,7 +401,7 @@ export default function MerchShopPage() {
                       <button
                         type="button"
                         onClick={() => setDetailId(p.id)}
-                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-1.5 sm:py-2 text-xs sm:text-sm font-semibold"
+                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 text-sm font-semibold"
                       >
                         เลือกไซส์
                       </button>
@@ -390,7 +410,7 @@ export default function MerchShopPage() {
                         type="button"
                         onClick={() => addToCart(p)}
                         disabled={quickRemaining <= 0}
-                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-1.5 sm:py-2 text-xs sm:text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {quickRemaining > 0 ? "+ ตะกร้า" : "ครบแล้ว"}
                       </button>
@@ -417,11 +437,11 @@ export default function MerchShopPage() {
               <div className="w-full aspect-square bg-cream-100 flex items-center justify-center text-stone-400 text-sm">ไม่มีรูปภาพ</div>
             )}
             <div className="p-2 sm:p-3 flex flex-col gap-1 flex-1">
-              <span className="text-left text-xs sm:text-base leading-snug font-display font-semibold text-stone-800">{p.name}</span>
+              <span className="text-left text-sm sm:text-base leading-snug font-display font-semibold text-stone-800">{p.name}</span>
               {p.description && <p className="hidden sm:block text-xs text-stone-500 line-clamp-2">{p.description}</p>}
-              <p className="text-xs sm:text-base font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
+              <p className="text-sm sm:text-base font-semibold text-maroon-700">{Number(p.price).toLocaleString()} บาท</p>
               <div className="mt-auto pt-2">
-                <span className="block text-center bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-1.5 sm:py-2 text-xs sm:text-sm font-semibold">
+                <span className="block text-center bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2 text-sm font-semibold">
                   ดูแพ็กเกจ
                 </span>
               </div>
@@ -637,7 +657,7 @@ export default function MerchShopPage() {
           onQty={(quantity) => updateSelection(detailProduct.id, { quantity })}
           onAdd={() => addToCart(detailProduct)}
           onClose={() => setDetailId(null)}
-          onZoom={(url, alt) => setLightbox({ url, alt })}
+          onZoom={(url, alt, pair) => setLightbox({ url, alt, pair })}
           escapeDisabled={!!lightbox}
         />
       )}
@@ -676,6 +696,26 @@ export default function MerchShopPage() {
           onClick={() => setLightbox(null)}
           className="fixed inset-0 z-[58] bg-black/80 flex items-center justify-center p-4 cursor-zoom-out overflow-auto"
         >
+          {lightbox.pair ? (
+            <div className="w-full max-w-[min(92vw,86vh)] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={flipLightbox}
+                className="block w-full bg-white rounded-2xl shadow-2xl cursor-pointer"
+                aria-label={`พลิกดู${lightbox.url === lightbox.pair.back ? "ด้านหน้า" : "ด้านหลัง"}`}
+              >
+                <img
+                  src={lightbox.url}
+                  alt={`${lightbox.alt} (${lightbox.url === lightbox.pair.back ? "ด้านหลัง" : "ด้านหน้า"})`}
+                  className="w-full aspect-square object-contain p-4 sm:p-6 transition-transform duration-150 ease-in-out motion-reduce:transition-none"
+                  style={{ transform: lightboxFlipping ? "scaleX(0)" : "scaleX(1)" }}
+                />
+              </button>
+              <p className="mt-3 text-white text-sm text-center">
+                {lightbox.url === lightbox.pair.back ? "ด้านหลัง" : "ด้านหน้า"} · แตะที่ภาพเพื่อพลิกดูอีกด้าน
+              </p>
+            </div>
+          ) : (
           <img
             src={lightbox.url}
             alt={lightbox.alt}
@@ -686,6 +726,7 @@ export default function MerchShopPage() {
             onClick={(e) => e.stopPropagation()}
             className="max-w-full max-h-full sm:max-w-[90vw] sm:max-h-[90vh] object-contain rounded-lg"
           />
+          )}
           <button
             type="button"
             onClick={() => setLightbox(null)}
