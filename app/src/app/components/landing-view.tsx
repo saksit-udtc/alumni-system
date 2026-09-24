@@ -166,26 +166,6 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
       .catch(() => {});
   }, []);
 
-  // ดาวน์โหลดโปสเตอร์เป็นไฟล์ (ถ้าดึงไฟล์ข้ามโดเมนไม่ได้ จะเปิดรูปในแท็บใหม่แทน)
-  async function downloadPoster() {
-    try {
-      const res = await fetch(poster.imageUrl);
-      if (!res.ok) throw new Error("fetch failed");
-      const blob = await res.blob();
-      const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `poster-homecoming-89.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      window.open(poster.imageUrl, "_blank", "noopener");
-    }
-  }
-
   useEffect(() => {
     if (banners.length < 2) return;
     const t = setInterval(() => setSlide((i) => (i + 1) % banners.length), bannerSeconds * 1000);
@@ -367,7 +347,6 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
             <img src={poster.imageUrl} alt="โปสเตอร์ประเพณีคืนสู่เหย้า 89 ปี เทคนิคอุดร" loading="lazy" />
           </button>
           <p className="poster-hint">แตะที่รูปเพื่อขยายดูเต็มจอ</p>
-          <button type="button" className="poster-dl" onClick={downloadPoster}>ดาวน์โหลดโปสเตอร์</button>
           </div>
         </section>
       )}
@@ -754,16 +733,14 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         .landingRoot .promo-slider.with-menu .promo-dots{ bottom:calc(var(--menu-overlap) + 10px); }
         .landingRoot .poster-section{ padding:40px 0 8px; background:var(--surf-deep); text-align:center; }
         .poster-title{ font-size:clamp(20px,2.6vw,26px); font-weight:700; color:var(--on-surf); margin:0 0 18px; }
-        .poster-frame{ display:block; width:100%; max-width:640px; margin:0 auto; padding:0; border:0; background:none; border-radius:18px; overflow:hidden; cursor:zoom-in; box-shadow:0 14px 34px var(--card-shadow); border-top:3px solid var(--gold); }
+        /* กว้างเท่าภาพสไลด์ด้านบน: สไลด์ 16:9 สูงไม่เกิน min(58vh,600px) และไม่เกินกรอบ .wrap */
+        .poster-frame{ display:block; width:100%; max-width:min(100%, calc(min(58vh, 600px) * 16 / 9)); margin:0 auto; padding:0; border:0; background:none; border-radius:18px; overflow:hidden; cursor:zoom-in; box-shadow:0 14px 34px var(--card-shadow); border-top:3px solid var(--gold); }
         .poster-frame img{ display:block; width:100%; height:auto; }
         .poster-hint{ margin:12px 0 0; font-size:13px; color:var(--on-surf-dim); }
-        .poster-dl{ display:inline-block; margin-top:14px; padding:12px 28px; border:0; cursor:pointer; font-family:inherit; background:var(--gold); color:var(--on-gold); font-weight:700; font-size:15px; border-radius:14px; transition:background .15s; }
-        .poster-dl:hover{ background:var(--gold-bright); }
         @media (max-width:860px){
           .landingRoot .poster-section{ padding:28px 0 4px; }
-          .poster-section .wrap{ padding:0; }
-          .poster-title, .poster-hint{ padding:0 16px; }
-          .poster-frame{ max-width:100%; border-radius:0; }
+          /* มือถือ: กว้างเท่าสไลด์ (เว้นขอบ 24px เหมือน .wrap ของสไลด์) */
+          .poster-frame{ border-radius:12px; }
         }
         .poster-section + .hero{ padding-top:80px; }
         @media (max-width:860px){ .poster-section + .hero{ padding-top:56px; } }
