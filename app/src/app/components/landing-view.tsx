@@ -42,6 +42,9 @@ interface LandingContent {
   merchItems: MerchItem[];
   sponsors: SponsorTier[];
   faq: FaqItem[];
+  howToBooking?: { title: string; description: string }[];
+  howToMerch?: { title: string; description: string }[];
+  howToNotes?: string[];
   // เปิด/ปิดแต่ละบล็อก (ตั้งค่าที่ /admin/landing) — ไม่มีค่า = แสดง
   visibleSections?: Partial<Record<LandingBlock, boolean>>;
 }
@@ -93,7 +96,7 @@ const SOUVENIR_IMAGES: Record<MerchItem["icon"], { front: string; back: string }
   cup: { front: "/souvenir/cup-front.webp", back: "/souvenir/cup-back.webp" },
 };
 
-type LandingBlock = "hero" | "tickets" | "merch" | "schedule" | "honorGuests" | "venue" | "sponsors" | "faq" | "finalCta";
+type LandingBlock = "hero" | "tickets" | "merch" | "howTo" | "schedule" | "honorGuests" | "venue" | "sponsors" | "faq" | "finalCta";
 
 function pad2(n: number) {
   return String(Math.max(0, n)).padStart(2, "0");
@@ -110,6 +113,8 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
+  // แท็บในบล็อก "วิธีจองและชำระเงิน"
+  const [howToTab, setHowToTab] = useState<"booking" | "merch">("booking");
   const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
   const [countdown, setCountdown] = useState({ d: "--", h: "--", m: "--", s: "--" });
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -263,6 +268,7 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           </Link>
           <div className="nav-links">
             {variant === "home" && <Link href={LANDING_HREF}>รายละเอียดงาน 89 ปี</Link>}
+            {show("howTo") && <a href={`${anchorBase}#howto`}>วิธีจอง</a>}
             {show("schedule") && <a href={`${anchorBase}#schedule`}>กำหนดการ</a>}
             {show("venue") && <a href={`${anchorBase}#venue`}>สถานที่</a>}
             {show("faq") && <a href={`${anchorBase}#faq`}>คำถาม</a>}
@@ -277,6 +283,7 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           )}
           {(
             [
+              ["howTo", `${anchorBase}#howto`, "วิธีจอง"],
               ["schedule", `${anchorBase}#schedule`, "กำหนดการ"],
               ["venue", `${anchorBase}#venue`, "สถานที่"],
               ["faq", `${anchorBase}#faq`, "คำถาม"],
@@ -494,6 +501,71 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
       </section>
       )}
 
+      {show("howTo") && (
+      <section id="howto" style={{ background: "var(--bg-alt)" }}>
+        <div className="wrap">
+          <div className="section-head">
+            <div className="kicker">วิธีจองและชำระเงิน</div>
+            <h2>
+              {howToTab === "booking" ? "จองโต๊ะ" : "สั่งซื้อ"}ง่ายใน{" "}
+              {(howToTab === "booking" ? content.howToBooking : content.howToMerch)?.length ?? 0} ขั้นตอน
+            </h2>
+            <p>เตรียมโอนเงินและเก็บสลิปไว้ก่อน — ต้องแนบสลิปตอนกดยืนยันทุกครั้ง</p>
+          </div>
+          <div className="howto-tabs" role="tablist" aria-label="เลือกขั้นตอน">
+            {(
+              [
+                ["booking", "จองโต๊ะงานเลี้ยง"],
+                ["merch", "สั่งซื้อของที่ระลึก"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={howToTab === k}
+                className={`howto-tab${howToTab === k ? " on" : ""}`}
+                onClick={() => setHowToTab(k)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <ol className="howto-steps">
+            {(howToTab === "booking" ? content.howToBooking : content.howToMerch)?.map((st, i) => (
+              <li className="howto-step" key={i}>
+                <span className="howto-num" aria-hidden="true">{i + 1}</span>
+                <div>
+                  <h4>{st.title}</h4>
+                  {st.description && <p>{st.description}</p>}
+                </div>
+              </li>
+            ))}
+          </ol>
+          {content.howToNotes && content.howToNotes.length > 0 && (
+            <div className="howto-notes">
+              <div className="howto-notes-title">ข้อควรรู้เรื่องการชำระเงิน</div>
+              <ul>
+                {content.howToNotes.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
+            </div>
+          )}
+          <div className="howto-actions">
+            {howToTab === "booking" ? (
+              <>
+                <Link href={bookHref} onClick={goBook} className="btn-primary">จองโต๊ะงานเลี้ยง</Link>
+                <Link href="/status" className="howto-link">เช็คสถานะการจอง →</Link>
+              </>
+            ) : (
+              <>
+                <Link href="/merch" className="btn-primary">สั่งซื้อของที่ระลึก</Link>
+                <Link href="/merch/status" className="howto-link">เช็คสถานะการสั่งซื้อ →</Link>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+      )}
       {show("schedule") && (
       <section id="schedule" style={{ background: "var(--bg-alt)" }}>
         <div className="wrap">
@@ -940,6 +1012,22 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         }
 
         .section-head{ margin-bottom:52px; max-width:600px; }
+        /* บล็อก "วิธีจองและชำระเงิน" */
+        .howto-tabs{ display:flex; flex-wrap:wrap; gap:8px; margin:-24px 0 28px; }
+        .howto-tab{ border:1px solid var(--frame); background:transparent; color:var(--head); padding:10px 20px; border-radius:999px; font:inherit; font-size:15px; font-weight:600; cursor:pointer; transition:background .15s,color .15s; }
+        .howto-tab.on{ background:var(--head); color:var(--bg-page); }
+        .howto-steps{ list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; counter-reset:none; }
+        .howto-step{ display:flex; gap:14px; align-items:flex-start; background:var(--bg-page); border:1px solid var(--hairline); border-top:3px solid var(--gold); border-radius:14px; padding:18px 16px; }
+        .howto-num{ flex:0 0 auto; width:36px; height:36px; border-radius:50%; background:var(--gold); color:var(--on-gold); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:17px; }
+        .howto-step :global(h4){ font-size:16px; color:var(--head); margin:4px 0 6px; line-height:1.35; }
+        .howto-step :global(p){ font-size:13.5px; color:var(--slate); line-height:1.6; margin:0; }
+        .howto-notes{ margin-top:24px; padding:16px 20px; border-left:3px solid var(--gold); background:var(--bg-page); border-radius:0 12px 12px 0; }
+        .howto-notes-title{ font-weight:700; color:var(--head); margin-bottom:8px; font-size:15px; }
+        .howto-notes :global(ul){ margin:0; padding-left:20px; }
+        .howto-notes :global(li){ font-size:14px; color:var(--slate); line-height:1.7; }
+        .howto-actions{ margin-top:24px; display:flex; flex-wrap:wrap; align-items:center; gap:18px; }
+        .howto-actions :global(.howto-link){ color:var(--head); font-weight:600; text-decoration:underline; text-underline-offset:3px; }
+        @media(max-width:640px){ .howto-tabs{ margin-top:-32px; } .howto-tab{ flex:1 1 auto; text-align:center; padding:10px 12px; font-size:14px; } }
         .kicker{ font-family:'Space Mono', monospace; font-size:12px; color:var(--slate); display:flex; align-items:center; gap:10px; margin-bottom:14px; }
         .kicker::before{ content:''; width:22px; height:1px; background:var(--gold); display:inline-block; }
         .section-head :global(h2){ font-size:clamp(26px,3.4vw,38px); color:var(--head); }

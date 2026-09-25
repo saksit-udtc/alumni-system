@@ -8,6 +8,8 @@ interface HonorGuest { name: string; role: string; photoUrl: string }
 interface MerchItem { name: string; description: string; badge: string; icon: "polo" | "tshirt" | "coin" | "cup"; imageUrl: string }
 interface SponsorTier { tier: string; label: string; price: string; benefits: string[]; logoUrl: string }
 interface FaqItem { question: string; answer: string }
+interface HowToStep { title: string; description: string }
+interface NoteItem { text: string }
 
 interface LandingContent {
   eventDateISO: string;
@@ -30,6 +32,9 @@ interface LandingContent {
   merchItems: MerchItem[];
   sponsors: SponsorTier[];
   faq: FaqItem[];
+  howToBooking: HowToStep[];
+  howToMerch: HowToStep[];
+  howToNotes: string[];
   visibleSections: LandingVisibleSections;
 }
 
@@ -109,7 +114,7 @@ function ArrayEditor<T>({
   );
 }
 
-type SectionId = "visibility" | "main" | "timeline" | "honorGuests" | "merchItems" | "sponsors" | "faq";
+type SectionId = "visibility" | "main" | "timeline" | "honorGuests" | "merchItems" | "sponsors" | "faq" | "howToBooking" | "howToMerch" | "howToNotes";
 
 // ฟิลด์ของแต่ละบล็อก — ใช้กับปุ่ม "บันทึกส่วนนี้" (บันทึกเฉพาะฟิลด์ของบล็อกนั้น
 // ทับลงบนข้อมูลล่าสุดที่อยู่ในเซิร์ฟเวอร์ ส่วนอื่นที่แก้ค้างไว้ยังไม่ถูกบันทึก)
@@ -125,6 +130,9 @@ const SECTION_FIELDS: Record<SectionId, (keyof LandingContent)[]> = {
   merchItems: ["merchItems"],
   sponsors: ["sponsors"],
   faq: ["faq"],
+  howToBooking: ["howToBooking"],
+  howToMerch: ["howToMerch"],
+  howToNotes: ["howToNotes"],
 };
 
 function pickFields(c: LandingContent, keys: (keyof LandingContent)[]): Partial<LandingContent> {
@@ -289,6 +297,9 @@ export default function AdminLandingPage() {
       ...d,
       heroImageUrl: content.heroImageUrl,
       visibleSections: content.visibleSections,
+      howToBooking: content.howToBooking,
+      howToMerch: content.howToMerch,
+      howToNotes: content.howToNotes,
       mapUrl: content.mapUrl || d.mapUrl,
       honorGuests: content.honorGuests,
       merchItems: d.merchItems.map((m, i) => ({ ...m, imageUrl: content.merchItems[i]?.imageUrl || "" })),
@@ -510,6 +521,48 @@ export default function AdminLandingPage() {
           </label>
           {saveBar("main")}
         </div>
+
+        <ArrayEditor<HowToStep>
+          footer={saveBar("howToBooking")}
+          title="วิธีจอง — ขั้นตอนจองโต๊ะ"
+          hint="แสดงในบล็อก &quot;วิธีจองและชำระเงิน&quot; แท็บจองโต๊ะ เรียงตามลำดับขั้น (ตัวเลขขั้นใส่ให้อัตโนมัติ)"
+          items={content.howToBooking ?? []}
+          setItems={(howToBooking) => setContent({ ...content, howToBooking })}
+          makeEmpty={() => ({ title: "", description: "" })}
+          renderRow={(item, update) => (
+            <>
+              <input className={inputCls} placeholder="ชื่อขั้นตอน เช่น เลือกโต๊ะ" value={item.title} onChange={(e) => update({ title: e.target.value })} />
+              <textarea className={inputCls} rows={2} placeholder="คำอธิบาย" value={item.description} onChange={(e) => update({ description: e.target.value })} />
+            </>
+          )}
+        />
+
+        <ArrayEditor<HowToStep>
+          footer={saveBar("howToMerch")}
+          title="วิธีจอง — ขั้นตอนสั่งซื้อของที่ระลึก"
+          hint="แสดงในบล็อก &quot;วิธีจองและชำระเงิน&quot; แท็บสั่งซื้อของที่ระลึก"
+          items={content.howToMerch ?? []}
+          setItems={(howToMerch) => setContent({ ...content, howToMerch })}
+          makeEmpty={() => ({ title: "", description: "" })}
+          renderRow={(item, update) => (
+            <>
+              <input className={inputCls} placeholder="ชื่อขั้นตอน" value={item.title} onChange={(e) => update({ title: e.target.value })} />
+              <textarea className={inputCls} rows={2} placeholder="คำอธิบาย" value={item.description} onChange={(e) => update({ description: e.target.value })} />
+            </>
+          )}
+        />
+
+        <ArrayEditor<NoteItem>
+          footer={saveBar("howToNotes")}
+          title="วิธีจอง — ข้อควรรู้เรื่องการชำระเงิน"
+          hint="แสดงเป็นรายการใต้ขั้นตอน (ทั้งสองแท็บ)"
+          items={(content.howToNotes ?? []).map((text) => ({ text }))}
+          setItems={(items) => setContent({ ...content, howToNotes: items.map((n) => n.text) })}
+          makeEmpty={() => ({ text: "" })}
+          renderRow={(item, update) => (
+            <input className={inputCls} placeholder="ข้อความ" value={item.text} onChange={(e) => update({ text: e.target.value })} />
+          )}
+        />
 
         <ArrayEditor<TimelineItem>
           footer={saveBar("timeline")}

@@ -34,18 +34,25 @@ export interface LandingSponsorTier {
   logoUrl: string; // optional; empty string = no logo shown
 }
 
+// ขั้นตอน "วิธีจองและชำระเงิน" (บล็อก howTo บนหน้า /homecoming-89)
+export interface LandingHowToStep {
+  title: string;
+  description: string;
+}
+
 export interface LandingFaqItem {
   question: string;
   answer: string;
 }
 
 // บล็อกของหน้า /homecoming-89 ที่แอดมินเปิด/ปิดการแสดงผลได้ (/admin/landing)
-export const LANDING_SECTION_KEYS = ["hero", "tickets", "merch", "schedule", "honorGuests", "venue", "sponsors", "faq", "finalCta"] as const;
+export const LANDING_SECTION_KEYS = ["hero", "tickets", "merch", "howTo", "schedule", "honorGuests", "venue", "sponsors", "faq", "finalCta"] as const;
 export type LandingSectionKey = (typeof LANDING_SECTION_KEYS)[number];
 export const LANDING_SECTION_LABELS: Record<LandingSectionKey, string> = {
   hero: "ส่วนหัว (ชื่องาน + นับถอยหลัง + รายละเอียดงาน)",
   tickets: "จองโต๊ะงานเลี้ยง (บัตร/ราคา)",
   merch: "ของที่ระลึก + ตารางไซซ์เสื้อ",
+  howTo: "วิธีจองและชำระเงิน (ขั้นตอนจองโต๊ะ / สั่งซื้อ)",
   schedule: "กำหนดการ",
   honorGuests: "รายชื่อคุณครู / แขกผู้มีเกียรติ",
   venue: "สถานที่จัดงาน",
@@ -58,6 +65,7 @@ export const DEFAULT_VISIBLE_SECTIONS: LandingVisibleSections = {
   hero: true,
   tickets: true,
   merch: true,
+  howTo: true,
   schedule: true,
   // สองบล็อกนี้ถูกซ่อนจากหน้าเว็บมาตั้งแต่ปรับดีไซน์ (22 ก.ย.) — ค่าเริ่มต้น "ซ่อน" เพื่อให้หน้าไม่เปลี่ยนจนกว่าแอดมินจะเปิดเอง
   honorGuests: false,
@@ -88,6 +96,9 @@ export interface LandingContent {
   merchItems: LandingMerchItem[];
   sponsors: LandingSponsorTier[];
   faq: LandingFaqItem[];
+  howToBooking: LandingHowToStep[]; // ขั้นตอนจองโต๊ะ
+  howToMerch: LandingHowToStep[]; // ขั้นตอนสั่งซื้อของที่ระลึก
+  howToNotes: string[]; // ข้อควรรู้เรื่องการชำระเงิน (แสดงใต้ขั้นตอน)
   // เปิด/ปิดการแสดงผลแต่ละบล็อก — ค่าที่ไม่มีในข้อมูลเก่า = แสดง (true)
   visibleSections: LandingVisibleSections;
 }
@@ -144,6 +155,26 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     { question: "จะได้รับ QR Code เข้างานเมื่อไหร่?", answer: "หลังจากเจ้าหน้าที่ตรวจสอบสลิปและยืนยันการชำระเงินแล้ว ระบบจะส่ง QR Code เข้างานให้ทันที" },
     { question: "ส่งภาพเก่าสมัยเรียนเข้าร่วมได้ไหม?", answer: "ได้ครับ สามารถส่งภาพเก่าเข้ามาได้ ภาพที่คัดเลือกอาจนำขึ้นจอใหญ่ในค่ำคืนงาน" },
   ],
+  howToBooking: [
+    { title: "เลือกโต๊ะ", description: "กดปุ่ม \"จองโต๊ะ\" เลือกโซน แล้วแตะโต๊ะที่ยังว่าง (สีเขียว) — 1 โต๊ะ 8 ที่นั่ง" },
+    { title: "กรอกข้อมูลผู้จอง", description: "ชื่อ เบอร์โทร และอีเมล (ใช้รับอีเมลยืนยันการจอง) กรุณาตรวจให้ถูกต้อง" },
+    { title: "โอนเงินและแนบสลิป", description: "โอนเงินตามยอดไปยังบัญชีที่แสดงในหน้าฟอร์ม แล้วแนบรูปสลิปก่อนกดยืนยันการจอง" },
+    { title: "รอเจ้าหน้าที่ตรวจสลิป", description: "ได้รหัสการจองทันที สถานะ \"รอตรวจสอบ\" — ติดตามได้ที่หน้าเช็คสถานะด้วยรหัสการจอง + เบอร์โทร" },
+    { title: "รับอีเมลยืนยัน + QR เช็คอิน", description: "เมื่อตรวจสลิปผ่าน ระบบส่งอีเมลยืนยันพร้อม QR Code — แสดงที่จุดลงทะเบียนในวันงาน" },
+  ],
+  howToMerch: [
+    { title: "เลือกสินค้า", description: "กดปุ่ม \"สั่งซื้อของที่ระลึก\" ดูรูปด้านหน้า/ด้านหลัง เลือกไซซ์และจำนวน แล้วใส่ตะกร้า" },
+    { title: "กรอกข้อมูลและที่อยู่จัดส่ง", description: "ระบบรวมค่าจัดส่งในยอดชำระให้อัตโนมัติ" },
+    { title: "โอนเงินและแนบสลิป", description: "โอนเงินตามยอดรวมไปยังบัญชีที่แสดงในหน้าฟอร์ม แล้วแนบรูปสลิปก่อนกดยืนยันคำสั่งซื้อ" },
+    { title: "รอเจ้าหน้าที่ตรวจสลิป", description: "ได้รหัสคำสั่งซื้อทันที — ติดตามได้ที่หน้าเช็คสถานะการสั่งซื้อด้วยรหัสคำสั่งซื้อ + เบอร์โทร" },
+    { title: "รับอีเมลยืนยันและจัดส่ง", description: "ตรวจสลิปผ่านแล้วจะได้อีเมลยืนยัน และแจ้งอีกครั้งเมื่อจัดส่งสินค้า" },
+  ],
+  howToNotes: [
+    "ชำระเงินด้วยการโอนเข้าบัญชีที่แสดงในหน้าฟอร์มเท่านั้น และต้องแนบสลิปตอนกดยืนยัน",
+    "เก็บสลิปไว้จนกว่าจะได้รับอีเมลยืนยัน",
+    "ถ้าไม่พบอีเมล กรุณาตรวจในโฟลเดอร์จดหมายขยะ (Spam / Junk)",
+    "หากสลิปไม่ถูกต้อง เจ้าหน้าที่จะแจ้งผลทางอีเมล",
+  ],
   visibleSections: DEFAULT_VISIBLE_SECTIONS,
 };
 
@@ -165,6 +196,13 @@ function arr<T>(v: unknown, fallback: T[]): T[] {
  * body) on top of the defaults, field by field — so a missing or malformed
  * key never crashes the homepage or admin form, it just falls back.
  */
+function howToSteps(input: unknown, fallback: LandingHowToStep[]): LandingHowToStep[] {
+  if (!Array.isArray(input)) return fallback;
+  return arr<Partial<LandingHowToStep>>(input, [])
+    .map((s) => ({ title: str(s?.title, ""), description: str(s?.description, "") }))
+    .filter((s) => s.title || s.description);
+}
+
 function sanitizeVisibleSections(input: unknown): LandingVisibleSections {
   const raw = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const out = { ...DEFAULT_VISIBLE_SECTIONS };
@@ -232,6 +270,12 @@ export function sanitizeLandingContent(input: unknown): LandingContent {
     merchItems: merchItems.length ? merchItems : d.merchItems,
     sponsors: sponsors.length ? sponsors : d.sponsors,
     faq: faq.length ? faq : d.faq,
+    howToBooking: howToSteps(raw.howToBooking, d.howToBooking),
+    howToMerch: howToSteps(raw.howToMerch, d.howToMerch),
+    // [] ที่ตั้งใจลบทั้งหมด → ใช้ค่าเริ่มต้นเฉพาะตอนยังไม่เคยมีช่องนี้ (undefined)
+    howToNotes: Array.isArray(raw.howToNotes)
+      ? arr<string>(raw.howToNotes, []).map((n) => str(n, "")).filter(Boolean)
+      : d.howToNotes,
     visibleSections: sanitizeVisibleSections(raw.visibleSections),
   };
 }
