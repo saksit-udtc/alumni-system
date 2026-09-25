@@ -289,6 +289,23 @@ export default function AdminLandingPage() {
 
   // เติมฟอร์มด้วยข้อมูลตามโปสเตอร์ (ค่าเริ่มต้นในโค้ด) — ยังไม่บันทึกจนกว่าจะกด "บันทึกทั้งหมด"
   // คงรูปภาพที่อัปโหลดไว้แล้ว (ภาพพื้นหลัง, รูปแขกผู้มีเกียรติ, รูปของที่ระลึก, โลโก้ผู้สนับสนุน)
+  // แทนกำหนดการด้วยกำหนดการตามเอกสารงาน และปรับเวลาลงทะเบียน/เวลางานเป็น 17.00 น.
+  function applyScheduleDoc() {
+    if (!content) return;
+    if (!window.confirm("แทนกำหนดการด้วยกำหนดการตามเอกสารงาน (ช่วงเช้าทอดผ้าป่า + ช่วงค่ำคืนสู่เหย้า)\nและปรับเวลาลงทะเบียน/เวลางานเป็น 17.00 น. (หัวหน้า, ตัวนับถอยหลัง, FAQ)?\nยังไม่บันทึกจนกว่าจะกด \"บันทึกทั้งหมด\"")) return;
+    const d = DEFAULT_LANDING_CONTENT;
+    const fix = (t: string) => t.replace(/18[.:]00\s*[-–]\s*24[.:]00/g, "17.00-24.00");
+    setContent({
+      ...content,
+      timeline: d.timeline.map((t) => ({ ...t })),
+      eventDateISO: content.eventDateISO.replace("T18:00", "T17:00"),
+      registrationTime: d.registrationTime,
+      heroLead: fix(content.heroLead),
+      faq: content.faq.map((f) => ({ ...f, answer: fix(f.answer) })),
+    });
+    setSaveMsg("");
+  }
+
   function applyPosterDefaults() {
     if (!content) return;
     if (!window.confirm("เติมข้อมูลหน้าแรกตามโปสเตอร์งาน (วันที่ เวลา สถานที่ ราคา ของที่ระลึก ผู้สนับสนุน กำหนดการ FAQ)?\nข้อความที่แก้ไว้เดิมในฟอร์มจะถูกแทนที่ — รูปภาพที่อัปโหลดไว้จะคงเดิม และยังไม่บันทึกจนกว่าจะกด \"บันทึกทั้งหมด\"")) return;
@@ -565,9 +582,20 @@ export default function AdminLandingPage() {
         />
 
         <ArrayEditor<TimelineItem>
-          footer={saveBar("timeline")}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={applyScheduleDoc}
+                className="text-sm px-3 py-1.5 rounded-lg border border-primary-600 text-primary-700 hover:bg-primary-50"
+              >
+                ใช้กำหนดการตามเอกสารงาน (ทอดผ้าป่า + คืนสู่เหย้า)
+              </button>
+              {saveBar("timeline")}
+            </>
+          }
           title="กำหนดการ (Timeline)"
-          hint="เรียงตามลำดับเวลาในคืนงาน"
+          hint="เรียงตามลำดับเวลา · เว้นช่องเวลาว่างเพื่อทำเป็นหัวข้อช่วงงาน (เช่น ช่วงเช้า / ช่วงค่ำ)"
           items={content.timeline}
           setItems={(timeline) => setContent({ ...content, timeline })}
           makeEmpty={() => ({ time: "", title: "", description: "" })}

@@ -571,12 +571,17 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         <div className="wrap">
           <div className="section-head">
             <div className="kicker">กำหนดการ</div>
-            <h2>หนึ่งค่ำคืน ชั่วโมงต่อชั่วโมง</h2>
-            <p>กำหนดการอาจปรับเปลี่ยนเล็กน้อยหน้างาน</p>
+            <h2>กำหนดการวันงาน</h2>
+            <p>{content.eventDateLabel} · กำหนดการอาจปรับเปลี่ยนเล็กน้อยหน้างาน</p>
           </div>
           <div className="timeline">
             <div className="tl-line" />
-            {content.timeline.map((item, i) => (
+            {content.timeline.map((item, i) => item.time.trim() === "" ? (
+              <div className="tl-group" key={i}>
+                <h3>{item.title}</h3>
+                {item.description && <p>{item.description}</p>}
+              </div>
+            ) : (
               <div className="tl-item" key={i}>
                 <div className="tl-dot" />
                 <div className="tl-time">{item.time}</div>
@@ -1090,10 +1095,16 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         .tl-dot{ position:absolute; left:60px; top:8px; width:9px; height:9px; border-radius:50%; background:var(--gold); border:2px solid var(--bg-page); box-shadow:0 0 0 1px var(--gold); }
         .tl-body :global(h4){ font-size:16px; color:var(--head); margin-bottom:4px; }
         .tl-body :global(p){ font-size:14px; color:var(--slate); }
+        .tl-group{ position:relative; margin:18px 0 4px calc(64px + 28px); padding:12px 16px; border-left:3px solid var(--gold); background:var(--bg-page); border-radius:0 10px 10px 0; }
+        .tl-line + .tl-group{ margin-top:0; }
+        .tl-group h3{ font-size:18px; font-weight:700; color:var(--head); line-height:1.4; }
+        .tl-group p{ font-size:13px; color:var(--gold-ink); margin-top:2px; }
         @media(max-width:600px){
           .tl-line{ left:44px; } .tl-dot{ left:40px; }
           .tl-item{ grid-template-columns:44px 1fr; gap:16px; }
           .tl-time{ font-size:11px; }
+          .tl-group{ margin-left:calc(44px + 16px); padding:10px 12px; }
+          .tl-group h3{ font-size:16px; }
         }
 
         .honor-band{ background:var(--surf-deep); color:var(--on-surf); }
