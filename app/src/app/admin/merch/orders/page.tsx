@@ -60,6 +60,7 @@ function EasySlipBadge({ status, message }: { status: string | null; message: st
 export default function AdminMerchOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [recheckId, setRecheckId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
@@ -90,6 +91,16 @@ export default function AdminMerchOrdersPage() {
       load();
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function recheckSlip(orderId: string) {
+    setRecheckId(orderId);
+    try {
+      await fetch(`/api/admin/merch/orders/${orderId}/recheck-slip`, { method: "POST" });
+      load();
+    } finally {
+      setRecheckId(null);
     }
   }
 
@@ -358,6 +369,15 @@ export default function AdminMerchOrdersPage() {
                         <span className="inline-block whitespace-nowrap text-xs px-2.5 py-1.5 rounded-lg font-medium bg-stone-100 text-stone-400 border border-stone-200">ไม่มีสลิป</span>
                       )}
                       <EasySlipBadge status={o.latestSlipEasyslipStatus} message={o.latestSlipEasyslipMessage} />
+                      {o.latestSlipUrl && o.latestSlipEasyslipStatus && o.latestSlipEasyslipStatus !== "MATCH" && (
+                        <button
+                          onClick={() => recheckSlip(o.id)}
+                          disabled={recheckId === o.id}
+                          className="inline-block whitespace-nowrap mt-1 text-[11px] px-2 py-0.5 rounded-lg font-medium bg-stone-50 text-stone-600 border border-stone-200 hover:bg-stone-100 transition-colors disabled:opacity-50"
+                        >
+                          {recheckId === o.id ? "กำลังตรวจสอบ..." : "ตรวจสอบใหม่"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
