@@ -369,7 +369,7 @@ export default function AdminMerchOrdersPage() {
                         <span className="inline-block whitespace-nowrap text-xs px-2.5 py-1.5 rounded-lg font-medium bg-stone-100 text-stone-400 border border-stone-200">ไม่มีสลิป</span>
                       )}
                       <EasySlipBadge status={o.latestSlipEasyslipStatus} message={o.latestSlipEasyslipMessage} />
-                      {o.latestSlipUrl && o.latestSlipEasyslipStatus && o.latestSlipEasyslipStatus !== "MATCH" && (
+                      {o.latestSlipUrl && o.latestSlipEasyslipStatus && o.latestSlipEasyslipStatus !== "MATCH" && o.latestSlipEasyslipStatus !== "SKIPPED" && (
                         <button
                           onClick={() => recheckSlip(o.id)}
                           disabled={recheckId === o.id}
