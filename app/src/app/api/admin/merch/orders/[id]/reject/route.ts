@@ -11,7 +11,7 @@ import { sendMerchOrderRejectedEmail } from "@/lib/mailer";
  * releaseReservation.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "FINANCE_STAFF", "RESERVATION_STAFF"]); // MERCH_STAFF ดูแลสต็อก/จัดส่งเท่านั้น ไม่อนุมัติ/ปฏิเสธสลิป
   if (response) return response;
 
   const order = await prisma.merchOrder.findUnique({

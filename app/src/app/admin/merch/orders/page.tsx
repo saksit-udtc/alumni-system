@@ -72,6 +72,11 @@ export default function AdminMerchOrdersPage() {
   const [shipFilter, setShipFilter] = useState<"all" | "toship" | "shipped">("all");
   const [q, setQ] = useState("");
   const filters = useListFilters();
+  // เจ้าหน้าที่ของที่ระลึก (MERCH_STAFF) ดูแลแค่สต็อก/แพ็ก/จัดส่ง ไม่ใช่การเงิน —
+  // ซ่อนปุ่มอนุมัติ/ปฏิเสธสลิปไว้ ให้เห็นได้เฉพาะบทบาทอื่นที่เข้าหน้านี้ได้
+  // (SUPER_ADMIN, FINANCE_STAFF, RESERVATION_STAFF)
+  const [role, setRole] = useState<string | null>(null);
+  const canApproveReject = role !== "MERCH_STAFF";
 
   function load() {
     fetch("/api/admin/merch/orders")
@@ -79,6 +84,12 @@ export default function AdminMerchOrdersPage() {
       .then((d) => setOrders(d.orders || []));
   }
   useEffect(load, []);
+  useEffect(() => {
+    fetch("/api/admin/me")
+      .then((r) => r.json())
+      .then((d) => setRole(d?.role ?? null))
+      .catch(() => {});
+  }, []);
 
   async function act(orderId: string, action: "approve" | "reject", note?: string) {
     setBusyId(orderId);
@@ -470,8 +481,8 @@ export default function AdminMerchOrdersPage() {
                 </div>
               </div>
 
-              {/* ปุ่มอนุมัติ/ปฏิเสธ — แสดงเฉพาะรายการที่รอตรวจสลิป */}
-              {["pending", "awaiting_verify"].includes(o.paymentStatus) && (
+              {/* ปุ่มอนุมัติ/ปฏิเสธ — แสดงเฉพาะรายการที่รอตรวจสลิป และไม่แสดงให้เจ้าหน้าที่ของที่ระลึก */}
+              {["pending", "awaiting_verify"].includes(o.paymentStatus) && canApproveReject && (
                 <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t border-cream-100 bg-cream-50/50">
                   <button
                     onClick={() => {
