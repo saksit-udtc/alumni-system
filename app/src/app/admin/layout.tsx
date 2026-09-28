@@ -136,7 +136,7 @@ const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; r
   { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true, roles: ["SUPER_ADMIN"] },
   { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "RESERVATION_STAFF"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/reservations", label: "รายการจอง", icon: "checkin", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "งานเลี้ยงและการจอง" },
-  { href: "/admin/support-registrations", label: "ศิษย์เก่าดีเด่น/ผู้สนับสนุน", icon: "users", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "งานเลี้ยงและการจอง" },
+  { href: "/admin/support-registrations", label: "ศิษย์เก่าดีเด่น/ผู้สนับสนุน", icon: "users", roles: ["SUPER_ADMIN"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
