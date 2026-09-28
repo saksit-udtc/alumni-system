@@ -399,7 +399,8 @@ export default function AdminMerchOrdersPage() {
                   </div>
                 </div>
 
-                {/* การจัดส่ง EMS */}
+                {/* เจ้าหน้าที่การเงิน (FINANCE_STAFF) ตรวจ/อนุมัติสลิปเท่านั้น ไม่ยุ่งเรื่องจัดส่ง — ซ่อนบล็อกจัดส่ง (EMS) ไว้ */}
+                {role !== "FINANCE_STAFF" && (
                 <div className="min-w-0 space-y-2 text-sm md:col-span-2 xl:col-span-1">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">การจัดส่ง (EMS)</div>
                   {o.paymentStatus !== "confirmed" ? (
@@ -485,6 +486,7 @@ export default function AdminMerchOrdersPage() {
                     <p className={`text-xs ${shipMsg.ok ? "text-emerald-700" : "text-red-600"}`}>{shipMsg.text}</p>
                   ) : null}
                 </div>
+                )}
               </div>
 
               {/* ปุ่มอนุมัติ/ปฏิเสธ — แสดงเฉพาะรายการที่รอตรวจสลิป และไม่แสดงให้เจ้าหน้าที่ของที่ระลึก */}
