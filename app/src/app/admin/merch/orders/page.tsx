@@ -225,21 +225,27 @@ export default function AdminMerchOrdersPage() {
           <p className="text-sm text-stone-500 mt-0.5">ตรวจสอบสลิปและอนุมัติคำสั่งซื้อของที่ระลึกทั้งหมด</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
-            href="/admin/merch/orders/print"
-            className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
-          >
-            ปริ้นที่อยู่จัดส่ง
-          </Link>
+          {/* เจ้าหน้าที่การเงิน (FINANCE_STAFF) ดูแลแค่ตรวจ/อนุมัติสลิป ไม่ใช่สต็อก/จัดส่ง —
+              ซ่อนปุ่มปริ้นที่อยู่จัดส่งและจัดการสินค้าไว้ */}
+          {role !== "FINANCE_STAFF" && (
+            <Link
+              href="/admin/merch/orders/print"
+              className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
+            >
+              ปริ้นที่อยู่จัดส่ง
+            </Link>
+          )}
           <a
             href="/api/admin/merch/orders/export"
             className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
           >
             Export Excel
           </a>
-          <Link href="/admin/merch/products" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
-            จัดการสินค้า
-          </Link>
+          {role !== "FINANCE_STAFF" && (
+            <Link href="/admin/merch/products" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
+              จัดการสินค้า
+            </Link>
+          )}
         </div>
       </div>
 
