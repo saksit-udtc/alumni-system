@@ -80,8 +80,10 @@ function styleBody(ws: ExcelJS.Worksheet, fromRow: number, toRow: number, zebra 
 }
 
 export async function GET(req: NextRequest) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"]);
   if (response) return response;
+  // เจ้าหน้าที่การเงินไม่ต้องเห็นผลตรวจสลิปอัตโนมัติและข้อมูลการจัดส่ง
+  const isFinance = admin?.role === "FINANCE_STAFF";
 
   const orders = await prisma.merchOrder.findMany({
     include: { items: true, slips: { orderBy: { uploadedAt: "desc" }, take: 1 } },
@@ -107,9 +109,13 @@ export async function GET(req: NextRequest) {
     { header: "ค่าจัดส่ง", key: "shippingFee", width: 10 },
     { header: "ยอดรวม (บาท)", key: "totalAmount", width: 12 },
     { header: "สถานะ", key: "status", width: 15 },
-    { header: "ผลตรวจสลิป", key: "slip", width: 15 },
-    { header: "เลขพัสดุ", key: "tracking", width: 16 },
-    { header: "วันที่จัดส่ง", key: "shippedAt", width: 15 },
+    ...(isFinance
+      ? []
+      : [
+          { header: "ผลตรวจสลิป", key: "slip", width: 15 },
+          { header: "เลขพัสดุ", key: "tracking", width: 16 },
+          { header: "วันที่จัดส่ง", key: "shippedAt", width: 15 },
+        ]),
   ]);
 
   orders.forEach((o, i) => {
@@ -133,16 +139,16 @@ export async function GET(req: NextRequest) {
       shippedAt: o.shippedAt ? bangkok(o.shippedAt) : "",
     });
     row.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: STATUS_FILL[o.paymentStatus] || "FFFFFFFF" } };
-    if (slip?.easyslipStatus && slip.easyslipStatus !== "MATCH" && slip.easyslipStatus !== "SKIPPED") {
+    if (!isFinance && slip?.easyslipStatus && slip.easyslipStatus !== "MATCH" && slip.easyslipStatus !== "SKIPPED") {
       row.getCell("slip").font = { color: { argb: "FFB91C1C" } };
     }
   });
   const lastOrderRow = ws.rowCount;
   styleBody(ws, 3, lastOrderRow);
   ws.getColumn("createdAt").numFmt = "d/m/yyyy hh:mm";
-  ws.getColumn("shippedAt").numFmt = "d/m/yyyy";
+  if (!isFinance) ws.getColumn("shippedAt").numFmt = "d/m/yyyy";
   for (const k of ["subtotal", "shippingFee", "totalAmount"]) ws.getColumn(k).numFmt = "#,##0";
-  for (const k of ["no", "qty", "status", "slip", "orderCode"]) {
+  for (const k of ["no", "qty", "status", "orderCode", ...(isFinance ? [] : ["slip"])]) {
     ws.getColumn(k).eachCell((c, r) => {
       if (r > 2) c.alignment = { ...(c.alignment || {}), horizontal: "center" };
     });
