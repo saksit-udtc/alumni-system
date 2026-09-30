@@ -82,7 +82,7 @@ function styleBody(ws: ExcelJS.Worksheet, fromRow: number, toRow: number, zebra 
 export async function GET(req: NextRequest) {
   const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"]);
   if (response) return response;
-  // เจ้าหน้าที่การเงินไม่ต้องเห็นผลตรวจสลิปอัตโนมัติและข้อมูลการจัดส่ง
+  // เจ้าหน้าที่การเงินไม่ต้องเห็นอีเมล/ที่อยู่ ผลตรวจสลิปอัตโนมัติ และข้อมูลการจัดส่ง — บทบาทอื่นเห็นครบ
   const isFinance = admin?.role === "FINANCE_STAFF";
 
   const orders = await prisma.merchOrder.findMany({
@@ -103,6 +103,12 @@ export async function GET(req: NextRequest) {
     { header: "วันที่สั่งซื้อ", key: "createdAt", width: 17 },
     { header: "ชื่อผู้สั่ง", key: "bookerName", width: 22 },
     { header: "เบอร์โทรศัพท์", key: "bookerPhone", width: 13 },
+    ...(isFinance
+      ? []
+      : [
+          { header: "อีเมล", key: "bookerEmail", width: 26 },
+          { header: "ที่อยู่จัดส่ง", key: "shippingAddress", width: 42 },
+        ]),
     { header: "รายการสินค้า", key: "items", width: 34 },
     { header: "จำนวนชิ้น", key: "qty", width: 9 },
     { header: "ค่าสินค้า", key: "subtotal", width: 11 },
@@ -128,6 +134,8 @@ export async function GET(req: NextRequest) {
       createdAt: bangkok(o.createdAt),
       bookerName: o.bookerName,
       bookerPhone: o.bookerPhone,
+      bookerEmail: o.bookerEmail,
+      shippingAddress: o.shippingAddress.trim(),
       items: o.items.map((it) => `• ${it.productName}${it.size ? ` (${it.size})` : ""} × ${it.quantity}`).join("\n"),
       qty,
       subtotal,
@@ -162,7 +170,9 @@ export async function GET(req: NextRequest) {
 
   // ---- สรุปท้ายตาราง แยกตามสถานะ ----
   ws.addRow([]);
-  const sumHead = ws.addRow(["", "สรุปตามสถานะ", "", "", "", "", "จำนวนชิ้น", "", "", "ยอดเงิน (บาท)", "จำนวนออเดอร์"]);
+  const pad = isFinance ? [] : ["", ""]; // เลื่อนให้ตรงคอลัมน์เมื่อมีอีเมล/ที่อยู่
+  const amtCol = 10 + pad.length;
+  const sumHead = ws.addRow(["", "สรุปตามสถานะ", "", "", "", ...pad, "", "จำนวนชิ้น", "", "", "ยอดเงิน (บาท)", "จำนวนออเดอร์"]);
   sumHead.font = { bold: true };
   for (const st of ["confirmed", "awaiting_verify", "pending", "rejected", "expired"]) {
     const list = orders.filter((o) => o.paymentStatus === st);
@@ -170,18 +180,18 @@ export async function GET(req: NextRequest) {
     const r = ws.addRow([
       "",
       STATUS_LABEL[st],
-      "", "", "", "",
+      "", "", "", ...pad, "",
       list.reduce((n, o) => n + o.items.reduce((m, it) => m + it.quantity, 0), 0),
       "", "",
       list.reduce((n, o) => n + Number(o.totalAmount), 0),
       list.length,
     ]);
     r.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: STATUS_FILL[st] } };
-    r.getCell(10).numFmt = "#,##0";
+    r.getCell(amtCol).numFmt = "#,##0";
   }
-  const tot = ws.addRow(["", "รวมทั้งหมด", "", "", "", "", orders.reduce((n, o) => n + o.items.reduce((m, it) => m + it.quantity, 0), 0), "", "", orders.reduce((n, o) => n + Number(o.totalAmount), 0), orders.length]);
+  const tot = ws.addRow(["", "รวมทั้งหมด", "", "", "", ...pad, "", orders.reduce((n, o) => n + o.items.reduce((m, it) => m + it.quantity, 0), 0), "", "", orders.reduce((n, o) => n + Number(o.totalAmount), 0), orders.length]);
   tot.font = { bold: true };
-  tot.getCell(10).numFmt = "#,##0";
+  tot.getCell(amtCol).numFmt = "#,##0";
   tot.getCell(2).border = { top: { style: "thin" } };
 
   // ================= ชีต 2: รายการสินค้า (1 แถว / สินค้า) — ใช้กรอง/นับ/Pivot ได้ =================
