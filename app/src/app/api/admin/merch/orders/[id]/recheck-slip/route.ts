@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!latestSlip) return jsonError("ไม่พบสลิปของรายการนี้", 404);
 
   const imageUrl = await presignedGetUrl(PAYMENT_SLIPS_BUCKET, latestSlip.fileKey);
-  const result = await verifySlipByUrl(imageUrl, Number(order.totalAmount));
+  const result = await verifySlipByUrl(imageUrl, Number(order.totalAmount), { kind: "merch", id: order.id });
 
   await prisma.merchPaymentSlip.update({
     where: { id: latestSlip.id },

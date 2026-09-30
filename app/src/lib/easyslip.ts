@@ -53,6 +53,48 @@ interface EasySlipV2Response {
 
 const AMOUNT_TOLERANCE_BAHT = 0.01;
 
+/** รายการที่สลิปนี้เป็นของ — ใช้แยก "สลิปซ้ำจริง" ออกจาก "เราเคยตรวจใบนี้เองมาก่อน" */
+export type SlipOwner =
+  | { kind: "reservation"; id: string } // Reservation.id
+  | { kind: "merch"; id: string } // MerchOrder.id
+  | { kind: "support"; id: string }; // SupportRegistration.id
+
+/**
+ * หาว่าเลขอ้างอิงสลิป (transRef) นี้ถูกใช้กับรายการ "อื่น" ในระบบเราหรือไม่
+ * (ข้ามทั้งการจองโต๊ะ / ของที่ระลึก / ลงทะเบียนผู้สนับสนุน) — คืนรหัสรายการนั้น หรือ null
+ * รายการที่ถูกปฏิเสธ/หมดอายุแล้วไม่นับ เพื่อให้ลูกค้าอัปโหลดสลิปเดิมกับรายการใหม่ได้
+ */
+async function findOtherUseOfTransRef(transRef: string, owner: SlipOwner): Promise<string | null> {
+  const [resv, merch, support] = await Promise.all([
+    prisma.paymentSlip.findFirst({
+      where: {
+        easyslipTransRef: transRef,
+        ...(owner.kind === "reservation" ? { reservationId: { not: owner.id } } : {}),
+      },
+      select: { reservation: { select: { bookingCode: true, paymentStatus: true } } },
+    }),
+    prisma.merchPaymentSlip.findFirst({
+      where: {
+        easyslipTransRef: transRef,
+        ...(owner.kind === "merch" ? { orderId: { not: owner.id } } : {}),
+      },
+      select: { order: { select: { orderCode: true, paymentStatus: true } } },
+    }),
+    prisma.supportRegistration.findFirst({
+      where: {
+        easyslipTransRef: transRef,
+        ...(owner.kind === "support" ? { id: { not: owner.id } } : {}),
+      },
+      select: { code: true },
+    }),
+  ]);
+  const dead = (st: unknown) => typeof st === "string" && (st === "rejected" || st === "expired");
+  if (resv?.reservation && !dead(resv.reservation.paymentStatus)) return `การจองโต๊ะ ${resv.reservation.bookingCode}`;
+  if (merch?.order && !dead(merch.order.paymentStatus)) return `คำสั่งซื้อ ${merch.order.orderCode}`;
+  if (support) return `การลงทะเบียน ${support.code}`;
+  return null;
+}
+
 /**
  * Calls EasySlip's v2 bank-verify endpoint with a (short-lived, presigned)
  * image URL and compares the amount EasySlip read off the slip against what
@@ -60,7 +102,11 @@ const AMOUNT_TOLERANCE_BAHT = 0.01;
  * API key, network error, EasySlip error response) resolves to a
  * SlipVerifyResult instead, so a caller can always safely store the result.
  */
-export async function verifySlipByUrl(imageUrl: string, expectedAmount: number): Promise<SlipVerifyResult> {
+export async function verifySlipByUrl(
+  imageUrl: string,
+  expectedAmount: number,
+  owner?: SlipOwner
+): Promise<SlipVerifyResult> {
   const apiKey = process.env.EASYSLIP_API_KEY;
   if (!apiKey) {
     return { status: "SKIPPED", message: "ยังไม่ได้ตั้งค่า EasySlip API key" };
@@ -107,7 +153,26 @@ export async function verifySlipByUrl(imageUrl: string, expectedAmount: number):
   const slip = json.data.rawSlip;
   const actualAmount = Number(slip.amount?.amount);
 
-  if (json.data.isDuplicate) {
+  // EasySlip ตอบ isDuplicate=true ทุกครั้งที่ "บัญชี EasySlip ของเรา" เคยตรวจสลิปใบนี้มาก่อน
+  // ซึ่งรวมถึงตอนกด "ตรวจสอบใหม่" กับสลิปของรายการเดิม — จึงต้องเช็กในฐานข้อมูลเราเองว่า
+  // เลขอ้างอิงนี้ผูกกับรายการอื่นจริงหรือไม่ (เช็กทุกครั้ง ไม่ว่า EasySlip จะบอกซ้ำหรือไม่)
+  if (owner && slip.transRef) {
+    let otherUse: string | null = null;
+    try {
+      otherUse = await findOtherUseOfTransRef(slip.transRef, owner);
+    } catch (err) {
+      console.error("[easyslip] duplicate lookup failed:", err);
+    }
+    if (otherUse) {
+      return {
+        status: "DUPLICATE",
+        message: `สลิปนี้เคยใช้กับ${otherUse} มาแล้ว (เลขอ้างอิง ${slip.transRef})`,
+        transRef: slip.transRef,
+        actualAmount: Number.isFinite(actualAmount) ? actualAmount : undefined,
+      };
+    }
+    // ไม่พบรายการอื่น → ความ "ซ้ำ" มาจากที่เราตรวจใบนี้เองก่อนหน้า ตรวจบัญชี/ยอดต่อตามปกติ
+  } else if (json.data.isDuplicate) {
     return {
       status: "DUPLICATE",
       message: `สลิปนี้เคยถูกใช้ยืนยันการชำระเงินรายการอื่นมาแล้ว (เลขอ้างอิง ${slip.transRef})`,
@@ -166,7 +231,7 @@ export async function verifyReservationSlipAsync(
     if (!slip) return;
 
     const imageUrl = await presignedGetUrl(PAYMENT_SLIPS_BUCKET, slipFileKey);
-    const result = await verifySlipByUrl(imageUrl, expectedAmount);
+    const result = await verifySlipByUrl(imageUrl, expectedAmount, { kind: "reservation", id: reservationId });
 
     await prisma.paymentSlip.update({
       where: { id: slip.id },
@@ -196,7 +261,7 @@ export async function verifyMerchOrderSlipAsync(
     if (!slip) return;
 
     const imageUrl = await presignedGetUrl(PAYMENT_SLIPS_BUCKET, slipFileKey);
-    const result = await verifySlipByUrl(imageUrl, expectedAmount);
+    const result = await verifySlipByUrl(imageUrl, expectedAmount, { kind: "merch", id: orderId });
 
     await prisma.merchPaymentSlip.update({
       where: { id: slip.id },
@@ -221,7 +286,7 @@ export async function verifySupportRegistrationSlipAsync(
 ): Promise<void> {
   try {
     const imageUrl = await presignedGetUrl(PAYMENT_SLIPS_BUCKET, slipFileKey);
-    const result = await verifySlipByUrl(imageUrl, expectedAmount);
+    const result = await verifySlipByUrl(imageUrl, expectedAmount, { kind: "support", id: registrationId });
 
     await prisma.supportRegistration.update({
       where: { id: registrationId },
