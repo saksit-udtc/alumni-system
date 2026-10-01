@@ -11,6 +11,7 @@ export async function GET() {
   return NextResponse.json({
     ...d,
     merch: d.merch.map((r) => ({ ...r, revenueConfirmed: 0 })),
+    shippingConfirmed: 0,
     merchTotals: { ...d.merchTotals, revenueConfirmed: 0 },
     events: d.events.map((e) => ({ ...e, revenue: zeroB })),
   });

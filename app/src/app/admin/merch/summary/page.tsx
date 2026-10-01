@@ -174,7 +174,7 @@ export default function SalesSummaryPage() {
             <AdminStatCard icon="table" label="โต๊ะที่ถูกจอง" value={`${n(tableBooked)} / ${n(tableTotal)}`} tone="navy" />
             <AdminStatCard icon="bag" label="ของที่ระลึก (ชิ้น)" value={n(t.total)} sub={`ยืนยันแล้ว ${n(t.confirmed)}`} tone="violet" />
             <AdminStatCard icon="box" label="เสื้อทุกไซซ์ (ตัว)" value={n(shirtsQty)} tone="amber" />
-            <AdminStatCard icon="coin" label="ยอดขายของที่ระลึกยืนยันแล้ว" value={`${n(t.revenueConfirmed)} บาท`} tone="emerald" />
+            <AdminStatCard icon="coin" label="ยอดขายของที่ระลึกยืนยันแล้ว" value={`${n(t.revenueConfirmed + (data.shippingConfirmed ?? 0))} บาท`} sub={`สินค้า ${n(t.revenueConfirmed)} + ค่าจัดส่ง ${n(data.shippingConfirmed ?? 0)}`} tone="emerald" />
           </div>
 
           <section className="space-y-3">

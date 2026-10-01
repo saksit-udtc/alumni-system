@@ -63,6 +63,7 @@ export interface SalesSummary {
   generatedAt: string;
   merch: MerchRow[];
   merchTotals: Omit<MerchRow, "productName" | "size">;
+  shippingConfirmed: number; // ค่าจัดส่งของออเดอร์ที่ยืนยันแล้ว (ไม่รวมในยอดสินค้า)
   events: EventTableSummary[];
 }
 
@@ -71,7 +72,7 @@ const zero = (): Record<Bucket, number> => ({ confirmed: 0, awaiting: 0, pending
 export async function getSalesSummary(): Promise<SalesSummary> {
   const active = { in: ["confirmed", "awaiting_verify", "pending"] as any };
 
-  const [orderItems, posItems, resvItems, products, events] = await Promise.all([
+  const [orderItems, posItems, resvItems, products, events, shipAgg] = await Promise.all([
     prisma.merchOrderItem.findMany({
       where: { order: { paymentStatus: active } },
       select: { productId: true, productName: true, size: true, quantity: true, unitPrice: true, order: { select: { paymentStatus: true } } },
@@ -95,6 +96,7 @@ export async function getSalesSummary(): Promise<SalesSummary> {
         },
       },
     }),
+    prisma.merchOrder.aggregate({ where: { paymentStatus: "confirmed" }, _sum: { shippingFee: true } }),
   ]);
 
   // ---------- ของที่ระลึก ----------
@@ -199,5 +201,5 @@ export async function getSalesSummary(): Promise<SalesSummary> {
       return s;
     });
 
-  return { generatedAt: new Date().toISOString(), merch, merchTotals, events: eventSummaries };
+  return { generatedAt: new Date().toISOString(), merch, merchTotals, shippingConfirmed: Number(shipAgg._sum.shippingFee ?? 0), events: eventSummaries };
 }
