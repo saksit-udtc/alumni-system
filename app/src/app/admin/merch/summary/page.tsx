@@ -7,7 +7,7 @@ import type { SalesSummary, EventTableSummary } from "@/lib/salesSummary";
 const n = (v: number) => v.toLocaleString("th-TH");
 const sum3 = (v: { confirmed: number; awaiting: number; pending: number }) => v.confirmed + v.awaiting + v.pending;
 
-const TH = "px-3 py-2 text-xs font-semibold text-stone-500 whitespace-nowrap";
+const TH = "px-3 py-2 text-xs font-semibold text-white whitespace-nowrap";
 const TD = "px-3 py-2 text-sm tabular-nums text-right whitespace-nowrap";
 
 function Cell({ v, tone }: { v: number; tone?: string }) {
@@ -46,7 +46,7 @@ function EventBlock({ e }: { e: EventTableSummary }) {
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="border-b border-cream-200">
+            <thead className="bg-emerald-600">
               <tr>
                 <th className={`${TH} text-left`}>รายการ</th>
                 <th className={`${TH} text-right`}>ยืนยันแล้ว</th>
@@ -55,7 +55,7 @@ function EventBlock({ e }: { e: EventTableSummary }) {
                 <th className={`${TH} text-right`}>รวม</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-cream-100">
+            <tbody className="[&>tr:nth-child(even)]:bg-emerald-50">
               {lines.map(([label, v]) => (
                 <tr key={label}>
                   <td className="px-3 py-2 text-sm text-stone-700">{label}</td>
@@ -79,7 +79,7 @@ function EventBlock({ e }: { e: EventTableSummary }) {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="border-b border-cream-200">
+            <thead className="bg-sky-600">
               <tr>
                 <th className={`${TH} text-left`}>โซน</th>
                 <th className={`${TH} text-right`}>ยืนยันแล้ว</th>
@@ -88,7 +88,7 @@ function EventBlock({ e }: { e: EventTableSummary }) {
                 <th className={`${TH} text-right`}>ทั้งหมด</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-cream-100">
+            <tbody className="[&>tr:nth-child(even)]:bg-sky-50">
               {e.zones.map((z) => (
                 <tr key={z.zone}>
                   <td className="px-3 py-2 text-sm text-stone-700">{z.zone}</td>
@@ -136,6 +136,8 @@ export default function SalesSummaryPage() {
     if (g && g.name === r.productName) g.rows.push(r);
     else groups.push({ name: r.productName, rows: [r] });
   }
+
+  let stripe = 0; // ตัวนับแถวเพื่อสลับสีแถวในตารางสินค้า
 
   return (
     <div className="space-y-6">
@@ -187,18 +189,18 @@ export default function SalesSummaryPage() {
             <h2 className="text-lg font-semibold text-stone-800">ของที่ระลึก</h2>
             <div className="bg-white rounded-2xl border border-cream-200 shadow-sm overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-cream-200 bg-cream-50">
+                <thead className="bg-violet-700">
                   <tr>
                     <th className={`${TH} text-left`}>สินค้า</th>
                     <th className={`${TH} text-left`}>ไซซ์</th>
                     <th className={`${TH} text-right`}>ยืนยันแล้ว</th>
                     <th className={`${TH} text-right`}>รอตรวจสลิป</th>
                     <th className={`${TH} text-right`}>รอชำระ</th>
-                    <th className={`${TH} text-right`}>รวม</th>
-                    <th className={`${TH} text-right border-l border-cream-200`}>ออนไลน์</th>
+                    <th className={`${TH} text-right border-l border-white/40`}>รวม</th>
+                    <th className={`${TH} text-right border-l border-white/40`}>ออนไลน์</th>
                     <th className={`${TH} text-right`}>หน้างาน</th>
                     <th className={`${TH} text-right`}>แพ็กเกจโต๊ะ</th>
-                    <th className={`${TH} text-right border-l border-cream-200`}>ยอดเงินยืนยัน</th>
+                    <th className={`${TH} text-right border-l border-white/40`}>ยอดเงินยืนยัน</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -212,47 +214,47 @@ export default function SalesSummaryPage() {
                     );
                     return [
                       ...g.rows.map((r, i) => (
-                        <tr key={`${g.name}|${r.size}`} className="border-t border-cream-100">
+                        <tr key={`${g.name}|${r.size}`} className={stripe++ % 2 === 1 ? "bg-violet-50" : "bg-white"}>
                           <td className="px-3 py-2 text-sm text-stone-800">{i === 0 ? g.name : ""}</td>
                           <td className="px-3 py-2 text-sm text-stone-600">{r.size ?? "-"}</td>
                           <Cell v={r.confirmed} tone="text-emerald-700" />
                           <Cell v={r.awaiting} tone="text-amber-700" />
                           <Cell v={r.pending} />
-                          <td className={`${TD} font-semibold text-stone-800`}>{n(r.total)}</td>
-                          <td className={`${TD} border-l border-cream-100 ${r.online ? "text-stone-600" : "text-stone-300"}`}>{n(r.online)}</td>
+                          <td className={`${TD} font-semibold text-stone-800 border-l border-violet-200`}>{n(r.total)}</td>
+                          <td className={`${TD} border-l border-violet-200 ${r.online ? "text-stone-600" : "text-stone-300"}`}>{n(r.online)}</td>
                           <Cell v={r.pos} tone="text-stone-600" />
                           <Cell v={r.withTable} tone="text-stone-600" />
-                          <td className={`${TD} border-l border-cream-100 ${r.revenueConfirmed ? "text-stone-700" : "text-stone-300"}`}>{n(r.revenueConfirmed)}</td>
+                          <td className={`${TD} border-l border-violet-200 ${r.revenueConfirmed ? "text-stone-700" : "text-stone-300"}`}>{n(r.revenueConfirmed)}</td>
                         </tr>
                       )),
                       g.rows.length > 1 && (
-                        <tr key={`${g.name}|sub`} className="bg-cream-50/60">
+                        <tr key={`${g.name}|sub`} className="bg-violet-100">
                           <td className="px-3 py-1.5 text-xs text-stone-500" colSpan={2}>รวม {g.name}</td>
                           <td className={`${TD} text-xs font-semibold`}>{n(sub.c)}</td>
                           <td className={`${TD} text-xs font-semibold`}>{n(sub.w)}</td>
                           <td className={`${TD} text-xs font-semibold`}>{n(sub.p)}</td>
-                          <td className={`${TD} text-xs font-semibold`}>{n(sub.t)}</td>
-                          <td className={`${TD} text-xs border-l border-cream-100`}>{n(sub.o)}</td>
+                          <td className={`${TD} text-xs font-semibold border-l border-violet-200`}>{n(sub.t)}</td>
+                          <td className={`${TD} text-xs border-l border-violet-200`}>{n(sub.o)}</td>
                           <td className={`${TD} text-xs`}>{n(sub.s)}</td>
                           <td className={`${TD} text-xs`}>{n(sub.k)}</td>
-                          <td className={`${TD} text-xs border-l border-cream-100`}>{n(sub.m)}</td>
+                          <td className={`${TD} text-xs border-l border-violet-200`}>{n(sub.m)}</td>
                         </tr>
                       ),
                     ];
                   })}
                 </tbody>
                 {groups.length > 0 && (
-                  <tfoot className="border-t-2 border-cream-200 bg-cream-50">
+                  <tfoot className="border-t-2 border-violet-300 bg-violet-100">
                     <tr className="font-semibold">
                       <td className="px-3 py-2 text-sm" colSpan={2}>รวมทั้งหมด</td>
                       <td className={TD}>{n(t.confirmed)}</td>
                       <td className={TD}>{n(t.awaiting)}</td>
                       <td className={TD}>{n(t.pending)}</td>
-                      <td className={TD}>{n(t.total)}</td>
-                      <td className={`${TD} border-l border-cream-200`}>{n(t.online)}</td>
+                      <td className={`${TD} border-l border-violet-200`}>{n(t.total)}</td>
+                      <td className={`${TD} border-l border-violet-200`}>{n(t.online)}</td>
                       <td className={TD}>{n(t.pos)}</td>
                       <td className={TD}>{n(t.withTable)}</td>
-                      <td className={`${TD} border-l border-cream-200`}>{n(t.revenueConfirmed)}</td>
+                      <td className={`${TD} border-l border-violet-200`}>{n(t.revenueConfirmed)}</td>
                     </tr>
                   </tfoot>
                 )}
