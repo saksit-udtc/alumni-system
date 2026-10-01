@@ -44,7 +44,13 @@ function StatusBadge({ status }: { status: string }) {
 // EasySlip's automated check, shown next to "ดูสลิป" — purely advisory, the
 // admin can still approve regardless of this badge (see lib/easyslip.ts).
 function EasySlipBadge({ status, message }: { status: string | null; message: string | null }) {
-  if (!status || status === "SKIPPED") return null;
+  if (status === "SKIPPED") return null;
+  if (!status)
+    return (
+      <span className="inline-block whitespace-nowrap mt-1.5 text-[11px] px-2 py-0.5 rounded-lg font-medium w-fit bg-slate-100 text-slate-600 border border-slate-200">
+        ยังไม่ได้ตรวจสลิป
+      </span>
+    );
   const style =
     status === "MATCH"
       ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -385,8 +391,8 @@ export default function AdminMerchOrdersPage() {
                       ) : (
                         <span className="inline-block whitespace-nowrap text-xs px-2.5 py-1.5 rounded-lg font-medium bg-stone-100 text-stone-400 border border-stone-200">ไม่มีสลิป</span>
                       )}
-                      <EasySlipBadge status={o.latestSlipEasyslipStatus} message={o.latestSlipEasyslipMessage} />
-                      {o.latestSlipUrl && o.latestSlipEasyslipStatus && o.latestSlipEasyslipStatus !== "MATCH" && o.latestSlipEasyslipStatus !== "SKIPPED" && (
+                      {o.latestSlipUrl && <EasySlipBadge status={o.latestSlipEasyslipStatus} message={o.latestSlipEasyslipMessage} />}
+                      {o.latestSlipUrl && o.latestSlipEasyslipStatus !== "MATCH" && o.latestSlipEasyslipStatus !== "SKIPPED" && (
                         <button
                           onClick={() => recheckSlip(o.id)}
                           disabled={recheckId === o.id}

@@ -123,7 +123,7 @@ export async function verifySlipByUrl(
       body: JSON.stringify({ url: imageUrl, checkDuplicate: true, matchAccount: true }),
       // EasySlip is an external network call — don't let a hung request
       // block whatever fire-and-forget task called this indefinitely.
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(30_000),
     });
     json = await res.json();
   } catch (err) {
