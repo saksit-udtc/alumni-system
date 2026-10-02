@@ -80,7 +80,10 @@ export default function EventDetailPage() {
         title="จองโต๊ะงานเลี้ยง"
         subtitle={
           <>
-            ติดต่อจองโต๊ะ คุณแพ็ททรียา เจียมสันต์ (แพตตี้) โทร.{" "}
+            ติดต่อจองโต๊ะ คุณแพ็ททรียา เจียมสันต์ (แพตตี้)
+            <br className="sm:hidden" />
+            <span className="hidden sm:inline"> </span>
+            โทร.{" "}
             <a href="tel:0643191010" className="font-semibold no-underline">
               064-319-1010
             </a>

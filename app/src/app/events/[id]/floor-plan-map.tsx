@@ -687,23 +687,17 @@ export default function FloorPlanMap({
                   </span>
                 ))}
               </div>
-              {/* มือถือ: แบ่งเป็น 2 กรอบ วางสองข้างเวที (พื้นที่ว่างไม่บังโต๊ะ) */}
-              {[
-                { side: "left-1", items: zoneStats.slice(0, Math.ceil(zoneStats.length / 2)) },
-                { side: "right-1", items: zoneStats.slice(Math.ceil(zoneStats.length / 2)) },
-              ].map((g) => (
-                <div
-                  key={g.side}
-                  className={`sm:hidden absolute ${g.side} top-[2.25rem] z-10 pointer-events-none rounded-md bg-white/90 border border-cream-200 shadow px-1 py-0.5 space-y-0.5 text-[8px] leading-tight text-stone-700`}
-                >
-                  {g.items.map((z) => (
-                    <span key={z.key} className="flex items-center gap-0.5 whitespace-nowrap">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: zoneColor(z.zone).bg }} />
-                      {zoneLabel(z)} โต๊ะว่าง <span className="font-semibold text-stone-800">{z.free}/{z.total}</span>
+              {/* มือถือ: วางหมายเหตุเหนือแผนผัง (ไม่ลอยทับโต๊ะ) แบ่ง 2 คอลัมน์ */}
+              <div className="sm:hidden mb-1.5 rounded-lg bg-white border border-cream-200 shadow-sm px-2 py-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] leading-snug text-stone-700">
+                {zoneStats.map((z) => (
+                  <span key={z.key} className="flex items-start gap-1">
+                    <span className="inline-block w-2 h-2 mt-[3px] rounded-full shrink-0" style={{ background: zoneColor(z.zone).bg }} />
+                    <span>
+                      {zoneLabel(z)} <span className="whitespace-nowrap">โต๊ะว่าง <span className="font-semibold text-stone-800">{z.free}/{z.total}</span></span>
                     </span>
-                  ))}
-                </div>
-              ))}
+                  </span>
+                ))}
+              </div>
             </>
           )}
           <div
