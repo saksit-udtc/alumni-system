@@ -2,7 +2,7 @@
 import { useState } from "react";
 import TableGraphic, { type TableRow } from "./table-graphic";
 import FloorPlanMap from "./floor-plan-map";
-import { zoneColor } from "@/lib/zone-colors";
+import { zoneColor, registerZones } from "@/lib/zone-colors";
 
 function TableCard({ t, eventId, eventOpen }: { t: TableRow; eventId: string; eventOpen: boolean }) {
   const color = zoneColor(t.zone);
@@ -110,6 +110,7 @@ export default function TableMap({
 }) {
   const [showGuide, setShowGuide] = useState(true);
 
+  registerZones(tables.map((t) => t.zone));
   const zoned = tables.some((t) => t.zone);
 
   if (floorPlanUrl) {

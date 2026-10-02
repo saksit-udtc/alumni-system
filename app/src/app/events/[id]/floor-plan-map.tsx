@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import TableGraphic, { type TableRow } from "./table-graphic";
-import { zoneColor } from "@/lib/zone-colors";
+import { zoneColor, registerZones } from "@/lib/zone-colors";
 import { zoneKey, computeZoomFrame, computeFocusFrame } from "@/lib/floor-plan-zoom";
 
 // Marker size is derived from the canvas's actual rendered pixel width,
@@ -37,6 +37,7 @@ function zoneLabel(z: { zone: string | null }) {
 }
 
 function buildZoneStats(tables: TableRow[]): ZoneStat[] {
+  registerZones(tables.map((t) => t.zone));
   const map = new Map<string, ZoneStat>();
   for (const t of tables) {
     const key = zoneKey(t.zone);

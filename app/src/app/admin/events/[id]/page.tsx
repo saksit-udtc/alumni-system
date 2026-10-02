@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import StatusToggle from "./status-toggle";
-import { zoneColor } from "@/lib/zone-colors";
+import { zoneColor, registerZones } from "@/lib/zone-colors";
 import AdminFloorPlanOverview from "./admin-floor-plan-overview";
 import { AdminStatCard } from "@/app/components/admin-stat-card";
 
@@ -57,6 +57,7 @@ export default function AdminEventDetailPage() {
   const totalSeats = allTables.reduce((sum, t) => sum + t.capacity, 0);
   const reservedSeats = allTables.reduce((sum, t) => sum + t.seatsReserved, 0);
 
+  registerZones(allTables.map((t) => t.zone));
   const zoneNames = Array.from(new Set(allTables.map((t) => t.zone ?? "ไม่ระบุโซน")));
   const hasZones = allTables.some((t) => t.zone);
 
