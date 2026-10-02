@@ -45,12 +45,12 @@ export default function SizeChart({ className = "" }: { className?: string }) {
 
         {/* ตาราง */}
         <div className="w-full overflow-x-auto">
-          <table className="w-full text-center text-sm border-collapse">
+          <table className="w-full text-center text-[11px] sm:text-sm border-collapse">
             <thead>
               <tr>
-                <th className="border border-stone-300 bg-maroon-700 text-white font-medium px-2 py-1.5">ไซซ์</th>
+                <th className="border border-stone-300 bg-maroon-700 text-white font-medium px-0.5 sm:px-2 py-1 sm:py-1.5">ไซซ์</th>
                 {SIZES.map((s) => (
-                  <th key={s} className="border border-stone-300 bg-maroon-700 text-white font-medium px-2 py-1.5">
+                  <th key={s} className="border border-stone-300 bg-maroon-700 text-white font-medium px-0.5 sm:px-2 py-1 sm:py-1.5">
                     {s}
                   </th>
                 ))}
@@ -58,15 +58,15 @@ export default function SizeChart({ className = "" }: { className?: string }) {
             </thead>
             <tbody>
               <tr>
-                <td className="border border-stone-300 px-2 py-1.5 font-medium text-stone-700">รอบอก</td>
+                <td className="border border-stone-300 px-0.5 sm:px-2 py-1 sm:py-1.5 font-medium text-stone-700">รอบอก</td>
                 {CHEST.map((c, i) => (
-                  <td key={i} className="border border-stone-300 px-2 py-1.5">{c}</td>
+                  <td key={i} className="border border-stone-300 px-0.5 sm:px-2 py-1 sm:py-1.5">{c}</td>
                 ))}
               </tr>
               <tr>
-                <td className="border border-stone-300 px-2 py-1.5 font-medium text-stone-700">ความยาว</td>
+                <td className="border border-stone-300 px-0.5 sm:px-2 py-1 sm:py-1.5 font-medium text-stone-700">ความยาว</td>
                 {LENGTH.map((c, i) => (
-                  <td key={i} className="border border-stone-300 px-2 py-1.5">{c}</td>
+                  <td key={i} className="border border-stone-300 px-0.5 sm:px-2 py-1 sm:py-1.5">{c}</td>
                 ))}
               </tr>
             </tbody>

@@ -161,7 +161,7 @@ export default function ReservePage() {
             ← กลับไปหน้าจองโต๊ะ
           </a>
           <h1 className="text-2xl font-display font-semibold text-stone-800 mt-1">
-            เหมาโต๊ะ — โต๊ะ {table.tableNumber}
+            โต๊ะหมายเลข {table.tableNumber}
           </h1>
           <p className="text-stone-500 text-sm">{event.name}</p>
         </div>

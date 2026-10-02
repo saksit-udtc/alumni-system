@@ -61,7 +61,7 @@ function MerchStatusForm() {
     <div>
       <SiteNav />
 
-      <PageTitle title="เช็คสถานะการสั่งซื้อ" />
+      <PageTitle banner title="เช็คสถานะการสั่งซื้อ" />
 
       <main className="max-w-md mx-auto p-4 space-y-4">
       <div className="flex justify-end">

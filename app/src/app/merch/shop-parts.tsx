@@ -117,6 +117,7 @@ export function PurchaseControls({
   onSize,
   onQty,
   onAdd,
+  hideAddOnMobile = false,
 }: {
   product: ShopProduct;
   size: string;
@@ -125,6 +126,8 @@ export function PurchaseControls({
   onSize: (size: string) => void;
   onQty: (n: number) => void;
   onAdd: () => void;
+  // มือถือ: ปุ่มเพิ่มลงตะกร้าย้ายไปเป็นแถบติดขอบล่างของหน้าต่าง (ดู ProductModal)
+  hideAddOnMobile?: boolean;
 }) {
   const key = product.requiresSize ? size : "";
   const stockNow = product.stock?.[key] ?? 0;
@@ -158,7 +161,7 @@ export function PurchaseControls({
         type="button"
         onClick={onAdd}
         disabled={remaining <= 0}
-        className="bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2.5 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`${hideAddOnMobile ? "hidden sm:block " : ""}bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-2.5 font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {remaining > 0 ? "+ เพิ่มลงตะกร้า" : stockNow > 0 ? "ในตะกร้าครบตามจำนวนที่เหลือแล้ว" : "หมด"}
       </button>
@@ -229,7 +232,7 @@ export function ProductModal({
 
   return (
     <div
-      className="fixed inset-0 z-[55] bg-black/60 flex items-end sm:items-center justify-center sm:p-4"
+      className="fixed inset-0 z-[55] bg-black/60 flex items-center justify-center p-3 pb-16 sm:p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -237,16 +240,18 @@ export function ProductModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-white w-full sm:max-w-3xl max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-xl"
+        className="relative bg-white w-full sm:max-w-3xl max-h-[78dvh] sm:max-h-[88dvh] overflow-y-auto rounded-2xl shadow-xl"
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="ปิด"
-          className="sticky top-2 float-right mr-2 mt-2 z-10 bg-white/90 hover:bg-white border border-stone-200 rounded-full w-9 h-9 flex items-center justify-center text-xl text-stone-600"
-        >
-          ×
-        </button>
+        <div className="sticky top-2 z-10 h-0">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="ปิด"
+            className="absolute left-6 top-6 sm:left-8 sm:top-8 bg-white/90 hover:bg-white border border-stone-200 rounded-full w-9 h-9 flex items-center justify-center text-xl text-stone-600 shadow"
+          >
+            ×
+          </button>
+        </div>
 
         <div className="grid sm:grid-cols-2 gap-5 p-4 sm:p-6">
           <div className="flex flex-col gap-2">
@@ -262,7 +267,7 @@ export function ProductModal({
                   <img
                     src={current}
                     alt={`${product.name} (ด้านหน้า)`}
-                    className="w-full aspect-square rounded-xl object-contain bg-white border border-cream-200 p-2"
+                    className="w-full h-[26dvh] sm:h-auto sm:aspect-square rounded-xl object-contain bg-white border border-cream-200 p-2"
                   />
                   <span className="absolute right-2 bottom-2 rounded-full bg-stone-800/85 text-white text-xs px-2.5 py-1 pointer-events-none">
                     แตะเพื่อขยาย · ดูด้านหลังได้
@@ -275,10 +280,10 @@ export function ProductModal({
                   className="block w-full cursor-zoom-in"
                   aria-label="ดูภาพขยาย"
                 >
-                  <img src={current} alt={product.name} className="w-full aspect-square object-cover rounded-xl bg-cream-100" />
+                  <img src={current} alt={product.name} className="w-full h-[26dvh] sm:h-auto sm:aspect-square object-cover rounded-xl bg-cream-100" />
                 </button>
               ) : (
-                <div className="w-full aspect-square bg-cream-100 rounded-xl flex items-center justify-center text-stone-400 text-sm">
+                <div className="w-full h-[26dvh] sm:h-auto sm:aspect-square bg-cream-100 rounded-xl flex items-center justify-center text-stone-400 text-sm">
                   ไม่มีรูปภาพ
                 </div>
               )}

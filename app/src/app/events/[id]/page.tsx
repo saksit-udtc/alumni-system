@@ -75,22 +75,30 @@ export default function EventDetailPage() {
   return (
     <div>
       <SiteNav />
-      <PageTitle title={`จองโต๊ะงานเลี้ยง · ${event.name}`} />
+      <PageTitle
+        banner
+        title="จองโต๊ะงานเลี้ยง"
+        subtitle={
+          <>
+            ติดต่อจองโต๊ะ คุณแพ็ททรียา เจียมสันต์ (แพตตี้) โทร.{" "}
+            <a href="tel:0643191010" className="font-semibold no-underline">
+              064-319-1010
+            </a>
+          </>
+        }
+      />
 
       <main className="max-w-4xl mx-auto p-4 space-y-3">
 
-      {/* Line 2: price + table-status legend, moved up here (out of the
-          floor plan card below) so it reads right under the event's basic
-          info instead of buried further down the page. */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-cream-200 shadow-md rounded-xl px-4 py-3">
         <div>
-          <span className="text-2xl font-display font-semibold text-maroon-700">{Number(event.pricePerTable).toLocaleString()}</span>
-          <span className="text-sm text-stone-500"> บาท/โต๊ะ (เหมา)</span>
+        <span className="text-2xl font-display font-semibold text-maroon-700">{Number(event.pricePerTable).toLocaleString()}</span>
+        <span className="text-sm text-stone-500"> บาท ต่อโต๊ะ ({tables[0]?.capacity ?? 8} ที่นั่ง)</span>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-xs text-stone-500">
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#22c55e", border: "1.5px solid #16a34a" }} />
-            โต๊ะว่าง (คลิกเพื่อเหมาโต๊ะ)
+            โต๊ะว่าง
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#ef4444", border: "1.5px solid #dc2626" }} />

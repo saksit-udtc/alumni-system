@@ -333,10 +333,10 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         <div className="wrap menu-grid">
           {/* การ์ดเมนูแบบข้อความล้วน (ไม่มีไอคอน/ปุ่ม) — ทั้งการ์ดกดได้ */}
           {[
-            { href: bookHref, onClick: goBook, title: "จองโต๊ะงานเลี้ยง", lines: ["จองโต๊ะ", "งานเลี้ยง"], big: true },
-            { href: "/merch", title: "สั่งซื้อของที่ระลึก", lines: ["สั่งซื้อ", "ของที่ระลึก"], big: true },
-            { href: "https://forms.gle/WVLrDEqJfT4k5zzGA", title: "รับโล่ศิษย์เก่าดีเด่น", lines: ["รับโล่", "ศิษย์เก่าดีเด่น"], note: "ใช้ลดหย่อนภาษีได้", external: true },
-            { href: "https://forms.gle/DvPD8i5pMfMVsRLTA", title: "รับโล่ผู้มีอุปการคุณ", lines: ["รับโล่", "ผู้มีอุปการคุณ"], note: "ใช้ลดหย่อนภาษีได้", external: true },
+            { href: bookHref, onClick: goBook, title: "จองโต๊ะงานเลี้ยง", lines: ["จองโต๊ะ", "งานเลี้ยง"], big: true, tone: "c1" },
+            { href: "/merch", title: "สั่งซื้อของที่ระลึก", lines: ["สั่งซื้อ", "ของที่ระลึก"], big: true, tone: "c2" },
+            { href: "https://forms.gle/WVLrDEqJfT4k5zzGA", title: "รับโล่ศิษย์เก่าดีเด่น", lines: ["รับโล่", "ศิษย์เก่าดีเด่น"], note: "ใช้ลดหย่อนภาษีได้", external: true, tone: "c3" },
+            { href: "https://forms.gle/DvPD8i5pMfMVsRLTA", title: "รับโล่ผู้มีอุปการคุณ", lines: ["รับโล่", "ผู้มีอุปการคุณ"], note: "ใช้ลดหย่อนภาษีได้", external: true, tone: "c4" },
           ].map((c) => {
             // แบ่ง 2 บรรทัดเอง (เบราว์เซอร์ตัดคำไทยกลางคำได้ เช่น "ดี/เด่น")
             const inner = (
@@ -348,9 +348,9 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
               </span>
             );
             return c.external ? (
-              <a key={c.title} href={c.href} target="_blank" rel="noreferrer" className="menu-card">{inner}</a>
+              <a key={c.title} href={c.href} target="_blank" rel="noreferrer" className={`menu-card ${c.tone}`}>{inner}</a>
             ) : (
-              <Link key={c.title} href={c.href} onClick={c.onClick} className="menu-card">{inner}</Link>
+              <Link key={c.title} href={c.href} onClick={c.onClick} className={`menu-card ${c.tone}`}>{inner}</Link>
             );
           })}
         </div>
@@ -905,6 +905,16 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         .menu-cards :global(.menu-card:hover){ transform:translateY(-6.5px); border-color:var(--gold-bright); box-shadow:0 20px 42px var(--card-shadow); }
         .menu-cards :global(.menu-card:hover) .menu-title{ color:var(--gold-text); }
         .menu-cards :global(.menu-card:focus-visible){ outline:3px solid var(--gold-bright); outline-offset:3px; }
+        /* แยกสีการ์ดเมนูทีละใบ: น้ำเงิน / ส้ม / เขียว / ม่วง */
+        .menu-cards :global(.menu-card.c1){ --mc:#1d63c4; --mc-bg:#e8f1fd; }
+        .menu-cards :global(.menu-card.c2){ --mc:#e8590c; --mc-bg:#fff0e6; }
+        .menu-cards :global(.menu-card.c3){ --mc:#15803d; --mc-bg:#e6f6ec; }
+        .menu-cards :global(.menu-card.c4){ --mc:#7c3aed; --mc-bg:#f1eafd; }
+        .menu-cards :global(.menu-card.c1), .menu-cards :global(.menu-card.c2), .menu-cards :global(.menu-card.c3), .menu-cards :global(.menu-card.c4){ background:linear-gradient(160deg,#ffffff 0%,var(--mc-bg) 100%); border-color:var(--mc-bg); border-top:5px solid var(--mc); }
+        .menu-cards :global(.menu-card.c1:hover), .menu-cards :global(.menu-card.c2:hover), .menu-cards :global(.menu-card.c3:hover), .menu-cards :global(.menu-card.c4:hover){ border-color:var(--mc); }
+        .menu-cards :global(.menu-card.c1) .menu-title, .menu-cards :global(.menu-card.c2) .menu-title, .menu-cards :global(.menu-card.c3) .menu-title, .menu-cards :global(.menu-card.c4) .menu-title,
+        .menu-cards :global(.menu-card.c1:hover) .menu-title, .menu-cards :global(.menu-card.c2:hover) .menu-title, .menu-cards :global(.menu-card.c3:hover) .menu-title, .menu-cards :global(.menu-card.c4:hover) .menu-title{ color:var(--mc); }
+        .menu-cards :global(.menu-card.c1) .menu-note, .menu-cards :global(.menu-card.c2) .menu-note, .menu-cards :global(.menu-card.c3) .menu-note, .menu-cards :global(.menu-card.c4) .menu-note{ background:var(--mc); color:#fff; }
         .menu-title{ font-weight:700; font-size:22px; line-height:1.35; color:var(--card-ink); transition:color .15s; }
         .menu-line{ display:block; white-space:nowrap; }
         .menu-body{ display:flex; flex-direction:column; align-items:center; gap:8px; }

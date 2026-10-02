@@ -71,7 +71,7 @@ export default function TableGraphic({
         r={tableRadius}
         fill={isBooked ? "#ef4444" : "#22c55e"}
         stroke={zoneStroke}
-        strokeWidth={6}
+        strokeWidth={18}
         className={disableBooking || canBook ? "cursor-pointer" : ""}
         onClick={goToFullTable}
       >

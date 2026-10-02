@@ -61,7 +61,7 @@ function StatusForm() {
     <div>
       <SiteNav />
 
-      <PageTitle title="เช็คสถานะการจอง" />
+      <PageTitle banner title="เช็คสถานะการจอง" />
 
       <main className="max-w-md mx-auto p-4 space-y-5">
       <form onSubmit={search} className="space-y-3 bg-white border border-cream-200 rounded-xl p-5 shadow-md">

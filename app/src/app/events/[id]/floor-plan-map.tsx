@@ -373,11 +373,9 @@ export default function FloorPlanMap({
   // selectedZone: a zoneKey, or null when no single zone is selected.
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   // "ดูทั้งหมด": the whole plan at once (opt-in; the guest default is the zone overview).
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(!readOnly);
   // Table jumped to via search / the info modal — zoomed to and highlighted.
   const [focusTableId, setFocusTableId] = useState<string | null>(null);
-  const [searchText, setSearchText] = useState("");
-  const [searchMsg, setSearchMsg] = useState<{ kind: "error" | "info"; text: string } | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [scrollTick, setScrollTick] = useState(0);
   const [infoTable, setInfoTable] = useState<TableRow | null>(null);
@@ -424,8 +422,7 @@ export default function FloorPlanMap({
   // With zones, tables can only be booked once zoomed into a zone (or jumped
   // to) — in the "ดูทั้งหมด" view a tap just shows the table's info, so a
   // fat-finger on tiny markers can't start a booking on the wrong table.
-  const disableBooking = readOnly || (hasZones && selectedZone === null);
-  const requireZoneSelection = !readOnly && hasZones && selectedZone === null;
+  const disableBooking = readOnly;
 
   const currentStat = selectedZone !== null ? zoneStats.find((z) => z.key === selectedZone) ?? null : null;
 
@@ -514,7 +511,7 @@ export default function FloorPlanMap({
 
   function goOverview() {
     setSelectedZone(null);
-    setShowAll(false);
+    setShowAll(true);
     setFocusTableId(null);
     setSwitcherOpen(false);
   }
@@ -531,7 +528,6 @@ export default function FloorPlanMap({
     setShowAll(false);
     setFocusTableId(null);
     setSwitcherOpen(false);
-    setSearchMsg(null);
     setScrollTick((n) => n + 1);
   }
 
@@ -549,34 +545,6 @@ export default function FloorPlanMap({
     setSwitcherOpen(false);
     setScrollTick((n) => n + 1);
   }
-
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    const raw = searchText.trim();
-    if (!raw) {
-      setSearchMsg({ kind: "error", text: "กรุณาพิมพ์เลขโต๊ะ" });
-      return;
-    }
-    if (!/^\d+$/.test(raw)) {
-      setSearchMsg({ kind: "error", text: "กรุณาพิมพ์เลขโต๊ะเป็นตัวเลขเท่านั้น" });
-      return;
-    }
-    const num = Number(raw);
-    const found = tables.find((t) => t.tableNumber === num);
-    if (!found) {
-      setSearchMsg({ kind: "error", text: `ไม่พบโต๊ะเลข ${num}` });
-      return;
-    }
-    const status = isTableBooked(found) ? "จองแล้ว" : "ว่าง";
-    if (found.posX === null || found.posY === null) {
-      setSearchMsg({ kind: "info", text: `โต๊ะ ${num}${found.zone ? ` · โซน ${found.zone}` : ""} · ${status} (ยังไม่ได้จัดตำแหน่งบนผัง)` });
-    } else {
-      setSearchMsg({ kind: "info", text: `โต๊ะ ${num}${found.zone ? ` · โซน ${found.zone}` : ""} · ${status}` });
-    }
-    jumpToTable(found);
-  }
-
-  const topLevelIsAll = selectedZone === null && showAll && focusTableId === null;
 
   return (
     <div className="space-y-3">
@@ -606,78 +574,10 @@ export default function FloorPlanMap({
         </div>
       )}
 
-      {/* Guest header: table-number search (a shortcut alongside the zones),
-          the zone / all-tables switch, and the how-to steps. */}
-      {guest && (
-        <div className="bg-white border border-cream-200 shadow-md rounded-xl px-4 py-4 space-y-3">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={searchText}
-              onChange={(e) => {
-                setSearchText(e.target.value);
-                if (searchMsg) setSearchMsg(null);
-              }}
-              placeholder="ค้นหาเลขโต๊ะ เช่น 42"
-              aria-label="ค้นหาเลขโต๊ะ"
-              className="min-w-0 flex-1 border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow"
-            />
-            <button
-              type="submit"
-              className="shrink-0 rounded-lg bg-maroon-700 hover:bg-maroon-800 transition-colors text-white font-medium px-4 py-2"
-            >
-              ไปที่โต๊ะ
-            </button>
-          </form>
-          {searchMsg && (
-            <p className={`text-sm ${searchMsg.kind === "error" ? "text-red-600" : "text-emerald-700"}`} role={searchMsg.kind === "error" ? "alert" : "status"}>
-              {searchMsg.text}
-            </p>
-          )}
-
-          {hasZones && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-stone-500 mr-1">มุมมอง:</span>
-              <button
-                onClick={goOverview}
-                className={`text-sm px-3.5 py-1.5 rounded-full border transition-colors ${!topLevelIsAll ? "bg-maroon-700 text-white border-maroon-700" : "border-stone-300 text-stone-600 hover:bg-cream-50"}`}
-              >
-                แบ่งตามโซน
-              </button>
-              <button
-                onClick={goAll}
-                className={`text-sm px-3.5 py-1.5 rounded-full border transition-colors ${topLevelIsAll ? "bg-maroon-700 text-white border-maroon-700" : "border-stone-300 text-stone-600 hover:bg-cream-50"}`}
-              >
-                ดูทั้งหมด
-              </button>
-            </div>
-          )}
-
-          {eventOpen && hasZones && inZonesOverview && (
-            <div className="pt-2.5 border-t border-cream-100">
-              <div className="grid sm:grid-cols-3 gap-3">
-                {[
-                  { icon: "📍", text: "แตะโซนที่ต้องการ (หรือพิมพ์เลขโต๊ะด้านบน)" },
-                  { icon: "🔍", text: "ผังจะซูมเข้าโซนนั้น ดูว่าโต๊ะไหนว่าง/เต็ม และมีศิษย์เก่าคนไหนจองไว้บ้าง" },
-                  { icon: "🪑", text: "แตะโต๊ะสีเขียวเพื่อเหมาทั้งโต๊ะ" },
-                ].map((s, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary-50 border border-primary-200 text-sm shrink-0">
-                      {s.icon}
-                    </span>
-                    <p className="text-sm text-stone-600 leading-snug">{s.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Zone overview: one big card per zone with its vacancy. */}
-      {inZonesOverview && positioned.length > 0 && (
+      {inZonesOverview && (
+      <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
+      {positioned.length > 0 && (
         <div className="bg-white border border-cream-200 shadow-md rounded-xl p-3 space-y-2">
           <p className="text-sm text-stone-600">
             <span className="font-medium text-stone-700">ตำแหน่งแต่ละโซนบนผัง</span> — แตะชื่อโซนบนแผนที่ หรือเลือกจากการ์ดด้านล่าง
@@ -695,8 +595,8 @@ export default function FloorPlanMap({
         </div>
       )}
 
-      {inZonesOverview && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      {(
+        <div className={`grid grid-cols-2 gap-3 ${positioned.length > 0 ? "" : "lg:grid-cols-3"}`}>
           {zoneStats.map((z) => {
             const color = zoneColor(z.zone);
             const full = z.free === 0;
@@ -723,6 +623,8 @@ export default function FloorPlanMap({
             );
           })}
         </div>
+      )}
+      </div>
       )}
 
       {mapVisible && (
@@ -761,11 +663,49 @@ export default function FloorPlanMap({
                 </button>
               )}
               <button onClick={goOverview} className="ml-auto text-sm text-maroon-700 hover:text-maroon-800 hover:underline">
-                {hasZones ? "← ภาพรวมโซน" : "← ดูทั้งหมด"}
+                ← ดูทั้งหมด
               </button>
             </div>
           )}
 
+          <div className="relative">
+          {guest && (
+            <div className="relative mx-auto w-fit mb-1 sm:mb-0 sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:top-2 z-10 pointer-events-none whitespace-nowrap rounded-lg bg-white/90 border border-cream-200 shadow px-3 sm:px-4 py-1 sm:py-2 text-sm sm:text-xl leading-tight font-display font-semibold text-maroon-700">
+              แผนผังการจัดงาน
+            </div>
+          )}
+          {guest && hasZones && (
+            <>
+              {/* เดสก์ท็อป: กรอบหมายเหตุกรอบเดียวด้านซ้าย */}
+              <div className="hidden sm:block absolute left-2 top-16 z-10 pointer-events-none rounded-lg bg-white/90 border border-cream-200 shadow px-2.5 py-2 space-y-1 text-[11px] leading-tight text-stone-700">
+                <p className="font-semibold text-stone-800">หมายเหตุ</p>
+                {zoneStats.map((z) => (
+                  <span key={z.key} className="flex items-center gap-1.5">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: zoneColor(z.zone).bg }} />
+                    {zoneLabel(z)} โต๊ะว่าง{" "}
+                    <span className="font-semibold text-stone-800">{z.free}/{z.total}</span>
+                  </span>
+                ))}
+              </div>
+              {/* มือถือ: แบ่งเป็น 2 กรอบ วางสองข้างเวที (พื้นที่ว่างไม่บังโต๊ะ) */}
+              {[
+                { side: "left-1", items: zoneStats.slice(0, Math.ceil(zoneStats.length / 2)) },
+                { side: "right-1", items: zoneStats.slice(Math.ceil(zoneStats.length / 2)) },
+              ].map((g) => (
+                <div
+                  key={g.side}
+                  className={`sm:hidden absolute ${g.side} top-[2.25rem] z-10 pointer-events-none rounded-md bg-white/90 border border-cream-200 shadow px-1 py-0.5 space-y-0.5 text-[8px] leading-tight text-stone-700`}
+                >
+                  {g.items.map((z) => (
+                    <span key={z.key} className="flex items-center gap-0.5 whitespace-nowrap">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: zoneColor(z.zone).bg }} />
+                      {zoneLabel(z)} โต๊ะว่าง <span className="font-semibold text-stone-800">{z.free}/{z.total}</span>
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </>
+          )}
           <div
             ref={viewportRef}
             className={`relative border border-cream-200 rounded-xl bg-cream-100 ${zoomed ? "overflow-auto" : "overflow-hidden"}`}
@@ -797,12 +737,8 @@ export default function FloorPlanMap({
               ))}
             </div>
           </div>
+          </div>
           {zoomed && <p className="text-xs text-stone-400">เลื่อนภาพเพื่อดูโต๊ะอื่นในโซนนี้ได้</p>}
-          {guest && hasZones && selectedZone === null && showAll && requireZoneSelection && eventOpen && (
-            <p className="text-xs text-amber-700">
-              มุมมองนี้ใช้ดูภาพรวมเท่านั้น — แตะโต๊ะเพื่อดูข้อมูล หรือเลือกโซน/ค้นหาเลขโต๊ะเพื่อซูมเข้าไปจอง
-            </p>
-          )}
 
           {unpositioned.length > 0 && (
             <div>

@@ -14,11 +14,20 @@ export async function GET() {
   const [products, shippingFee] = await Promise.all([
     prisma.merchProduct.findMany({
       where: { active: true },
-      orderBy: { createdAt: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       include: { stocks: true, images: { orderBy: { sortOrder: "asc" } } },
     }),
     getMerchShippingFee(),
   ]);
+
+  // ลำดับแสดงหน้าร้าน (ซ้าย→ขวา): เสื้อคอปก, เสื้อคอกลม, แก้วน้ำ, เหรียญ แล้วตามด้วยสินค้าอื่น
+  // (sort เสถียร — สินค้าอื่นคงลำดับ sortOrder/createdAt เดิม)
+  const rank = (name: string) => {
+    const keys = ["คอปก", "คอกลม", "แก้ว", "เหรียญ"];
+    const i = keys.findIndex((k) => name.includes(k));
+    return i === -1 ? keys.length : i;
+  };
+  products.sort((a, b) => rank(a.name) - rank(b.name));
 
   return NextResponse.json({
     shippingFee,
