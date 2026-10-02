@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AdminStatCard, AdminStatIcon } from "@/app/components/admin-stat-card";
+import { AdminStatCard } from "@/app/components/admin-stat-card";
 import { DonutChart, LineAreaChart, themeColor } from "@/app/components/admin-charts";
 
 interface DashboardData {
@@ -15,18 +15,20 @@ interface DashboardData {
     checkedIn: number;
     byStatus: Record<string, number>;
   };
-  merch: { total: number; pending: number; confirmed: number; confirmedRevenue: number; toShip: number; shipped: number };
+  merch: { total: number; pending: number; confirmed: number; confirmedRevenue: number; toShip: number; shipped: number; byStatus: Record<string, number> };
   alumni: { total: number };
-  recentEvents: {
-    id: string;
-    name: string;
-    eventDate: string;
-    status: "draft" | "open" | "closed";
-    tableCount: number;
-    reservationCount: number;
-  }[];
   rangeDays: number;
   daily: { date: string; count: number }[];
+  merchDaily: { date: string; count: number }[];
+  recentMerchOrders: {
+    id: string;
+    orderCode: string;
+    bookerName: string;
+    totalAmount: number;
+    paymentStatus: string;
+    createdAt: string;
+    itemCount: number;
+  }[];
   recentReservations: {
     id: string;
     bookingCode: string;
@@ -37,23 +39,7 @@ interface DashboardData {
     createdAt: string;
     easyslipStatus: string | null;
   }[];
-  todo: {
-    awaitingReservations: number;
-    awaitingMerch: number;
-    awaitingSupport: number;
-    suspiciousSlips: number;
-    merchToShip: number;
-    lowStock: number;
-    lowStockThreshold: number;
-  };
 }
-
-const EVENT_STATUS_LABEL: Record<string, string> = { draft: "ร่าง", open: "เปิดจอง", closed: "ปิดรับจอง" };
-const EVENT_STATUS_BADGE: Record<string, string> = {
-  draft: "bg-stone-200 text-stone-600",
-  open: "bg-emerald-100 text-emerald-700",
-  closed: "bg-maroon-100 text-maroon-700",
-};
 
 // สถานะการชำระเงินของการจอง (ข้อความ/สีเดียวกับหน้า /admin/reservations)
 const PAY_LABEL: Record<string, string> = {
@@ -79,15 +65,6 @@ const PAY_COLOR: Record<string, string> = {
   rejected: "#dc2626",
 };
 const PAY_ORDER = ["confirmed", "pending", "awaiting_verify", "expired", "rejected"];
-
-const QUICK_LINKS = [
-  { href: "/admin/reservations", label: "ตรวจสลิปการจอง", icon: "ticket" },
-  { href: "/admin/checkin", label: "เช็คอินหน้างาน", icon: "checkin" },
-  { href: "/admin/events/new", label: "สร้างงานเลี้ยงใหม่", icon: "calendar" },
-  { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box" },
-  { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag" },
-  { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users" },
-];
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions) =>
   new Date(`${iso}T12:00:00+07:00`).toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", ...opts });
@@ -144,15 +121,21 @@ export default function AdminDashboardPage() {
   }));
   const rangeTotal = data.daily.reduce((a, d) => a + d.count, 0);
 
-  const t = data.todo;
-  const todoItems = [
-    { label: "การจองรอตรวจสลิป", n: t.awaitingReservations, href: "/admin/reservations" },
-    { label: "สลิปที่ EasySlip แจ้งว่าไม่ตรง/น่าสงสัย", n: t.suspiciousSlips, href: "/admin/reservations", warn: true },
-    { label: "ออเดอร์ของที่ระลึกรอตรวจสลิป", n: t.awaitingMerch, href: "/admin/merch/orders" },
-    { label: "ออเดอร์ที่ยังไม่ได้กรอกเลข EMS", n: t.merchToShip, href: "/admin/merch/orders" },
-    { label: "ศิษย์เก่าดีเด่น/ผู้สนับสนุนรอตรวจสลิป", n: t.awaitingSupport, href: "/admin/support-registrations" },
-    { label: `สินค้าสต๊อกเหลือ ${t.lowStockThreshold} ชิ้นหรือน้อยกว่า`, n: t.lowStock, href: "/admin/merch/products", warn: true },
-  ].filter((i) => i.n > 0);
+  const merchSlices = PAY_ORDER.map((k) => ({ label: PAY_LABEL[k], value: data.merch.byStatus[k] || 0, color: PAY_COLOR[k] }));
+  const merchSliceTotal = merchSlices.reduce((a, x) => a + x.value, 0);
+  // สถานะการจัดส่ง: จัดส่งแล้ว (มีเลขพัสดุ) vs รอจัดส่ง (ยืนยันชำระแล้วแต่ยังไม่มีเลขพัสดุ)
+  const shipSlices = [
+    { label: "จัดส่งแล้ว", value: data.merch.shipped, color: "#059669" },
+    { label: "รอจัดส่ง", value: data.merch.toShip, color: themeColor("primary", 500) },
+  ];
+  const shipTotal = shipSlices.reduce((a, x) => a + x.value, 0);
+  const merchPoints = data.merchDaily.map((d) => ({
+    value: d.count,
+    label: data.rangeDays <= 7 ? thDate(d.date, { weekday: "short" }) : thDate(d.date, { day: "numeric", month: "numeric" }),
+    tip: `${thDate(d.date, { day: "numeric", month: "short" })} · สั่งซื้อ ${d.count} รายการ`,
+  }));
+  const merchRangeTotal = data.merchDaily.reduce((a, d) => a + d.count, 0);
+  const labelEvery = data.rangeDays <= 7 ? 1 : data.rangeDays <= 14 ? 2 : 5;
 
   return (
     <div className="space-y-6">
@@ -226,7 +209,7 @@ export default function AdminDashboardPage() {
             <LineAreaChart
               points={points}
               ariaLabel={`กราฟเส้นจำนวนการจองรายวัน ${data.rangeDays} วันล่าสุด รวม ${rangeTotal} รายการ`}
-              labelEvery={data.rangeDays <= 7 ? 1 : data.rangeDays <= 14 ? 2 : 5}
+              labelEvery={labelEvery}
             />
           </div>
         </Card>
@@ -248,10 +231,61 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      {/* รายการล่าสุด + ทางลัด/งานค้าง */}
+      {/* กราฟของที่ระลึก */}
       <div className="grid lg:grid-cols-3 gap-5">
         <Card
-          className="lg:col-span-2 overflow-hidden"
+          className="lg:col-span-2"
+          title="การสั่งซื้อของที่ระลึกรายวัน"
+          right={<span className="text-xs text-stone-500">รวม {merchRangeTotal.toLocaleString()} รายการใน {data.rangeDays} วัน</span>}
+        >
+          <div className={`px-4 pb-4 transition-opacity ${chartLoading ? "opacity-50" : ""}`}>
+            <LineAreaChart
+              points={merchPoints}
+              ariaLabel={`กราฟเส้นจำนวนการสั่งซื้อของที่ระลึกรายวัน ${data.rangeDays} วันล่าสุด รวม ${merchRangeTotal} รายการ`}
+              labelEvery={labelEvery}
+            />
+          </div>
+        </Card>
+
+        <Card title="สถานะการสั่งซื้อ">
+          <div className="px-5 pb-5 flex flex-col items-center gap-4">
+            <DonutChart slices={merchSlices} centerLabel="คำสั่งซื้อ" ariaLabel="แผนภูมิวงแหวนสัดส่วนสถานะการสั่งซื้อของที่ระลึก" />
+            <ul className="w-full space-y-1.5 text-sm">
+              {merchSlices.map((x) => (
+                <li key={x.label} className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: x.color }} />
+                  <span className="text-stone-600">{x.label}</span>
+                  <span className="ml-auto font-semibold text-stone-800">{x.value.toLocaleString()}</span>
+                  <span className="w-10 text-right text-stone-400">{merchSliceTotal ? Math.round((x.value / merchSliceTotal) * 100) : 0}%</span>
+                </li>
+              ))}
+            </ul>
+            <div className="w-full border-t border-cream-200 pt-3">
+              <div className="text-sm font-semibold text-stone-700 mb-2">สถานะการจัดส่ง</div>
+              <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-stone-100 mb-2">
+                {shipSlices.map((x) => (
+                  <div key={x.label} style={{ width: `${shipTotal ? (x.value / shipTotal) * 100 : 0}%`, background: x.color }} />
+                ))}
+              </div>
+              <ul className="space-y-1.5 text-sm">
+                {shipSlices.map((x) => (
+                  <li key={x.label} className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: x.color }} />
+                    <span className="text-stone-600">{x.label}</span>
+                    <span className="ml-auto font-semibold text-stone-800">{x.value.toLocaleString()}</span>
+                    <span className="w-10 text-right text-stone-400">{shipTotal ? Math.round((x.value / shipTotal) * 100) : 0}%</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* รายการล่าสุด */}
+      <div className="grid lg:grid-cols-2 gap-5">
+        <Card
+          className="overflow-hidden"
           title="รายการจองล่าสุด"
           right={
             <Link href="/admin/reservations" className="text-sm text-maroon-700 hover:text-maroon-800 hover:underline">
@@ -298,85 +332,49 @@ export default function AdminDashboardPage() {
           )}
         </Card>
 
-        <div className="space-y-5">
-          <Card title="ทางลัด">
-            <div className="px-4 pb-4 grid grid-cols-2 gap-2">
-              {QUICK_LINKS.map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className="flex flex-col items-start gap-1.5 p-3 rounded-lg border border-cream-200 bg-cream-50 text-sm text-stone-700 hover:border-primary-400 hover:text-maroon-700 transition-colors"
-                >
-                  <span className="text-primary-600">
-                    <AdminStatIcon name={l.icon} />
-                  </span>
-                  {l.label}
-                </Link>
-              ))}
-            </div>
-          </Card>
-
-          <Card title="งานที่รอดำเนินการ">
-            <div className="px-4 pb-4 space-y-1.5">
-              {todoItems.length === 0 ? (
-                <p className="text-sm text-stone-400 py-2 text-center">ไม่มีงานค้าง</p>
-              ) : (
-                todoItems.map((i) => (
-                  <Link
-                    key={i.label}
-                    href={i.href}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-cream-50 hover:bg-primary-50 text-sm text-stone-700 transition-colors"
-                  >
-                    <span className="flex-1 leading-snug">{i.label}</span>
-                    <span
-                      className={`shrink-0 min-w-[1.75rem] text-center text-xs font-semibold rounded-full px-2 py-0.5 ${
-                        i.warn ? "bg-red-100 text-red-700" : "bg-maroon-100 text-maroon-700"
-                      }`}
-                    >
-                      {i.n}
-                    </span>
-                  </Link>
-                ))
-              )}
-            </div>
-          </Card>
-        </div>
+        <Card
+          className="overflow-hidden"
+          title="รายการสั่งซื้อของที่ระลึกล่าสุด"
+          right={
+            <Link href="/admin/merch/orders" className="text-sm text-maroon-700 hover:text-maroon-800 hover:underline">
+              ดูทั้งหมด
+            </Link>
+          }
+        >
+          {data.recentMerchOrders.length === 0 ? (
+            <p className="p-6 text-center text-stone-400 text-sm">ยังไม่มีคำสั่งซื้อ</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-cream-100 text-left text-xs text-stone-500">
+                  <th className="px-5 py-2 font-medium">รหัส / ผู้สั่งซื้อ</th>
+                  <th className="px-3 py-2 font-medium text-right">ยอด</th>
+                  <th className="px-5 py-2 font-medium">สถานะ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-cream-100">
+                {data.recentMerchOrders.map((o) => (
+                  <tr key={o.id} className="hover:bg-cream-50/60">
+                    <td className="px-5 py-2.5">
+                      <div className="font-medium text-stone-800 truncate max-w-[14rem]">{o.bookerName}</div>
+                      <div className="text-xs text-stone-500">
+                        {o.orderCode} · {o.itemCount} ชิ้น ·{" "}
+                        {new Date(o.createdAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap text-stone-700">{o.totalAmount.toLocaleString()}</td>
+                    <td className="px-5 py-2.5">
+                      <span className={`inline-block text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap ${PAY_BADGE[o.paymentStatus] || PAY_BADGE.expired}`}>
+                        {PAY_LABEL[o.paymentStatus] || o.paymentStatus}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
       </div>
-
-      {/* งานเลี้ยงล่าสุด */}
-      <Card
-        className="overflow-hidden"
-        title="งานเลี้ยงล่าสุด"
-        right={
-          <Link href="/admin/events" className="text-sm text-maroon-700 hover:text-maroon-800 hover:underline">
-            ดูทั้งหมด
-          </Link>
-        }
-      >
-        {data.recentEvents.length === 0 ? (
-          <p className="p-6 text-center text-stone-400 text-sm">ยังไม่มีงานที่สร้างไว้</p>
-        ) : (
-          <div className="divide-y divide-cream-100 border-t border-cream-100">
-            {data.recentEvents.map((ev) => (
-              <Link
-                key={ev.id}
-                href={`/admin/events/${ev.id}`}
-                className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-cream-50/60 transition-colors"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium text-stone-800 truncate">{ev.name}</div>
-                  <div className="text-xs text-stone-500">
-                    {new Date(ev.eventDate).toLocaleDateString("th-TH", { dateStyle: "long" })} · {ev.tableCount} โต๊ะ · {ev.reservationCount} การจอง
-                  </div>
-                </div>
-                <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${EVENT_STATUS_BADGE[ev.status]}`}>
-                  {EVENT_STATUS_LABEL[ev.status]}
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </Card>
     </div>
   );
 }

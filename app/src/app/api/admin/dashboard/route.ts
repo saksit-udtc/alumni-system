@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/apiHelpers";
-import { SUSPICIOUS_SLIP, LOW_STOCK_THRESHOLD } from "@/lib/adminTodo";
 
 export const dynamic = "force-dynamic";
 
@@ -31,14 +30,12 @@ export async function GET(req: NextRequest) {
     reservationGroups,
     checkedInCount,
     merchGroups,
-    recentEvents,
     rangeReservations,
+    rangeMerch,
     recentReservations,
-    supportPending,
-    suspiciousSlips,
+    recentMerchOrders,
     merchToShip,
     merchShipped,
-    lowStock,
   ] = await Promise.all([
     prisma.event.count(),
     prisma.event.count({ where: { status: "open" } }),
@@ -56,12 +53,11 @@ export async function GET(req: NextRequest) {
       _count: { _all: true },
       _sum: { totalAmount: true },
     }),
-    prisma.event.findMany({
-      orderBy: { eventDate: "desc" },
-      take: 5,
-      include: { _count: { select: { tables: true, reservations: true } } },
-    }),
     prisma.reservation.findMany({
+      where: { createdAt: { gte: rangeStart } },
+      select: { createdAt: true },
+    }),
+    prisma.merchOrder.findMany({
       where: { createdAt: { gte: rangeStart } },
       select: { createdAt: true },
     }),
@@ -79,18 +75,21 @@ export async function GET(req: NextRequest) {
         slips: { orderBy: { uploadedAt: "desc" }, take: 1, select: { easyslipStatus: true } },
       },
     }),
-    prisma.supportRegistration.count({ where: { paymentStatus: "awaiting_verify" } }),
-    prisma.reservation.count({
-      where: {
-        paymentStatus: "awaiting_verify",
-        slips: { some: { easyslipStatus: { in: SUSPICIOUS_SLIP } } },
+    prisma.merchOrder.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: {
+        id: true,
+        orderCode: true,
+        bookerName: true,
+        totalAmount: true,
+        paymentStatus: true,
+        createdAt: true,
+        items: { select: { quantity: true } },
       },
     }),
     prisma.merchOrder.count({ where: { paymentStatus: "confirmed", trackingNumber: null } }),
     prisma.merchOrder.count({ where: { trackingNumber: { not: null } } }),
-    prisma.merchProductStock.count({
-      where: { quantity: { lte: LOW_STOCK_THRESHOLD }, product: { active: true } },
-    }),
   ]);
 
   function summarize(groups: { paymentStatus: string; _count: { _all: number }; _sum: { totalAmount: unknown } }[]) {
@@ -121,6 +120,12 @@ export async function GET(req: NextRequest) {
     if (idx >= 0 && idx < rangeDays) daily[idx].count++;
   }
 
+  const merchDaily = daily.map((d) => ({ date: d.date, count: 0 }));
+  for (const r of rangeMerch) {
+    const idx = Math.floor((r.createdAt.getTime() - rangeStart.getTime()) / DAY_MS);
+    if (idx >= 0 && idx < rangeDays) merchDaily[idx].count++;
+  }
+
   const reservations = summarize(reservationGroups);
   const merch = summarize(merchGroups);
 
@@ -129,16 +134,9 @@ export async function GET(req: NextRequest) {
     reservations: { ...reservations, checkedIn: checkedInCount },
     merch: { ...merch, toShip: merchToShip, shipped: merchShipped },
     alumni: { total: totalAlumni },
-    recentEvents: recentEvents.map((e) => ({
-      id: e.id,
-      name: e.name,
-      eventDate: e.eventDate,
-      status: e.status,
-      tableCount: e._count.tables,
-      reservationCount: e._count.reservations,
-    })),
     rangeDays,
     daily,
+    merchDaily,
     recentReservations: recentReservations.map((r) => ({
       id: r.id,
       bookingCode: r.bookingCode,
@@ -149,14 +147,14 @@ export async function GET(req: NextRequest) {
       createdAt: r.createdAt,
       easyslipStatus: r.slips[0]?.easyslipStatus ?? null,
     })),
-    todo: {
-      awaitingReservations: reservations.byStatus.awaiting_verify || 0,
-      awaitingMerch: merch.byStatus.awaiting_verify || 0,
-      awaitingSupport: supportPending,
-      suspiciousSlips,
-      merchToShip,
-      lowStock,
-      lowStockThreshold: LOW_STOCK_THRESHOLD,
-    },
+    recentMerchOrders: recentMerchOrders.map((o) => ({
+      id: o.id,
+      orderCode: o.orderCode,
+      bookerName: o.bookerName,
+      totalAmount: Number(o.totalAmount),
+      paymentStatus: o.paymentStatus,
+      createdAt: o.createdAt,
+      itemCount: o.items.reduce((a, it) => a + it.quantity, 0),
+    })),
   });
 }
