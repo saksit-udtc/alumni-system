@@ -17,6 +17,7 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<any>(null);
   const [tables, setTables] = useState<TableRow[]>([]);
   const [error, setError] = useState("");
+  const [lightbox, setLightbox] = useState(false);
 
   const load = useCallback(async () => {
     const [eventRes, badgesRes] = await Promise.all([
@@ -48,6 +49,13 @@ export default function EventDetailPage() {
       }))
     );
   }, [id]);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setLightbox(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
 
   useEffect(() => {
     load();
@@ -93,7 +101,20 @@ export default function EventDetailPage() {
 
       <main className="max-w-4xl mx-auto p-4 space-y-3">
 
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-cream-200 shadow-md rounded-xl px-4 py-3">
+      <div className="flex items-stretch gap-3">
+      {event.layoutImageUrl && (
+        <button
+          type="button"
+          onClick={() => setLightbox(true)}
+          className="shrink-0 bg-white border border-cream-200 shadow-md rounded-xl p-2 flex flex-col items-center gap-1 hover:border-primary-400 transition-colors cursor-zoom-in"
+          aria-label="ดูแผนผังการจัดงานแบบเต็มจอ"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={event.layoutImageUrl} alt="แผนผังการจัดงาน" className="w-20 h-20 sm:w-24 sm:h-24 object-cover object-top rounded-md" />
+          <span className="text-[11px] text-stone-500 leading-tight">แผนผังงาน · คลิกขยาย</span>
+        </button>
+      )}
+      <div className="flex-1 flex flex-wrap items-center justify-between gap-3 bg-white border border-cream-200 shadow-md rounded-xl px-4 py-3">
         <div>
         <span className="text-2xl font-display font-semibold text-maroon-700">{Number(event.pricePerTable).toLocaleString()}</span>
         <span className="text-sm text-stone-500"> บาท ต่อโต๊ะ ({tables[0]?.capacity ?? 8} ที่นั่ง)</span>
@@ -109,6 +130,30 @@ export default function EventDetailPage() {
           </span>
         </div>
       </div>
+      </div>
+
+      {lightbox && event.layoutImageUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-3 cursor-zoom-out"
+          onClick={() => setLightbox(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightbox(false)}
+            className="absolute top-3 right-3 text-white bg-black/50 hover:bg-black/70 rounded-full w-10 h-10 text-2xl leading-none"
+            aria-label="ปิด"
+          >
+            ×
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={event.layoutImageUrl}
+            alt="แผนผังการจัดงาน"
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       <TableMap
         eventId={event.id}

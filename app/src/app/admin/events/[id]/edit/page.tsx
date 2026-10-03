@@ -9,6 +9,9 @@ export default function EditEventPage() {
   const router = useRouter();
   const [form, setForm] = useState<any>(null);
   const [dateParts, setDateParts] = useState<DateParts | null>(null);
+  const [layoutUrl, setLayoutUrl] = useState<string | null>(null);
+  const [layoutBusy, setLayoutBusy] = useState(false);
+  const [layoutMsg, setLayoutMsg] = useState("");
 
   useEffect(() => {
     fetch(`/api/admin/events/${id}`)
@@ -24,6 +27,7 @@ export default function EditEventPage() {
           status: ev.status,
         });
         setDateParts(splitDate(ev.eventDate));
+        setLayoutUrl(ev.layoutImageUrl || null);
       });
   }, [id]);
 
@@ -31,6 +35,33 @@ export default function EditEventPage() {
 
   function updateDatePart(part: Partial<DateParts>) {
     setDateParts((prev) => (prev ? { ...prev, ...part } : prev));
+  }
+
+  async function uploadLayout(file: File) {
+    setLayoutBusy(true);
+    setLayoutMsg("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/admin/events/${id}/layout-image`, { method: "POST", body: fd });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "อัปโหลดไม่สำเร็จ");
+      setLayoutUrl(d.layoutImageUrl);
+      setLayoutMsg("อัปโหลดแล้ว");
+    } catch (err: any) {
+      setLayoutMsg(err.message || "อัปโหลดไม่สำเร็จ");
+    } finally {
+      setLayoutBusy(false);
+    }
+  }
+
+  async function removeLayout() {
+    if (!confirm("ลบภาพแผนผังการจัดงาน?")) return;
+    setLayoutBusy(true);
+    await fetch(`/api/admin/events/${id}/layout-image`, { method: "DELETE" });
+    setLayoutUrl(null);
+    setLayoutMsg("ลบแล้ว");
+    setLayoutBusy(false);
   }
 
   async function save(e: React.FormEvent) {
@@ -69,6 +100,39 @@ export default function EditEventPage() {
         </select>
         <button className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg py-2.5 font-medium">บันทึก</button>
       </form>
+
+      <section className="bg-white rounded-xl border border-cream-200 shadow-md p-5 mt-5">
+        <h2 className="font-display font-semibold text-stone-800">ภาพแผนผังการจัดงาน</h2>
+        <p className="text-xs text-stone-500 mt-0.5 mb-3">
+          แสดงเป็นภาพย่อทางซ้ายของราคาบนหน้าจองโต๊ะ ผู้ใช้คลิกเพื่อดูแบบเต็มจอ (JPEG/PNG/WEBP ไม่เกิน 10MB) — อัปโหลดแล้วมีผลทันที ไม่ต้องกดบันทึก
+        </p>
+        {layoutUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={layoutUrl} alt="แผนผังการจัดงาน" className="max-h-64 rounded-lg border border-cream-200 mb-3" />
+        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <label className={`cursor-pointer bg-maroon-700 hover:bg-maroon-800 text-white text-sm rounded-lg px-4 py-2 ${layoutBusy ? "opacity-50 pointer-events-none" : ""}`}>
+            {layoutUrl ? "เปลี่ยนรูป" : "เลือกรูปอัปโหลด"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) uploadLayout(f);
+              }}
+            />
+          </label>
+          {layoutUrl && (
+            <button type="button" onClick={removeLayout} disabled={layoutBusy} className="text-sm text-red-600 hover:underline">
+              ลบรูป
+            </button>
+          )}
+          {layoutBusy && <span className="text-sm text-stone-500">กำลังดำเนินการ...</span>}
+          {layoutMsg && !layoutBusy && <span className="text-sm text-stone-600">{layoutMsg}</span>}
+        </div>
+      </section>
     </div>
   );
 }

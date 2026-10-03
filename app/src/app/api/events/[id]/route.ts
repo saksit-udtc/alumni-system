@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { publicFloorPlanUrl } from "@/lib/minio";
+import { getEventLayoutImageKey } from "@/lib/settings";
 
 // Public: event detail + tables + basic stats. No phone/email exposed.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
@@ -30,6 +31,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     seatsAvailable: t.capacity - t.seatsReserved,
   }));
 
+  const layoutKey = await getEventLayoutImageKey(event.id);
+
   const totalCapacity = event.tables.reduce((s, t) => s + t.capacity, 0);
   const totalReserved = event.tables.reduce((s, t) => s + t.seatsReserved, 0);
 
@@ -45,6 +48,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       status: event.status,
       floorPlanUrl: event.floorPlanUrl,
       floorPlanPublicUrl: event.floorPlanUrl ? publicFloorPlanUrl(event.floorPlanUrl) : null,
+      layoutImageUrl: layoutKey ? publicFloorPlanUrl(layoutKey) : null,
     },
     tables: publicTables,
     stats: {

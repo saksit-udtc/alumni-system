@@ -167,3 +167,30 @@ export async function setPosterEnabled(enabled: boolean): Promise<void> {
     create: { key: POSTER_ENABLED_KEY, value: String(enabled) },
   });
 }
+
+// ---- ภาพแผนผังการจัดงาน (แสดงเป็นภาพย่อบนหน้าจองโต๊ะ คลิกขยายเต็มจอ) ----
+// เก็บเป็น key ใน FLOOR_PLANS_BUCKET ต่อ 1 งาน; ไม่มีแถว = ไม่แสดงการ์ด
+// (แยกจาก Event.floorPlanUrl ที่เป็นภาพพื้นหลังสำหรับวางตำแหน่งโต๊ะ)
+const eventLayoutKey = (eventId: string) => `eventLayoutImage:${eventId}`;
+
+/** Never throws — อ่านไม่ได้ถือว่าไม่มีภาพ */
+export async function getEventLayoutImageKey(eventId: string): Promise<string | null> {
+  try {
+    const row = await prisma.appSetting.findUnique({ where: { key: eventLayoutKey(eventId) } });
+    return row?.value || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setEventLayoutImageKey(eventId: string, key: string | null): Promise<void> {
+  if (key === null) {
+    await prisma.appSetting.deleteMany({ where: { key: eventLayoutKey(eventId) } });
+    return;
+  }
+  await prisma.appSetting.upsert({
+    where: { key: eventLayoutKey(eventId) },
+    update: { value: key },
+    create: { key: eventLayoutKey(eventId), value: key },
+  });
+}

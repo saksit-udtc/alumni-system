@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { publicFloorPlanUrl } from "@/lib/minio";
+import { getEventLayoutImageKey } from "@/lib/settings";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const { response } = requireAdmin(req, ["SUPER_ADMIN", "RESERVATION_STAFF"]);
@@ -12,6 +13,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     include: { tables: { orderBy: { tableNumber: "asc" } } },
   });
   if (!event) return jsonError("ไม่พบงานที่ระบุ", 404);
+
+  const layoutKey = await getEventLayoutImageKey(params.id);
 
   const [confirmed, awaiting, pending, revenueAgg] = await Promise.all([
     prisma.reservation.count({ where: { eventId: params.id, paymentStatus: "confirmed" } }),
@@ -27,6 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     event: {
       ...event,
       floorPlanPublicUrl: event.floorPlanUrl ? publicFloorPlanUrl(event.floorPlanUrl) : null,
+      layoutImageUrl: layoutKey ? publicFloorPlanUrl(layoutKey) : null,
     },
     stats: {
       confirmedCount: confirmed,
