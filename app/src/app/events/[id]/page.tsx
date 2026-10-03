@@ -86,17 +86,6 @@ export default function EventDetailPage() {
       <PageTitle
         banner
         title="จองโต๊ะงานเลี้ยง"
-        subtitle={
-          <>
-            ติดต่อจองโต๊ะ คุณแพ็ททรียา เจียมสันต์ (แพตตี้)
-            <br className="sm:hidden" />
-            <span className="hidden sm:inline"> </span>
-            โทร.{" "}
-            <a href="tel:0643191010" className="font-semibold no-underline">
-              064-319-1010
-            </a>
-          </>
-        }
       />
 
       <main className="max-w-4xl mx-auto p-4 space-y-3">
@@ -115,9 +104,15 @@ export default function EventDetailPage() {
         </button>
       )}
       <div className="flex-1 flex flex-wrap items-center justify-between gap-3 bg-white border border-cream-200 shadow-md rounded-xl px-4 py-3">
-        <div>
-        <span className="text-2xl font-display font-semibold text-maroon-700">{Number(event.pricePerTable).toLocaleString()}</span>
-        <span className="text-sm text-stone-500"> บาท ต่อโต๊ะ ({tables[0]?.capacity ?? 8} ที่นั่ง)</span>
+        <div className="text-sm sm:text-base text-stone-700 leading-relaxed">
+          จองโต๊ะ{" "}
+          <span className="text-2xl font-display font-semibold text-maroon-700">{Number(event.pricePerTable).toLocaleString()}</span>{" "}
+          บาท ต่อโต๊ะ ({tables[0]?.capacity ?? 8} ที่นั่ง) เชิญคลิกเลือกโต๊ะด้านล่าง
+          <br />
+          หรือติดต่อ คุณแพ็ททรียา เจียมสันต์ (แพตตี้) โทร.{" "}
+          <a href="tel:0643191010" className="font-semibold text-maroon-700 no-underline">
+            064-319-1010
+          </a>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-xs text-stone-500">
           <span className="flex items-center gap-1.5">
