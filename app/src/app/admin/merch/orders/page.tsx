@@ -202,7 +202,9 @@ export default function AdminMerchOrdersPage() {
     }
   }
 
-  const pendingCount = orders.filter((o) => ["pending", "awaiting_verify"].includes(o.paymentStatus)).length;
+  const pendingCount = orders.filter((o) => o.paymentStatus === "awaiting_verify").length;
+  // ร่างที่ค้างอยู่ (กดไปหน้าชำระเงินแล้วแต่ยังไม่แนบสลิป) — ใช้ติดตามลูกค้า
+  const unpaidDraftCount = orders.filter((o) => o.paymentStatus === "pending").length;
   const confirmedOrders = orders.filter((o) => o.paymentStatus === "confirmed");
   const confirmedRevenue = confirmedOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
   const toShipCount = confirmedOrders.filter((o) => !o.trackingNumber).length;
@@ -255,9 +257,10 @@ export default function AdminMerchOrdersPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <AdminStatCard icon="bag" label="คำสั่งซื้อทั้งหมด" value={String(orders.length)} tone="violet" />
-        <AdminStatCard icon="clock" label="รอตรวจสอบ" value={String(pendingCount)} tone="amber" />
+        <AdminStatCard icon="clock" label="รอตรวจสอบสลิป" value={String(pendingCount)} tone="amber" />
+        <AdminStatCard icon="clock" label="ค้างชำระ (ยังไม่แนบสลิป)" value={String(unpaidDraftCount)} tone="amber" />
         <AdminStatCard icon="checkin" label="ยืนยันแล้ว" value={String(confirmedOrders.length)} tone="emerald" />
         <AdminStatCard icon="coin" label="ยอดขายยืนยันแล้ว" value={`${confirmedRevenue.toLocaleString()} บาท`} tone="sky" />
       </div>

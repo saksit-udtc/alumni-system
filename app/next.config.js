@@ -7,6 +7,8 @@ const nextConfig = {
   // that a pruned standalone build doesn't reliably include. See README's
   // "Deviations from the original spec" section.
   experimental: {
+    // Next 14: เปิดใช้ src/instrumentation.ts (ตัวกวาดร่างหมดเวลา)
+    instrumentationHook: true,
     serverComponentsExternalPackages: ["@prisma/client", "bcryptjs"],
   },
 };

@@ -1,11 +1,10 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "@/app/components/site-nav";
 import PageTitle from "@/app/components/page-title";
-import PayQr from "@/app/components/pay-qr";
-import { generatePromptPayPayload } from "@/lib/promptpay";
+import { PENDING_HOLD_MINUTES } from "@/lib/holdPolicy";
 
 // เรียงไซส์เสื้อจากเล็กไปใหญ่ (API คืนตามลำดับแถวสต๊อก ซึ่งอาจเป็น L ก่อน S) — ไซส์ที่ไม่รู้จักต่อท้าย
 const SIZE_ORDER = ["SS", "S", "M", "L", "XL", "3L", "4L", "6L", "8L"];
@@ -26,7 +25,6 @@ import {
 } from "@/lib/formValidation";
 
 // ขนาดไฟล์สลิปสูงสุดฝั่งหน้าเว็บ (ตรงกับเพดาน 10MB ของ upload อื่นๆ ในระบบ)
-const SLIP_MAX_BYTES = 10 * 1024 * 1024;
 
 interface PackageItem {
   packageItemId: string;
@@ -47,14 +45,8 @@ interface MerchPackage {
   items: PackageItem[];
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 // ลำดับช่องบนฟอร์ม — ใช้เลื่อนหน้าจอไปช่องแรกที่ผิดตอนกดส่ง (เติม itemSize-* ต่อท้ายตอนรัน)
-const BASE_FIELD_ORDER = ["bookerFirstName", "bookerLastName", "bookerPhone", "bookerEmail", "shippingAddress", "slipFile", "consent"];
+const BASE_FIELD_ORDER = ["bookerFirstName", "bookerLastName", "bookerPhone", "bookerEmail", "shippingAddress", "consent"];
 
 export default function MerchPackageOrderPage() {
   const params = useParams();
@@ -102,32 +94,11 @@ export default function MerchPackageOrderPage() {
   const [itemSizeSelections, setItemSizeSelections] = useState<Record<string, string>>({});
 
   const [consent, setConsent] = useState(false);
-  const [slipFile, setSlipFile] = useState<File | null>(null);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
-  const slipInputRef = useRef<HTMLInputElement>(null);
-  const [slipPreviewUrl, setSlipPreviewUrl] = useState<string | null>(null);
-  const [slipPreviewFailed, setSlipPreviewFailed] = useState(false);
 
   function touch(field: string) {
     setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
-  }
-
-  useEffect(() => {
-    setSlipPreviewFailed(false);
-    if (!slipFile || !slipFile.type.startsWith("image/")) {
-      setSlipPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(slipFile);
-    setSlipPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [slipFile]);
-
-  function clearSlip() {
-    setSlipFile(null);
-    touch("slipFile");
-    if (slipInputRef.current) slipInputRef.current.value = "";
   }
 
   const [submitting, setSubmitting] = useState(false);
@@ -135,24 +106,7 @@ export default function MerchPackageOrderPage() {
   const [done, setDone] = useState(false);
   const [orderCode, setOrderCode] = useState("");
 
-  const [promptPayId, setPromptPayId] = useState("");
-  useEffect(() => {
-    fetch("/api/settings/promptpay")
-      .then((r) => r.json())
-      .then((d) => setPromptPayId(d.promptPayId || ""))
-      .catch(() => {});
-  }, []);
-
   const total = (pkg ? Number(pkg.price) : 0) + shippingFee;
-
-  const promptPayPayload = useMemo(() => {
-    if (!promptPayId || total <= 0) return null;
-    try {
-      return generatePromptPayPayload(promptPayId, total);
-    } catch {
-      return null;
-    }
-  }, [promptPayId, total]);
 
   const sizedItems = useMemo(() => (pkg ? pkg.items.filter((it) => it.buyerChoosesSize) : []), [pkg]);
 
@@ -188,15 +142,6 @@ export default function MerchPackageOrderPage() {
       }
     }
 
-    if (!slipFile) {
-      errs.slipFile = "กรุณาแนบไฟล์สลิปโอนเงิน";
-    } else if (slipFile.type && !slipFile.type.startsWith("image/") && slipFile.type !== "application/pdf") {
-      errs.slipFile = "รองรับเฉพาะไฟล์รูปภาพหรือ PDF เท่านั้น";
-    } else if (slipFile.size === 0) {
-      errs.slipFile = "ไฟล์ว่างเปล่า กรุณาเลือกไฟล์สลิปใหม่";
-    } else if (slipFile.size > SLIP_MAX_BYTES) {
-      errs.slipFile = `ไฟล์ใหญ่เกินไป (${formatFileSize(slipFile.size)}) ขนาดต้องไม่เกิน 10 MB`;
-    }
     if (!consent) {
       errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนยืนยันการสั่งซื้อ";
     }
@@ -238,7 +183,6 @@ export default function MerchPackageOrderPage() {
     formData.append("bookerPhone", cleanedPhone);
     formData.append("bookerEmail", cleanedEmail);
     formData.append("shippingAddress", shippingAddress.trim());
-    formData.append("file", slipFile as File);
     if (sizedItems.length > 0) formData.append("itemSizeSelections", JSON.stringify(itemSizeSelections));
 
     const res = await fetch("/api/merch/orders/package", { method: "POST", body: formData });
@@ -254,6 +198,7 @@ export default function MerchPackageOrderPage() {
     setOrderCode(data.orderCode);
     setBookerPhone(cleanedPhone);
     setDone(true);
+    router.push(`/merch/orders/${data.orderCode}/upload-slip?phone=${encodeURIComponent(cleanedPhone)}`);
   }
 
   const inputClass = (field: string) =>
@@ -458,62 +403,9 @@ export default function MerchPackageOrderPage() {
 
               <div className="text-sm font-medium text-stone-800">ยอดชำระ: {total.toLocaleString()} บาท</div>
 
-              {promptPayPayload && (
-                <PayQr value={promptPayPayload} amount={total} label={`แพ็กเกจ "${pkg.name}"`} size={180} />
-              )}
-
-              <div className="border-t border-cream-200 pt-3">
-                <label className="block text-sm font-medium text-stone-700 mb-1">
-                  ไฟล์สลิปโอนเงิน <span className="text-red-600">*</span>
-                </label>
-                <p className="text-xs text-stone-400 mb-1">
-                  กรุณาโอนเงินตามยอดด้านบนแล้วแนบรูปสลิปที่นี่ ระบบจะบันทึกคำสั่งซื้อและส่งสลิปให้เจ้าหน้าที่ตรวจสอบในขั้นตอนเดียวกัน
-                </p>
-                <input
-                  id="mpkg-slipFile"
-                  ref={slipInputRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  aria-invalid={!!fieldErrors.slipFile}
-                  onChange={(e) => {
-                    setSlipFile(e.target.files?.[0] || null);
-                    touch("slipFile");
-                  }}
-                  className={inputClass("slipFile")}
-                />
-                {fieldErrors.slipFile && <p className="text-xs text-red-600 mt-1">{fieldErrors.slipFile}</p>}
-
-                {slipFile && (
-                  <div className="mt-2 flex items-start gap-3 rounded-lg border border-cream-200 bg-cream-50 p-2">
-                    {slipPreviewUrl && !slipPreviewFailed ? (
-                      <a href={slipPreviewUrl} target="_blank" rel="noopener noreferrer" title="คลิกเพื่อดูรูปขนาดเต็ม" className="shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={slipPreviewUrl}
-                          alt="ตัวอย่างสลิปที่เลือก"
-                          onError={() => setSlipPreviewFailed(true)}
-                          className="h-40 w-auto max-w-[9rem] rounded border border-stone-200 bg-white object-contain"
-                        />
-                      </a>
-                    ) : (
-                      <div className="flex h-20 w-16 shrink-0 items-center justify-center rounded border border-stone-200 bg-white text-xs font-semibold text-stone-500">
-                        {slipFile.type === "application/pdf" ? "PDF" : "ไฟล์"}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1 text-sm">
-                      <p className="truncate font-medium text-stone-700" title={slipFile.name}>
-                        {slipFile.name}
-                      </p>
-                      <p className="text-xs text-stone-500">{formatFileSize(slipFile.size)}</p>
-                      {slipPreviewFailed && <p className="mt-1 text-xs text-stone-400">ไม่สามารถแสดงตัวอย่างไฟล์ชนิดนี้ได้ แต่ยังส่งได้ตามปกติ</p>}
-                      {!allErrors.slipFile && <p className="mt-1 text-xs text-emerald-600">พร้อมส่ง — ตรวจให้แน่ใจว่าเห็นยอดเงินและวันที่ชัดเจน</p>}
-                      <button type="button" onClick={clearSlip} className="mt-1 text-xs text-red-600 underline hover:text-red-700">
-                        ลบไฟล์
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                ระบบจะกันสินค้าไว้ให้ท่าน {PENDING_HOLD_MINUTES} นาที หลังกดยืนยันท่านจะไปหน้าชำระเงิน (สแกน QR และแนบสลิป) หากไม่ชำระภายในเวลาดังกล่าว คำสั่งซื้อจะถูกยกเลิกและสินค้าจะกลับเข้าหน้าร้าน
+              </p>
 
               <div className="border-t border-cream-200 pt-3">
                 <label className="flex items-start gap-2 text-sm text-stone-700">
@@ -545,27 +437,14 @@ export default function MerchPackageOrderPage() {
                 disabled={submitting}
                 className="w-full rounded bg-maroon-700 hover:bg-maroon-800 text-white font-medium py-2.5 transition-colors disabled:opacity-50"
               >
-                {submitting ? "กำลังส่งข้อมูล..." : "ยืนยันการสั่งซื้อและส่งสลิป"}
+                {submitting ? "กำลังส่งข้อมูล..." : "ยืนยันการสั่งซื้อและไปหน้าชำระเงิน"}
               </button>
             </form>
           </div>
         )}
 
         {!loading && pkg && done && (
-          <div className="mt-4 max-w-md bg-white border border-cream-200 shadow-md rounded-xl p-6 text-center space-y-3">
-            <h2 className="text-xl font-display font-semibold text-emerald-600">สั่งซื้อและส่งสลิปสำเร็จ</h2>
-            <p className="text-stone-600">รหัสคำสั่งซื้อของท่านคือ {orderCode}</p>
-            <p className="text-sm text-stone-500">เจ้าหน้าที่จะตรวจสอบสลิปการโอนเงินโดยเร็วที่สุด ท่านสามารถตรวจสอบสถานะได้ที่หน้าตรวจสอบคำสั่งซื้อ</p>
-            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              ระบบส่งอีเมลยืนยันไปที่ {bookerEmail} แล้ว หากไม่พบอีเมลในกล่องจดหมายเข้า กรุณาตรวจสอบในโฟลเดอร์อีเมลขยะ (Junk/Spam)
-            </p>
-            <button
-              onClick={() => router.push(`/merch/status?orderCode=${orderCode}&phone=${encodeURIComponent(bookerPhone)}`)}
-              className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-4 py-2 font-medium"
-            >
-              เช็คสถานะคำสั่งซื้อ
-            </button>
-          </div>
+          <div className="mt-4 max-w-md p-6 text-center text-stone-600">กำลังไปหน้าชำระเงิน...</div>
         )}
       </main>
 

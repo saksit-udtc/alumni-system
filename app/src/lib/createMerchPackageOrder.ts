@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
 import { validateNamePart, validateThaiPhone, cleanPhoneForStorage } from "./formValidation";
 import { getMerchShippingFee } from "./settings";
+import { merchHoldUntil } from "./holdPolicy";
 
 export interface CreateMerchPackageOrderInput {
   packageId: string;
@@ -156,6 +157,7 @@ export async function createMerchPackageOrder(input: CreateMerchPackageOrderInpu
           shippingFee,
           totalAmount,
           paymentStatus: slipFileKey ? "awaiting_verify" : "pending",
+          reservedUntil: merchHoldUntil(slipFileKey ? "awaiting_verify" : "pending"),
           packageId: pkg.id,
           items: { create: itemsData },
         },

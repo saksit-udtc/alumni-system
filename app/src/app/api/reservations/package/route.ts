@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendBookingReceivedEmail } from "@/lib/mailer";
 import { uploadObject, deleteObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 import { verifyReservationSlipAsync } from "@/lib/easyslip";
+import { PENDING_HOLD_MINUTES } from "@/lib/holdPolicy";
 import crypto from "crypto";
 
 // Public: create a package reservation (Phase 2 of the package feature).
@@ -51,10 +52,6 @@ export async function POST(req: NextRequest) {
   if (!eventId || !tableId || !packageId || !bookerName || !bookerPhone || !bookerEmail) {
     return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" }, { status: 400 });
   }
-  if (!file) {
-    return NextResponse.json({ error: "กรุณาแนบไฟล์สลิปโอนเงิน" }, { status: 400 });
-  }
-
   // Defense in depth: only full_table packages are ever meant to be
   // purchasable through the public site (seat-level booking is disabled
   // site-wide — see ../route.ts) even though "seats" packages can exist
@@ -71,11 +68,17 @@ export async function POST(req: NextRequest) {
   // Same upload-before-DB-write pattern as ../route.ts — cleaned up below
   // on any booking failure so a failed attempt never leaves an orphaned
   // slip object behind.
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const slipFileKey = `${crypto.randomUUID()}.${ext}`;
-  await uploadObject(PAYMENT_SLIPS_BUCKET, slipFileKey, buffer, file.type || "image/jpeg");
+  // สลิปเป็นทางเลือก: ฟอร์ม 2 ขั้นสร้าง "ร่าง" (pending) ก่อนโดยไม่มีสลิป กันโต๊ะ/สินค้าไว้ตาม
+  // lib/holdPolicy.ts แล้วลูกค้าไปแนบสลิปที่หน้าชำระเงิน (upload-slip); ถ้าแนบมาด้วย (ฟอร์มเก่าที่ยังเปิดค้าง
+  // อยู่) ก็ทำงานแบบเดิมคือสร้างเป็น awaiting_verify ทันที
+  let slipFileKey: string | undefined;
+  if (file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    slipFileKey = `${crypto.randomUUID()}.${ext}`;
+    await uploadObject(PAYMENT_SLIPS_BUCKET, slipFileKey, buffer, file.type || "image/jpeg");
+  }
 
   try {
     const reservation = await bookPackage({
@@ -107,11 +110,13 @@ export async function POST(req: NextRequest) {
           seatCount: reservation.seatCount,
           totalAmount: Number(reservation.totalAmount),
           bookingCode: reservation.bookingCode,
+          awaitingSlip: !slipFileKey,
+          holdMinutes: PENDING_HOLD_MINUTES,
         });
       })().catch((err) => console.error("[POST /api/reservations/package] booking-received email failed:", err));
     }
 
-    void verifyReservationSlipAsync(reservation.id, slipFileKey, Number(reservation.totalAmount)).catch((err) =>
+    if (slipFileKey) void verifyReservationSlipAsync(reservation.id, slipFileKey, Number(reservation.totalAmount)).catch((err) =>
       console.error("[POST /api/reservations/package] easyslip verify failed:", err)
     );
 
@@ -123,7 +128,7 @@ export async function POST(req: NextRequest) {
       totalAmount: reservation.totalAmount,
     });
   } catch (err) {
-    await deleteObject(PAYMENT_SLIPS_BUCKET, slipFileKey).catch((cleanupErr) =>
+    if (slipFileKey) await deleteObject(PAYMENT_SLIPS_BUCKET, slipFileKey).catch((cleanupErr) =>
       console.error("[POST /api/reservations/package] failed to clean up orphaned slip upload:", cleanupErr)
     );
 

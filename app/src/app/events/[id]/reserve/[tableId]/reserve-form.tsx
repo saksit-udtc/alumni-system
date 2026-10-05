@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -10,20 +10,10 @@ import {
   isValidEmailFormat,
   normalizeEmail,
 } from "@/lib/formValidation";
-import PayQr from "@/app/components/pay-qr";
-import { generatePromptPayPayload } from "@/lib/promptpay";
-
-// ขนาดไฟล์สลิปสูงสุดฝั่งหน้าเว็บ (ตรงกับเพดาน 10MB ของ upload อื่นๆ ในระบบ)
-const SLIP_MAX_BYTES = 10 * 1024 * 1024;
+import { PENDING_HOLD_MINUTES } from "@/lib/holdPolicy";
 
 // ลำดับช่องบนฟอร์ม — ใช้เลื่อนหน้าจอไปช่องแรกที่ผิดตอนกดส่ง
-const FIELD_ORDER = ["bookerFirstName", "bookerLastName", "bookerPhone", "bookerEmail", "slipFile", "consent"];
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+const FIELD_ORDER = ["bookerFirstName", "bookerLastName", "bookerPhone", "bookerEmail", "consent"];
 
 export default function ReserveForm({
   eventId,
@@ -91,55 +81,17 @@ export default function ReserveForm({
   const [lineId, setLineId] = useState("");
 
   const [consent, setConsent] = useState(false);
-  const [slipFile, setSlipFile] = useState<File | null>(null);
   // Inline validation: ช่องไหนที่ผู้ใช้แตะแล้ว (blur / เลือกไฟล์ / ติ๊ก) จึงเริ่มแสดง error ของช่องนั้น
   // ไม่แสดงตอนยังไม่เคยแตะ เพื่อไม่ให้ฟอร์มเป็นสีแดงตั้งแต่เปิดหน้า — หลังแตะแล้วตรวจสดทุกครั้งที่พิมพ์
   // ข้อความแดงจึงหายทันทีที่กรอกถูก และเมื่อกดส่ง (submitted) จะแสดง error ของทุกช่อง
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
-  const slipInputRef = useRef<HTMLInputElement>(null);
-  const [slipPreviewUrl, setSlipPreviewUrl] = useState<string | null>(null);
-  const [slipPreviewFailed, setSlipPreviewFailed] = useState(false);
-
   function touch(field: string) {
     setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
   }
 
-  // Preview รูปสลิป: สร้าง object URL ในเครื่อง (ไม่อัปโหลดอะไรขึ้นเซิร์ฟเวอร์) และคืนหน่วยความจำทุกครั้งที่เปลี่ยนไฟล์/ออกจากหน้า
-  useEffect(() => {
-    setSlipPreviewFailed(false);
-    if (!slipFile || !slipFile.type.startsWith("image/")) {
-      setSlipPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(slipFile);
-    setSlipPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [slipFile]);
-
-  function clearSlip() {
-    setSlipFile(null);
-    touch("slipFile");
-    if (slipInputRef.current) slipInputRef.current.value = "";
-  }
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
-  const [bookingCode, setBookingCode] = useState("");
-  // PromptPay QR is purely a convenience for the customer (scan instead of
-  // manually opening their banking app and typing an account number) — the
-  // slip-upload + admin-verify flow below is unchanged either way. Same
-  // setting the POS payment screen uses (lib/settings.ts), fetched from a
-  // public endpoint since this is an unauthenticated page.
-  const [promptPayId, setPromptPayId] = useState("");
-
-  useEffect(() => {
-    fetch("/api/settings/promptpay")
-      .then((r) => r.json())
-      .then((d) => setPromptPayId(d.promptPayId || ""))
-      .catch(() => {});
-  }, []);
-
   // Max number of companion names = seats booked minus the booker's own
   // seat. Guests add one name at a time with a button, capped at this
   // number, so the form doesn't show a wall of blank boxes for a big table.
@@ -161,26 +113,6 @@ export default function ReserveForm({
 
   const total = packageId ? packagePrice ?? 0 : bookingType === "full_table" ? pricePerTable : pricePerSeat * seatCount;
 
-  // A fresh dynamic PromptPay QR pre-filled with the exact total, same
-  // generator the POS payment screen uses — this only displays a payment
-  // target, it doesn't confirm anything, so the customer still uploads a
-  // slip below exactly as before.
-  const promptPayPayload = useMemo(() => {
-    if (!promptPayId || total <= 0) return null;
-    try {
-      return generatePromptPayPayload(promptPayId, total);
-    } catch {
-      return null;
-    }
-  }, [promptPayId, total]);
-
-  // "รายการ" line shown under the QR — purely descriptive (never sent
-  // anywhere), so a customer or anyone reviewing the payment later can see
-  // what the amount is for without having to scroll back up the page.
-  const paymentLabel = packageId
-    ? `แพ็กเกจ "${packageName || ""}"${tableNumber != null ? ` — โต๊ะ ${tableNumber}` : ""}`
-    : `จองโต๊ะ${tableNumber != null ? ` ${tableNumber}` : ""}${eventName ? ` — ${eventName}` : ""}`;
-
   function computeErrors(): Record<string, string> {
     const errs: Record<string, string> = {};
 
@@ -198,16 +130,6 @@ export default function ReserveForm({
       errs.bookerEmail = "รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง";
     }
 
-    if (!slipFile) {
-      errs.slipFile = "กรุณาแนบไฟล์สลิปโอนเงิน";
-    } else if (slipFile.type && !slipFile.type.startsWith("image/") && slipFile.type !== "application/pdf") {
-      // type ว่างได้ (บางเครื่องไม่ระบุชนิดไฟล์ เช่น HEIC บน Windows) จึงไม่ปฏิเสธกรณีนั้น
-      errs.slipFile = "รองรับเฉพาะไฟล์รูปภาพหรือ PDF เท่านั้น";
-    } else if (slipFile.size === 0) {
-      errs.slipFile = "ไฟล์ว่างเปล่า กรุณาเลือกไฟล์สลิปใหม่";
-    } else if (slipFile.size > SLIP_MAX_BYTES) {
-      errs.slipFile = `ไฟล์ใหญ่เกินไป (${formatFileSize(slipFile.size)}) ขนาดต้องไม่เกิน 10 MB`;
-    }
     if (!consent) {
       errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนยืนยันการจอง";
     }
@@ -255,7 +177,6 @@ export default function ReserveForm({
     formData.append("bookerPhone", cleanedPhone);
     formData.append("bookerEmail", cleanedEmail);
     if (partyNames.length > 0) formData.append("partyNames", JSON.stringify(partyNames));
-    formData.append("file", slipFile as File);
     if (packageId) formData.append("packageId", packageId);
     if (packageId && packageItemSizeSelections && Object.keys(packageItemSizeSelections).length > 0) {
       formData.append("itemSizeSelections", JSON.stringify(packageItemSizeSelections));
@@ -297,9 +218,9 @@ export default function ReserveForm({
       }
     }
 
-    setSubmitting(false);
-    setBookingCode(data.bookingCode);
-    setDone(true);
+    // ร่างการจองถูกสร้างและกันโต๊ะไว้แล้ว (pending) — ไปหน้าชำระเงิน: สแกน QR + แนบสลิป ภายในเวลาที่กันไว้
+    // ไม่ setSubmitting(false) เพราะกำลังเปลี่ยนหน้า (กันกดซ้ำระหว่างรอ)
+    router.push(`/reservations/${data.bookingCode}/upload-slip?phone=${encodeURIComponent(cleanedPhone)}`);
   }
 
   const inputClass = (field: string) =>
@@ -308,27 +229,6 @@ export default function ReserveForm({
         ? "border-red-400 focus:ring-red-300 focus:border-red-500"
         : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"
     }`;
-
-  if (done) {
-    return (
-      <div className="max-w-md bg-white border border-cream-200 shadow-md rounded-xl p-6 text-center space-y-3">
-        <h2 className="text-xl font-display font-semibold text-emerald-600">จองโต๊ะและส่งสลิปสำเร็จ</h2>
-        <p className="text-stone-600">รหัสการจองของท่านคือ {bookingCode}</p>
-        <p className="text-sm text-stone-500">
-          เจ้าหน้าที่จะตรวจสอบสลิปการโอนเงินโดยเร็วที่สุด ท่านสามารถตรวจสอบสถานะได้ที่หน้าตรวจสอบการจอง
-        </p>
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          ระบบส่งอีเมลยืนยันไปที่ {bookerEmail} แล้ว หากไม่พบอีเมลในกล่องจดหมายเข้า กรุณาตรวจสอบในโฟลเดอร์อีเมลขยะ (Junk/Spam)
-        </p>
-        <button
-          onClick={() => router.push(`/status?bookingCode=${bookingCode}&phone=${encodeURIComponent(bookerPhone)}`)}
-          className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-4 py-2 font-medium"
-        >
-          เช็คสถานะการจอง
-        </button>
-      </div>
-    );
-  }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4 bg-white border border-cream-200 shadow-md rounded-xl p-5 max-w-md">
@@ -515,65 +415,10 @@ export default function ReserveForm({
       </div>
 
       <div className="text-sm font-medium text-stone-800">ยอดชำระ: {total.toLocaleString()} บาท</div>
-
-      {promptPayPayload && (
-        <PayQr value={promptPayPayload} amount={total} label={paymentLabel} title={eventName} size={180} />
-      )}
-
-      <div className="border-t border-cream-200 pt-3">
-        <label className="block text-sm font-medium text-stone-700 mb-1">
-          ไฟล์สลิปโอนเงิน <span className="text-red-600">*</span>
-        </label>
-        <p className="text-xs text-stone-400 mb-1">กรุณาโอนเงินตามยอดด้านบนแล้วแนบรูปสลิปที่นี่ ระบบจะบันทึกการจองและส่งสลิปให้เจ้าหน้าที่ตรวจสอบในขั้นตอนเดียวกัน</p>
-        <input
-          id="reserve-slipFile"
-          ref={slipInputRef}
-          type="file"
-          accept="image/*,application/pdf"
-          aria-invalid={!!fieldErrors.slipFile}
-          onChange={(e) => {
-            setSlipFile(e.target.files?.[0] || null);
-            touch("slipFile");
-          }}
-          className={inputClass("slipFile")}
-        />
-        {fieldErrors.slipFile && <p className="text-xs text-red-600 mt-1">{fieldErrors.slipFile}</p>}
-
-        {slipFile && (
-          <div className="mt-2 flex items-start gap-3 rounded-lg border border-cream-200 bg-cream-50 p-2">
-            {slipPreviewUrl && !slipPreviewFailed ? (
-              <a href={slipPreviewUrl} target="_blank" rel="noopener noreferrer" title="คลิกเพื่อดูรูปขนาดเต็ม" className="shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={slipPreviewUrl}
-                  alt="ตัวอย่างสลิปที่เลือก"
-                  onError={() => setSlipPreviewFailed(true)}
-                  className="h-40 w-auto max-w-[9rem] rounded border border-stone-200 bg-white object-contain"
-                />
-              </a>
-            ) : (
-              <div className="flex h-20 w-16 shrink-0 items-center justify-center rounded border border-stone-200 bg-white text-xs font-semibold text-stone-500">
-                {slipFile.type === "application/pdf" ? "PDF" : "ไฟล์"}
-              </div>
-            )}
-            <div className="min-w-0 flex-1 text-sm">
-              <p className="truncate font-medium text-stone-700" title={slipFile.name}>{slipFile.name}</p>
-              <p className="text-xs text-stone-500">{formatFileSize(slipFile.size)}</p>
-              {slipPreviewFailed && (
-                <p className="mt-1 text-xs text-stone-400">ไม่สามารถแสดงตัวอย่างไฟล์ชนิดนี้ได้ แต่ยังส่งได้ตามปกติ</p>
-              )}
-              {!allErrors.slipFile && <p className="mt-1 text-xs text-emerald-600">พร้อมส่ง — ตรวจให้แน่ใจว่าเห็นยอดเงินและวันที่ชัดเจน</p>}
-              <button
-                type="button"
-                onClick={clearSlip}
-                className="mt-1 text-xs text-red-600 underline hover:text-red-700"
-              >
-                ลบไฟล์
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <p className="text-xs text-stone-500 bg-cream-50 border border-cream-200 rounded-lg px-3 py-2">
+        เมื่อกดปุ่มด้านล่าง ระบบจะ<strong>กัน{bookingType === "full_table" ? "โต๊ะ" : "ที่นั่ง"}ไว้ให้ท่าน {PENDING_HOLD_MINUTES} นาที</strong>
+        แล้วพาไปหน้าชำระเงิน (สแกน QR และแนบสลิป) หากไม่ชำระภายในเวลา ระบบจะปล่อย{bookingType === "full_table" ? "โต๊ะ" : "ที่นั่ง"}ให้ผู้อื่นโดยอัตโนมัติ
+      </p>
 
       <div className="border-t border-cream-200 pt-3">
         <label className="flex items-start gap-2 text-sm text-stone-700">
@@ -605,7 +450,7 @@ export default function ReserveForm({
         disabled={submitting}
         className="w-full rounded bg-maroon-700 hover:bg-maroon-800 text-white font-medium py-2.5 transition-colors disabled:opacity-50"
       >
-        {submitting ? "กำลังส่งข้อมูล..." : "ยืนยันการจองและส่งสลิป"}
+        {submitting ? "กำลังบันทึกการจอง..." : "ยืนยันการจองและไปหน้าชำระเงิน"}
       </button>
     </form>
   );

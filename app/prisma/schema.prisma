@@ -348,6 +348,10 @@ model MerchOrder {
   trackingNumber      String?
   shippedAt           DateTime?
   shipmentEmailSentAt DateTime?
+  // เวลาสิ้นสุดการ "กันสินค้า" ตอนยังไม่แนบสลิป (paymentStatus = pending) — พ้นเวลา
+  // ระบบ (lib/releaseExpired.ts) จะคืนสต็อกและตั้งเป็น expired; null = ไม่หมดเวลา
+  // (แนบสลิปแล้ว / ออเดอร์เก่าก่อนมีคอลัมน์นี้)
+  reservedUntil   DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

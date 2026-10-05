@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { publicMerchProductUrl } from "@/lib/minio";
 import { getMerchShippingFee } from "@/lib/settings";
+import { sweepExpiredThrottled } from "@/lib/releaseExpired";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 // current shipping fee so the shop page can show it in the order total
 // before checkout, alongside the per-item prices.
 export async function GET() {
+  // คืนสต็อกที่กันไว้เกินเวลาก่อนอ่าน เพื่อให้หน้าร้านแสดงสต็อกล่าสุดเสมอ
+  await sweepExpiredThrottled();
   const [products, shippingFee] = await Promise.all([
     prisma.merchProduct.findMany({
       where: { active: true },

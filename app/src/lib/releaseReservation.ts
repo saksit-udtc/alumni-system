@@ -60,6 +60,26 @@ export async function releaseReservation(
       data: { paymentStatus: newStatus },
     });
 
+    // แพ็กเกจ: ตอนจองตัดสต็อกของที่ระลึกในแพ็กเกจไปด้วย (lib/bookPackage.ts) — ปล่อยโต๊ะต้องคืนสต็อกส่วนนี้ด้วย
+    // (find-then-update ไม่ใช้ upsert เพราะ size เป็น null ได้ — เหมือน admin/merch/orders/[id]/reject)
+    const packageItems = await tx.reservationPackageItem.findMany({ where: { reservationId } });
+    for (const item of packageItems) {
+      if (!item.productId) continue;
+      const existing = await tx.merchProductStock.findFirst({
+        where: { productId: item.productId, size: item.size },
+      });
+      if (existing) {
+        await tx.merchProductStock.update({
+          where: { id: existing.id },
+          data: { quantity: { increment: item.quantity } },
+        });
+      } else {
+        await tx.merchProductStock.create({
+          data: { productId: item.productId, size: item.size, quantity: item.quantity },
+        });
+      }
+    }
+
     await tx.table.update({
       where: { id: reservation.tableId },
       data: {

@@ -12,6 +12,14 @@ const prisma = new PrismaClient();
  * (no slip yet), 48 h for awaiting_verify (slip attached, waiting on an admin).
  */
 async function releaseExpiredReservations(): Promise<void> {
+  // ตั้งแต่ 5 ต.ค. 2569: การปล่อยโต๊ะ/คืนสต็อกที่หมดเวลาย้ายไปทำในแอป (app/src/lib/releaseExpired.ts,
+  // เริ่มจาก src/instrumentation.ts ทุก 60 วินาที) เพราะต้องคืนสต็อกของที่ระลึกในแพ็กเกจและออเดอร์ของที่ระลึกด้วย
+  // ซึ่ง schema ของ cron ไม่มี — งาน cron นี้จึงไม่ทำอะไรอีก (คงไว้เป็นแค่ heartbeat)
+  // ตั้ง LEGACY_CRON_RELEASE=true เพื่อกลับไปใช้พฤติกรรมเดิม
+  if (process.env.LEGACY_CRON_RELEASE !== "true") {
+    console.log(`[cron] ${new Date().toISOString()} — release is handled by the app service, skipping`);
+    return;
+  }
   const now = new Date();
   const expired = await prisma.reservation.findMany({
     where: {

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendBookingReceivedEmail } from "@/lib/mailer";
 import { uploadObject, deleteObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 import { verifyReservationSlipAsync } from "@/lib/easyslip";
+import { PENDING_HOLD_MINUTES } from "@/lib/holdPolicy";
 import crypto from "crypto";
 
 // Public: create a reservation (requirement #1 — atomic booking).
@@ -46,18 +47,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "ขณะนี้เปิดให้จองเฉพาะแบบเหมาทั้งโต๊ะเท่านั้น" }, { status: 400 });
   }
 
-  if (!file) {
-    return NextResponse.json({ error: "กรุณาแนบไฟล์สลิปโอนเงิน" }, { status: 400 });
-  }
-
   // Upload the slip before touching the DB — if the booking itself then
   // fails (table taken in the meantime, validation error, etc.) the
   // orphaned object is cleaned up below rather than left dangling forever.
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const slipFileKey = `${crypto.randomUUID()}.${ext}`;
-  await uploadObject(PAYMENT_SLIPS_BUCKET, slipFileKey, buffer, file.type || "image/jpeg");
+  // สลิปเป็นทางเลือก: ฟอร์ม 2 ขั้นสร้าง "ร่าง" (pending) ก่อนโดยไม่มีสลิป กันโต๊ะ/สินค้าไว้ตาม
+  // lib/holdPolicy.ts แล้วลูกค้าไปแนบสลิปที่หน้าชำระเงิน (upload-slip); ถ้าแนบมาด้วย (ฟอร์มเก่าที่ยังเปิดค้าง
+  // อยู่) ก็ทำงานแบบเดิมคือสร้างเป็น awaiting_verify ทันที
+  let slipFileKey: string | undefined;
+  if (file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    slipFileKey = `${crypto.randomUUID()}.${ext}`;
+    await uploadObject(PAYMENT_SLIPS_BUCKET, slipFileKey, buffer, file.type || "image/jpeg");
+  }
 
   try {
     const reservation = await bookTable({
@@ -96,6 +99,8 @@ export async function POST(req: NextRequest) {
           seatCount: reservation.seatCount,
           totalAmount: Number(reservation.totalAmount),
           bookingCode: reservation.bookingCode,
+          awaitingSlip: !slipFileKey,
+          holdMinutes: PENDING_HOLD_MINUTES,
         });
       })().catch((err) => console.error("[POST /api/reservations] booking-received email failed:", err));
     }
@@ -103,7 +108,7 @@ export async function POST(req: NextRequest) {
     // Fire-and-forget EasySlip check — never blocks the response and never
     // throws (see lib/easyslip.ts's own try/catch). Result lands on the
     // PaymentSlip row a moment later for the admin list to pick up.
-    void verifyReservationSlipAsync(reservation.id, slipFileKey, Number(reservation.totalAmount)).catch((err) =>
+    if (slipFileKey) void verifyReservationSlipAsync(reservation.id, slipFileKey, Number(reservation.totalAmount)).catch((err) =>
       console.error("[POST /api/reservations] easyslip verify failed:", err)
     );
 
@@ -118,7 +123,7 @@ export async function POST(req: NextRequest) {
     // Booking failed after the slip was already uploaded — clean up the
     // now-orphaned object. Best-effort: a cleanup failure here must never
     // mask the original booking error returned to the guest.
-    await deleteObject(PAYMENT_SLIPS_BUCKET, slipFileKey).catch((cleanupErr) =>
+    if (slipFileKey) await deleteObject(PAYMENT_SLIPS_BUCKET, slipFileKey).catch((cleanupErr) =>
       console.error("[POST /api/reservations] failed to clean up orphaned slip upload:", cleanupErr)
     );
 

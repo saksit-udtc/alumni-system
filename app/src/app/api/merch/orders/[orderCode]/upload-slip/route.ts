@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { cleanPhoneForStorage } from "@/lib/formValidation";
 import { uploadObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 import { sendMerchSlipReceivedEmail } from "@/lib/mailer";
+import { verifyMerchOrderSlipAsync } from "@/lib/easyslip";
 import crypto from "crypto";
 
 /**
@@ -30,7 +31,11 @@ export async function POST(req: NextRequest, { params }: { params: { orderCode: 
     return NextResponse.json({ error: "ไม่พบข้อมูลการสั่งซื้อ หรือเบอร์โทรศัพท์ไม่ถูกต้อง" }, { status: 404 });
   }
 
-  if (!["pending", "awaiting_verify"].includes(order.paymentStatus)) {
+  // หมดเวลากันสินค้าแล้ว (expired) แต่ลูกค้าโอนแล้วมาแนบสลิปช้า — เก็บสลิปไว้ให้เจ้าหน้าที่
+  // ตรวจสอบ/ติดต่อกลับ โดยไม่เปลี่ยนสถานะ (สต็อกถูกคืนไปแล้ว จึงไม่ยืนยันอัตโนมัติ)
+  const isLate = order.paymentStatus === "expired";
+
+  if (!isLate && !["pending", "awaiting_verify"].includes(order.paymentStatus)) {
     return NextResponse.json(
       { error: "ไม่สามารถอัปโหลดสลิปได้ เนื่องจากสถานะการสั่งซื้อไม่รองรับ" },
       { status: 409 }
@@ -44,15 +49,29 @@ export async function POST(req: NextRequest, { params }: { params: { orderCode: 
 
   await uploadObject(PAYMENT_SLIPS_BUCKET, fileKey, buffer, file.type || "image/jpeg");
 
-  await prisma.$transaction([
-    prisma.merchPaymentSlip.create({
-      data: { orderId: order.id, fileKey },
-    }),
-    prisma.merchOrder.update({
-      where: { id: order.id },
-      data: { paymentStatus: "awaiting_verify" },
-    }),
-  ]);
+  if (isLate) {
+    await prisma.merchPaymentSlip.create({ data: { orderId: order.id, fileKey } });
+    return NextResponse.json({ ok: true, late: true });
+  }
+
+  // updateMany + เงื่อนไขสถานะ: กันชนกับตัวคืนสต็อกอัตโนมัติ (releaseExpired) ที่อาจตั้งเป็น
+  // expired ระหว่างที่ลูกค้ากำลังอัปโหลด — ถ้าสถานะเปลี่ยนไปแล้วต้องไม่ยืนยันทับ
+  const attached = await prisma.$transaction(async (tx) => {
+    const moved = await tx.merchOrder.updateMany({
+      where: { id: order.id, paymentStatus: { in: ["pending", "awaiting_verify"] } },
+      data: { paymentStatus: "awaiting_verify", reservedUntil: null },
+    });
+    await tx.merchPaymentSlip.create({ data: { orderId: order.id, fileKey } });
+    return moved.count > 0;
+  });
+  if (!attached) {
+    return NextResponse.json({ ok: true, late: true });
+  }
+
+  // ตรวจสลิปอัตโนมัติ (EasySlip) — ฟอร์มใหม่แนบสลิปที่ขั้นนี้ ไม่ใช่ตอนสร้างออเดอร์
+  void verifyMerchOrderSlipAsync(order.id, fileKey, Number(order.totalAmount)).catch((err) =>
+    console.error("[upload-slip] easyslip verify failed:", err)
+  );
 
   await sendMerchSlipReceivedEmail({
     to: order.bookerEmail,

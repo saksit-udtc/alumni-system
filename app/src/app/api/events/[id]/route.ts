@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { publicFloorPlanUrl } from "@/lib/minio";
 import { getEventLayoutImageKey } from "@/lib/settings";
+import { sweepExpiredThrottled } from "@/lib/releaseExpired";
 
 // Public: event detail + tables + basic stats. No phone/email exposed.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  // คืนโต๊ะที่กันไว้เกินเวลาก่อนอ่าน เพื่อให้ผังแสดงโต๊ะว่างล่าสุดเสมอ
+  await sweepExpiredThrottled();
   const event = await prisma.event.findUnique({
     where: { id: params.id },
     include: {

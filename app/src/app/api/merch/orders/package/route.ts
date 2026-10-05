@@ -3,6 +3,7 @@ import { createMerchPackageOrder, MerchPackageOrderError } from "@/lib/createMer
 import { sendMerchOrderReceivedEmail } from "@/lib/mailer";
 import { uploadObject, deleteObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 import { verifyMerchOrderSlipAsync } from "@/lib/easyslip";
+import { PENDING_HOLD_MINUTES } from "@/lib/holdPolicy";
 import crypto from "crypto";
 
 // Public: order a merch-only Package (bookingType null — "เฉพาะของที่ระลึก",
@@ -38,18 +39,20 @@ export async function POST(req: NextRequest) {
   if (!packageId || !bookerName || !bookerPhone || !bookerEmail || !shippingAddress) {
     return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" }, { status: 400 });
   }
-  if (!file) {
-    return NextResponse.json({ error: "กรุณาแนบไฟล์สลิปโอนเงิน" }, { status: 400 });
-  }
-
   // Same upload-before-DB-write pattern as ../route.ts — cleaned up below
   // on any order-creation failure so a failed attempt never leaves an
   // orphaned slip object behind.
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const slipFileKey = `${crypto.randomUUID()}.${ext}`;
-  await uploadObject(PAYMENT_SLIPS_BUCKET, slipFileKey, buffer, file.type || "image/jpeg");
+  // สลิปเป็นทางเลือก: ฟอร์ม 2 ขั้นสร้าง "ร่าง" (pending) ก่อนโดยไม่มีสลิป กันโต๊ะ/สินค้าไว้ตาม
+  // lib/holdPolicy.ts แล้วลูกค้าไปแนบสลิปที่หน้าชำระเงิน (upload-slip); ถ้าแนบมาด้วย (ฟอร์มเก่าที่ยังเปิดค้าง
+  // อยู่) ก็ทำงานแบบเดิมคือสร้างเป็น awaiting_verify ทันที
+  let slipFileKey: string | undefined;
+  if (file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    slipFileKey = `${crypto.randomUUID()}.${ext}`;
+    await uploadObject(PAYMENT_SLIPS_BUCKET, slipFileKey, buffer, file.type || "image/jpeg");
+  }
 
   try {
     const order = await createMerchPackageOrder({
@@ -70,6 +73,8 @@ export async function POST(req: NextRequest) {
       shippingAddress: order.shippingAddress,
       shippingFee: Number(order.shippingFee),
       totalAmount: Number(order.totalAmount),
+      awaitingSlip: !slipFileKey,
+      holdMinutes: PENDING_HOLD_MINUTES,
       items: order.items.map((it) => ({
         productName: it.productName,
         size: it.size,
@@ -77,7 +82,7 @@ export async function POST(req: NextRequest) {
       })),
     });
 
-    void verifyMerchOrderSlipAsync(order.id, slipFileKey, Number(order.totalAmount)).catch((err) =>
+    if (slipFileKey) void verifyMerchOrderSlipAsync(order.id, slipFileKey, Number(order.totalAmount)).catch((err) =>
       console.error("[POST /api/merch/orders/package] easyslip verify failed:", err)
     );
 
@@ -88,7 +93,7 @@ export async function POST(req: NextRequest) {
       totalAmount: order.totalAmount,
     });
   } catch (err) {
-    await deleteObject(PAYMENT_SLIPS_BUCKET, slipFileKey).catch((cleanupErr) =>
+    if (slipFileKey) await deleteObject(PAYMENT_SLIPS_BUCKET, slipFileKey).catch((cleanupErr) =>
       console.error("[POST /api/merch/orders/package] failed to clean up orphaned slip upload:", cleanupErr)
     );
 

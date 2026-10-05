@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
       orderCode: o.orderCode,
       paymentStatus: o.paymentStatus,
       totalAmount: o.totalAmount,
+      reservedUntil: o.reservedUntil,
       createdAt: o.createdAt,
       carrier: o.carrier,
       trackingNumber: o.trackingNumber,

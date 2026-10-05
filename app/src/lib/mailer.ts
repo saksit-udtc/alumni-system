@@ -212,6 +212,10 @@ interface BookingReceivedEmailArgs {
   seatCount: number;
   totalAmount: number;
   bookingCode: string;
+  /** true = ร่างที่ยังไม่แนบสลิป (กันโต๊ะไว้ชั่วคราว) — ส่งอีเมล "รอชำระเงิน" พร้อมลิงก์แนบสลิปแทน */
+  awaitingSlip?: boolean;
+  /** นาทีที่กันโต๊ะไว้ (ใช้คู่กับ awaitingSlip) */
+  holdMinutes?: number;
 }
 
 // Same URL shape the booking form itself navigates to after a successful
@@ -225,6 +229,25 @@ function uploadSlipUrl(bookingCode: string, bookerPhone: string) {
 
 function buildBookingReceivedHtml(args: BookingReceivedEmailArgs) {
   const slipUrl = uploadSlipUrl(args.bookingCode, args.bookerPhone);
+  if (args.awaitingSlip) {
+    return `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>บันทึกการจองแล้ว — รอชำระเงินและแนบสลิป</h2>
+      <p>เรียน คุณ${args.bookerName}</p>
+      <p>เราได้บันทึกการจองสำหรับงาน <strong>${args.eventName}</strong> และกันโต๊ะไว้ให้ท่านแล้ว</p>
+      <ul>
+        <li>รหัสการจอง: <strong>${args.bookingCode}</strong></li>
+        ${args.tableNumber ? `<li>โต๊ะหมายเลข: <strong>${args.tableNumber}${args.zone ? ` (โซน ${args.zone})` : ""}</strong></li>` : ""}
+        <li>ยอดชำระ: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
+      </ul>
+      <p><strong>กรุณาชำระเงินและแนบสลิปภายใน ${args.holdMinutes ?? 30} นาที</strong> หากเกินเวลา ระบบจะปล่อยโต๊ะให้ผู้อื่นโดยอัตโนมัติ</p>
+      <p style="margin: 20px 0;">
+        <a href="${slipUrl}" style="display:inline-block; background:#1e3a8a; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:6px;">ชำระเงินและแนบสลิป</a>
+      </p>
+      <p style="color:#64748b; font-size:12px;">หรือคัดลอกลิงก์นี้: ${slipUrl}</p>
+    </div>
+  `;
+  }
   return `
     <div style="font-family: sans-serif; line-height: 1.6;">
       <h2>จองโต๊ะสำเร็จ</h2>
@@ -256,7 +279,7 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
       const { error } = await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to: args.to,
-        subject: `จองโต๊ะสำเร็จ - ${args.eventName}`,
+        subject: args.awaitingSlip ? `รอชำระเงิน — กันโต๊ะไว้ ${args.holdMinutes ?? 30} นาที - ${args.eventName}` : `จองโต๊ะสำเร็จ - ${args.eventName}`,
         ...mailExtras(buildBookingReceivedHtml(args)),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
@@ -268,7 +291,7 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
       await transport.sendMail({
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to: args.to,
-        subject: `จองโต๊ะสำเร็จ - ${args.eventName}`,
+        subject: args.awaitingSlip ? `รอชำระเงิน — กันโต๊ะไว้ ${args.holdMinutes ?? 30} นาที - ${args.eventName}` : `จองโต๊ะสำเร็จ - ${args.eventName}`,
         ...mailExtras(buildBookingReceivedHtml(args)),
       });
       await logEmail({ type: "BOOKING_RECEIVED", recipient: args.to, ref: args.bookingCode, status: "SUCCESS" });
@@ -368,6 +391,10 @@ interface MerchOrderReceivedEmailArgs {
   shippingFee: number;
   totalAmount: number;
   items: { productName: string; size: string | null; quantity: number }[];
+  /** true = ร่างที่ยังไม่แนบสลิป (กันสินค้าไว้ชั่วคราว) — ส่งอีเมล "รอชำระเงิน" พร้อมลิงก์แนบสลิปแทน */
+  awaitingSlip?: boolean;
+  /** นาทีที่กันสินค้าไว้ (ใช้คู่กับ awaitingSlip) */
+  holdMinutes?: number;
 }
 
 function uploadMerchSlipUrl(orderCode: string, bookerPhone: string) {
@@ -383,6 +410,27 @@ function buildMerchOrderReceivedHtml(args: MerchOrderReceivedEmailArgs) {
         `<li>${it.productName}${it.size ? ` (ไซส์ ${it.size})` : ""} × ${it.quantity}</li>`
     )
     .join("");
+  if (args.awaitingSlip) {
+    return `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>บันทึกคำสั่งซื้อแล้ว — รอชำระเงินและแนบสลิป</h2>
+      <p>เรียน คุณ${args.bookerName}</p>
+      <p>เราได้บันทึกคำสั่งซื้อของที่ระลึกและกันสินค้าไว้ให้ท่านแล้ว</p>
+      <ul>
+        <li>รหัสการสั่งซื้อ: <strong>${args.orderCode}</strong></li>
+        <li>ค่าจัดส่ง: <strong>${args.shippingFee.toLocaleString("th-TH")} บาท</strong></li>
+        <li>ยอดชำระรวม: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
+      </ul>
+      <p><strong>รายการสินค้า:</strong></p>
+      <ul>${rows}</ul>
+      <p><strong>กรุณาชำระเงินและแนบสลิปภายใน ${args.holdMinutes ?? 30} นาที</strong> หากเกินเวลา ระบบจะคืนสินค้าเข้าสต็อกโดยอัตโนมัติ</p>
+      <p style="margin: 20px 0;">
+        <a href="${slipUrl}" style="display:inline-block; background:#1e3a8a; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:6px;">ชำระเงินและแนบสลิป</a>
+      </p>
+      <p style="color:#64748b; font-size:12px;">หรือคัดลอกลิงก์นี้: ${slipUrl}</p>
+    </div>
+  `;
+  }
   return `
     <div style="font-family: sans-serif; line-height: 1.6;">
       <h2>สั่งซื้อของที่ระลึกสำเร็จ</h2>
@@ -414,7 +462,7 @@ export async function sendMerchOrderReceivedEmail(args: MerchOrderReceivedEmailA
       const { error } = await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to: args.to,
-        subject: `สั่งซื้อของที่ระลึกสำเร็จ - ${args.orderCode}`,
+        subject: args.awaitingSlip ? `รอชำระเงิน — กันสินค้าไว้ ${args.holdMinutes ?? 30} นาที - ${args.orderCode}` : `สั่งซื้อของที่ระลึกสำเร็จ - ${args.orderCode}`,
         ...mailExtras(buildMerchOrderReceivedHtml(args)),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
@@ -426,7 +474,7 @@ export async function sendMerchOrderReceivedEmail(args: MerchOrderReceivedEmailA
       await transport.sendMail({
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to: args.to,
-        subject: `สั่งซื้อของที่ระลึกสำเร็จ - ${args.orderCode}`,
+        subject: args.awaitingSlip ? `รอชำระเงิน — กันสินค้าไว้ ${args.holdMinutes ?? 30} นาที - ${args.orderCode}` : `สั่งซื้อของที่ระลึกสำเร็จ - ${args.orderCode}`,
         ...mailExtras(buildMerchOrderReceivedHtml(args)),
       });
       await logEmail({ type: "MERCH_ORDER_RECEIVED", recipient: args.to, ref: args.orderCode, status: "SUCCESS" });

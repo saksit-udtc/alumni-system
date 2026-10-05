@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { cleanPhoneForStorage } from "@/lib/formValidation";
 import { uploadObject, PAYMENT_SLIPS_BUCKET } from "@/lib/minio";
 import { sendSlipReceivedEmail } from "@/lib/mailer";
+import { verifyReservationSlipAsync } from "@/lib/easyslip";
 import { holdUntil } from "@/lib/holdPolicy";
 import crypto from "crypto";
 
@@ -30,7 +31,10 @@ export async function POST(req: NextRequest, { params }: { params: { bookingCode
     return NextResponse.json({ error: "ไม่พบข้อมูลการจอง หรือเบอร์โทรศัพท์ไม่ถูกต้อง" }, { status: 404 });
   }
 
-  if (!["pending", "awaiting_verify"].includes(reservation.paymentStatus)) {
+  // หมดเวลากันโต๊ะแล้ว (expired) แต่ลูกค้าโอนแล้วมาแนบสลิปช้า — เก็บสลิปไว้ให้เจ้าหน้าที่ติดต่อกลับ
+  const isLate = reservation.paymentStatus === "expired";
+
+  if (!isLate && !["pending", "awaiting_verify"].includes(reservation.paymentStatus)) {
     return NextResponse.json(
       { error: "ไม่สามารถอัปโหลดสลิปได้ เนื่องจากสถานะการจองไม่รองรับ" },
       { status: 409 }
@@ -44,16 +48,30 @@ export async function POST(req: NextRequest, { params }: { params: { bookingCode
 
   await uploadObject(PAYMENT_SLIPS_BUCKET, fileKey, buffer, file.type || "image/jpeg");
 
-  await prisma.$transaction([
-    prisma.paymentSlip.create({
-      data: { reservationId: reservation.id, fileKey },
-    }),
-    prisma.reservation.update({
-      where: { id: reservation.id },
+  if (isLate) {
+    await prisma.paymentSlip.create({ data: { reservationId: reservation.id, fileKey } });
+    return NextResponse.json({ ok: true, late: true });
+  }
+
+  // updateMany + เงื่อนไขสถานะ: กันชนกับตัวปล่อยโต๊ะอัตโนมัติ (cron/releaseExpired) ที่อาจตั้งเป็น
+  // expired ระหว่างที่ลูกค้ากำลังอัปโหลด — ถ้าสถานะเปลี่ยนไปแล้วต้องไม่ยืนยันทับ
+  const attached = await prisma.$transaction(async (tx) => {
+    const moved = await tx.reservation.updateMany({
+      where: { id: reservation.id, paymentStatus: { in: ["pending", "awaiting_verify"] } },
       // แนบสลิปแล้ว = รอแอดมินตรวจ → ขยายเวลากันโต๊ะเป็นนโยบาย awaiting_verify
       data: { paymentStatus: "awaiting_verify", reservedUntil: holdUntil("awaiting_verify") },
-    }),
-  ]);
+    });
+    await tx.paymentSlip.create({ data: { reservationId: reservation.id, fileKey } });
+    return moved.count > 0;
+  });
+  if (!attached) {
+    return NextResponse.json({ ok: true, late: true });
+  }
+
+  // ตรวจสลิปอัตโนมัติ (EasySlip) — ฟอร์มใหม่แนบสลิปที่ขั้นนี้ ไม่ใช่ตอนสร้างการจอง
+  void verifyReservationSlipAsync(reservation.id, fileKey, Number(reservation.totalAmount)).catch((err) =>
+    console.error("[upload-slip] easyslip verify failed:", err)
+  );
 
   // Fire-and-forget "slip received, awaiting review" email — never blocks
   // the response, and sendSlipReceivedEmail itself never throws (fail-soft

@@ -101,7 +101,9 @@ export default function AdminAllReservationsPage() {
     }
   }
 
-  const pendingCount = reservations.filter((r) => ["pending", "awaiting_verify"].includes(r.paymentStatus)).length;
+  const pendingCount = reservations.filter((r) => r.paymentStatus === "awaiting_verify").length;
+  // ร่างที่ค้างอยู่ (กดไปหน้าชำระเงินแล้วแต่ยังไม่แนบสลิป) — ใช้ติดตามลูกค้า
+  const unpaidDraftCount = reservations.filter((r) => r.paymentStatus === "pending").length;
   const confirmedReservations = reservations.filter((r) => r.paymentStatus === "confirmed");
   const confirmedRevenue = confirmedReservations.reduce((sum, r) => sum + Number(r.totalAmount), 0);
   const filterRows: FilterableRow[] = reservations.map((r) => ({
@@ -131,9 +133,10 @@ export default function AdminAllReservationsPage() {
         </a>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <AdminStatCard icon="ticket" label="การจองทั้งหมด" value={String(reservations.length)} tone="violet" />
-        <AdminStatCard icon="clock" label="รอตรวจสอบ" value={String(pendingCount)} tone="amber" />
+        <AdminStatCard icon="clock" label="รอตรวจสอบสลิป" value={String(pendingCount)} tone="amber" />
+        <AdminStatCard icon="clock" label="ค้างชำระ (ยังไม่แนบสลิป)" value={String(unpaidDraftCount)} tone="amber" />
         <AdminStatCard icon="checkin" label="ยืนยันแล้ว" value={String(confirmedReservations.length)} tone="emerald" />
         <AdminStatCard icon="coin" label="ยอดชำระยืนยันแล้ว" value={`${confirmedRevenue.toLocaleString()} บาท`} tone="sky" />
       </div>
