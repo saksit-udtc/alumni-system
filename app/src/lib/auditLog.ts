@@ -45,7 +45,7 @@ export async function logPublicView(path: string) {
 }
 
 /** Records whether a transactional email actually went out — never throws (best-effort, matches mailer.ts's own fail-soft contract). */
-export async function logEmail(params: { type: string; recipient: string; status: "SUCCESS" | "FAILED"; error?: string }) {
+export async function logEmail(params: { type: string; recipient: string; status: "SUCCESS" | "FAILED"; error?: string; ref?: string }) {
   try {
     await prisma.emailLog.create({
       data: {
@@ -53,6 +53,7 @@ export async function logEmail(params: { type: string; recipient: string; status
         recipient: params.recipient,
         status: params.status,
         error: params.error,
+        ref: params.ref,
       },
     });
   } catch (err) {

@@ -53,10 +53,14 @@ model EmailLog {
   recipient String
   status    String
   error     String?
+  // orderCode (MERCH_*) or bookingCode (reservation emails) — lets the admin
+  // email-log page resend a failed mail. Null on rows logged before this column.
+  ref       String?
   createdAt DateTime @default(now())
 
   @@index([type, createdAt])
   @@index([recipient])
+  @@index([ref])
 }
 
 model AuditLog {

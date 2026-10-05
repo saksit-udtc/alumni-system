@@ -20,8 +20,18 @@ type EmailLogEntry = {
   recipient: string;
   status: string;
   error: string | null;
+  ref?: string | null;
   createdAt: string;
 };
+
+const RESENDABLE_TYPES = [
+  "CONFIRMATION",
+  "BOOKING_RECEIVED",
+  "SLIP_RECEIVED",
+  "MERCH_ORDER_CONFIRMED",
+  "MERCH_ORDER_RECEIVED",
+  "MERCH_SLIP_RECEIVED",
+];
 
 const EMAIL_TYPE_LABELS: Record<string, string> = {
   CONFIRMATION: "ยืนยันการจอง (พร้อม QR)",
@@ -44,6 +54,7 @@ const ACTION_LABELS: Record<string, string> = {
   MERCH_ORDER_EDIT_ADDRESS: "แก้ไขที่อยู่จัดส่ง",
   ADMIN_USER_CREATE: "สร้างบัญชีผู้ใช้งาน",
   ADMIN_USER_UPDATE: "แก้ไขบัญชีผู้ใช้งาน",
+  EMAIL_RESEND: "ส่งอีเมลซ้ำ / แก้อีเมลผู้รับ",
   PAGE_VIEW: "เปิดดูหน้าเว็บ (สาธารณะ)",
 };
 
@@ -56,6 +67,44 @@ export default function AuditLogPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resendBusyId, setResendBusyId] = useState<string | null>(null);
+  const [editEmailId, setEditEmailId] = useState<string | null>(null);
+  const [emailDraft, setEmailDraft] = useState("");
+  const [resendMsg, setResendMsg] = useState<{ id: string; ok: boolean; text: string } | null>(null);
+
+  function loadEmailLogs() {
+    return fetch(`/api/admin/email-log?take=100`)
+      .then((r) => (r.ok ? r.json() : { logs: [] }))
+      .then((data) => setEmailLogs(data.logs || []));
+  }
+
+  async function resendEmail(log: EmailLogEntry, email?: string) {
+    setResendBusyId(log.id);
+    setResendMsg(null);
+    try {
+      const res = await fetch(`/api/admin/email-log/${log.id}/resend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(email ? { email } : {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setResendMsg({ id: log.id, ok: false, text: data.error || "ส่งอีเมลไม่สำเร็จ" });
+        return;
+      }
+      setResendMsg({
+        id: log.id,
+        ok: !!data.sent,
+        text: data.sent
+          ? `ส่งอีเมลไปที่ ${data.recipient} แล้ว`
+          : `ส่งไม่สำเร็จ${data.error ? `: ${data.error}` : ""}`,
+      });
+      if (data.sent) setEditEmailId(null);
+      await loadEmailLogs();
+    } finally {
+      setResendBusyId(null);
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -140,7 +189,60 @@ export default function AuditLogPage() {
                         {log.status === "SUCCESS" ? "สำเร็จ" : "ล้มเหลว"}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-stone-500 max-w-xs truncate" title={log.error || ""}>{log.error || "-"}</td>
+                    <td className="px-3 py-2 text-stone-500 max-w-xs">
+                      <div className="truncate" title={log.error || ""}>{log.error || "-"}</div>
+                      {log.status === "FAILED" && RESENDABLE_TYPES.includes(log.type) && (
+                        <div className="mt-1 space-y-1">
+                          {editEmailId === log.id ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <input
+                                type="email"
+                                value={emailDraft}
+                                onChange={(e) => setEmailDraft(e.target.value)}
+                                placeholder="อีเมลที่ถูกต้อง"
+                                className="px-2 py-1 border border-cream-200 rounded-md text-xs w-56"
+                              />
+                              <button
+                                onClick={() => resendEmail(log, emailDraft)}
+                                disabled={resendBusyId === log.id || !emailDraft.trim()}
+                                className="px-2 py-1 rounded-md bg-maroon-700 text-white text-xs disabled:opacity-50"
+                              >
+                                บันทึกอีเมลและส่ง
+                              </button>
+                              <button
+                                onClick={() => setEditEmailId(null)}
+                                className="px-2 py-1 rounded-md text-xs text-stone-500 hover:underline"
+                              >
+                                ยกเลิก
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                onClick={() => resendEmail(log)}
+                                disabled={resendBusyId === log.id}
+                                className="px-2 py-1 rounded-md bg-stone-100 text-stone-700 text-xs hover:bg-stone-200 disabled:opacity-50"
+                              >
+                                {resendBusyId === log.id ? "กำลังส่ง..." : "ส่งซ้ำ"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditEmailId(log.id);
+                                  setEmailDraft(log.recipient);
+                                  setResendMsg(null);
+                                }}
+                                className="px-2 py-1 rounded-md text-xs text-maroon-700 hover:underline"
+                              >
+                                แก้อีเมลแล้วส่ง
+                              </button>
+                            </div>
+                          )}
+                          {resendMsg?.id === log.id && (
+                            <div className={`text-xs ${resendMsg.ok ? "text-emerald-700" : "text-red-600"}`}>{resendMsg.text}</div>
+                          )}
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))
               )
