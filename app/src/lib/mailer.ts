@@ -4,6 +4,9 @@ import { generateQrPngBuffer, checkinUrl } from "./qrcode";
 import { logEmail } from "./auditLog";
 import { supportReward } from "./supportConfig";
 import { trackingUrl } from "./shipping";
+import { prisma } from "./prisma";
+import { getContactSettings } from "./settings";
+import { buildMerchProofPdf, buildReservationProofPdf } from "./paymentProof";
 
 function getTransport() {
   return nodemailer.createTransport({
@@ -91,6 +94,83 @@ function mailExtras(html: string): { html: string; text: string; replyTo: string
   return { html: full, text: htmlToText(full), replyTo: mailReplyTo() };
 }
 
+// ---------------------------------------------------------------------------
+// "หลักฐานการชำระเงิน" PDF attachment for the approval emails. Loads the data
+// by code (so the approve routes need no change) and NEVER throws: if the PDF
+// can't be built the email still goes out without it.
+// ---------------------------------------------------------------------------
+
+async function loadMerchProofPdf(orderCode: string): Promise<Buffer | null> {
+  try {
+    const o = await prisma.merchOrder.findUnique({
+      where: { orderCode },
+      include: { items: true, slips: { orderBy: { uploadedAt: "desc" } } },
+    });
+    if (!o) return null;
+    const slip = o.slips.find((x) => x.verifiedAt) ?? o.slips[0];
+    return await buildMerchProofPdf({
+      orgName: mailOrgName(),
+      contactLines: mailFooterLines().slice(1),
+      contacts: await getContactSettings(),
+      payerName: o.bookerName,
+      payerEmail: o.bookerEmail,
+      payerPhone: o.bookerPhone,
+      paidAt: slip?.verifiedAt ?? o.updatedAt,
+      slipRef: slip?.easyslipTransRef ?? null,
+      orderCode: o.orderCode,
+      items: o.items.map((i) => ({ name: i.productName, size: i.size, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+      shippingFee: Number(o.shippingFee),
+      totalAmount: Number(o.totalAmount),
+    });
+  } catch (err) {
+    console.error("[mailer] could not build merch payment-proof PDF (email still sent):", err);
+    return null;
+  }
+}
+
+async function loadReservationProofPdf(bookingCode: string): Promise<Buffer | null> {
+  try {
+    const r = await prisma.reservation.findUnique({
+      where: { bookingCode },
+      include: {
+        event: true,
+        table: true,
+        package: true,
+        packageItems: true,
+        slips: { orderBy: { uploadedAt: "desc" } },
+      },
+    });
+    if (!r) return null;
+    const slip = r.slips.find((x) => x.verifiedAt) ?? r.slips[0];
+    const checkinQrPng = r.qrCodeToken ? await generateQrPngBuffer(checkinUrl(r.qrCodeToken)).catch(() => null) : null;
+    return await buildReservationProofPdf({
+      checkinQrPng,
+      orgName: mailOrgName(),
+      contactLines: mailFooterLines().slice(1),
+      contacts: await getContactSettings(),
+      payerName: r.bookerName,
+      payerEmail: r.bookerEmail,
+      payerPhone: r.bookerPhone,
+      paidAt: slip?.verifiedAt ?? r.updatedAt,
+      slipRef: slip?.easyslipTransRef ?? null,
+      bookingCode: r.bookingCode,
+      eventName: r.event.name,
+      eventDate: r.event.eventDate,
+      location: r.event.location,
+      tableNumber: r.table.tableNumber,
+      zone: r.table.zone,
+      seatCount: r.seatCount,
+      isFullTable: r.bookingType === "full_table",
+      packageName: r.package?.name ?? null,
+      packageItems: r.packageItems.map((i) => ({ name: i.productName, size: i.size, quantity: i.quantity })),
+      totalAmount: Number(r.totalAmount),
+    });
+  } catch (err) {
+    console.error("[mailer] could not build reservation payment-proof PDF (email still sent):", err);
+    return null;
+  }
+}
+
 interface ConfirmationEmailArgs {
   to: string;
   bookerName: string;
@@ -110,6 +190,7 @@ function buildHtml(args: ConfirmationEmailArgs) {
         <li>รหัสการจอง: <strong>${args.bookingCode}</strong></li>
         <li>โต๊ะหมายเลข: <strong>${args.tableNumber}</strong></li>
       </ul>
+      <p>แนบหลักฐานการชำระเงิน (PDF) มาพร้อมอีเมลนี้ด้วย</p>
       <p>กรุณาแสดง QR Code นี้ที่จุดลงทะเบียนหน้างาน</p>
       <img src="cid:qrcode-checkin" alt="QR Code" width="250" height="250" />
     </div>
@@ -126,6 +207,7 @@ function buildHtml(args: ConfirmationEmailArgs) {
 async function sendViaResend(args: ConfirmationEmailArgs): Promise<void> {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const qrBuffer = await generateQrPngBuffer(checkinUrl(args.qrCodeToken));
+  const proof = await loadReservationProofPdf(args.bookingCode);
 
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
@@ -138,6 +220,7 @@ async function sendViaResend(args: ConfirmationEmailArgs): Promise<void> {
         content: qrBuffer.toString("base64"),
         contentId: "qrcode-checkin",
       },
+      ...(proof ? [{ filename: `payment-proof-${args.bookingCode}.pdf`, content: proof.toString("base64") }] : []),
     ],
   });
 
@@ -152,6 +235,7 @@ async function sendViaResend(args: ConfirmationEmailArgs): Promise<void> {
  */
 async function sendViaSmtp(args: ConfirmationEmailArgs): Promise<void> {
   const qrBuffer = await generateQrPngBuffer(checkinUrl(args.qrCodeToken));
+  const proof = await loadReservationProofPdf(args.bookingCode);
   const transport = getTransport();
 
   await transport.sendMail({
@@ -165,6 +249,7 @@ async function sendViaSmtp(args: ConfirmationEmailArgs): Promise<void> {
         content: qrBuffer,
         cid: "qrcode-checkin",
       },
+      ...(proof ? [{ filename: `payment-proof-${args.bookingCode}.pdf`, content: proof }] : []),
     ],
   });
 }
@@ -327,7 +412,7 @@ function buildMerchOrderConfirmedHtml(args: MerchOrderConfirmedEmailArgs) {
     <div style="font-family: sans-serif; line-height: 1.6;">
       <h2>ยืนยันการสั่งซื้อของที่ระลึกสำเร็จ</h2>
       <p>เรียน คุณ${args.bookerName}</p>
-      <p>การสั่งซื้อของที่ระลึกของท่านได้รับการตรวจสอบและยืนยันเรียบร้อยแล้ว</p>
+      <p>การสั่งซื้อของที่ระลึกของท่านได้รับการตรวจสอบและยืนยันเรียบร้อยแล้ว (แนบหลักฐานการชำระเงิน PDF มาพร้อมอีเมลนี้)</p>
       <ul>
         <li>รหัสการสั่งซื้อ: <strong>${args.orderCode}</strong></li>
         <li>ค่าจัดส่ง: <strong>${args.shippingFee.toLocaleString("th-TH")} บาท</strong></li>
@@ -350,6 +435,7 @@ function buildMerchOrderConfirmedHtml(args: MerchOrderConfirmedEmailArgs) {
  */
 export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmailArgs): Promise<void> {
   try {
+    const proof = await loadMerchProofPdf(args.orderCode);
     if (process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const { error } = await resend.emails.send({
@@ -357,6 +443,7 @@ export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmai
         to: args.to,
         subject: `ยืนยันการสั่งซื้อของที่ระลึก - ${args.orderCode}`,
         ...mailExtras(buildMerchOrderConfirmedHtml(args)),
+        attachments: proof ? [{ filename: `payment-proof-${args.orderCode}.pdf`, content: proof.toString("base64") }] : undefined,
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
       await logEmail({ type: "MERCH_ORDER_CONFIRMED", recipient: args.to, ref: args.orderCode, status: "SUCCESS" });
@@ -369,6 +456,7 @@ export async function sendMerchOrderConfirmedEmail(args: MerchOrderConfirmedEmai
         to: args.to,
         subject: `ยืนยันการสั่งซื้อของที่ระลึก - ${args.orderCode}`,
         ...mailExtras(buildMerchOrderConfirmedHtml(args)),
+        attachments: proof ? [{ filename: `payment-proof-${args.orderCode}.pdf`, content: proof }] : undefined,
       });
       await logEmail({ type: "MERCH_ORDER_CONFIRMED", recipient: args.to, ref: args.orderCode, status: "SUCCESS" });
       return;

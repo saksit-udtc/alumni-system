@@ -194,3 +194,74 @@ export async function setEventLayoutImageKey(eventId: string, key: string | null
     create: { key: eventLayoutKey(eventId), value: key },
   });
 }
+
+// ---- ผู้ประสานงาน/ช่องทางติดต่อ (พิมพ์ท้าย PDF หลักฐานการชำระเงิน) ----
+// แก้ได้ที่ /admin/settings (เฉพาะ SUPER_ADMIN) เก็บเป็น JSON ใน AppSetting — ไม่ต้อง migrate
+export interface ContactPerson {
+  name: string;
+  phone: string;
+}
+export interface ContactSettings {
+  /** ติดต่อจองโต๊ะ (เช่น คุณแพตตี้) */
+  bookingContacts: ContactPerson[];
+  /** ผู้ประสานงาน */
+  coordinators: ContactPerson[];
+}
+
+export const DEFAULT_CONTACT_SETTINGS: ContactSettings = {
+  bookingContacts: [
+    { name: "คุณแพ็ททรียา เจียมสันต์ (แพตตี้)", phone: "064-319-1010" },
+    { name: "คุณศิริกาญจน์", phone: "095-169-4156" },
+  ],
+  coordinators: [
+    { name: "ครูสมฤทัย ม่วงผุย", phone: "065-123-7339" },
+    { name: "ครูอัญชลี บุญฤทธิ์", phone: "081-915-6961" },
+    { name: "ครูปรีชา รักษาพล", phone: "094-486-1221" },
+    { name: "ครูศักดิ์สิทธิ์ สร้อยสังวาลย์", phone: "081-974-9729" },
+    { name: "ครูบุษราภรณ์ แสนจันทร์", phone: "093-319-9988" },
+  ],
+};
+
+const CONTACT_SETTINGS_KEY = "proofContacts";
+const MAX_CONTACTS = 12;
+
+function cleanPeople(v: unknown): ContactPerson[] {
+  if (!Array.isArray(v)) return [];
+  const out: ContactPerson[] = [];
+  for (const it of v) {
+    const name = typeof it?.name === "string" ? it.name.trim().slice(0, 80) : "";
+    const phone = typeof it?.phone === "string" ? it.phone.trim().slice(0, 30) : "";
+    if (!name) continue; // ไม่มีชื่อ = ข้ามแถว
+    out.push({ name, phone });
+    if (out.length >= MAX_CONTACTS) break;
+  }
+  return out;
+}
+
+export function sanitizeContactSettings(v: any): ContactSettings {
+  return {
+    bookingContacts: cleanPeople(v?.bookingContacts),
+    coordinators: cleanPeople(v?.coordinators),
+  };
+}
+
+/** Never throws — ไม่มีแถว/อ่านไม่ได้ จะใช้ค่าเริ่มต้นตามโปสเตอร์ */
+export async function getContactSettings(): Promise<ContactSettings> {
+  try {
+    const row = await prisma.appSetting.findUnique({ where: { key: CONTACT_SETTINGS_KEY } });
+    if (!row) return DEFAULT_CONTACT_SETTINGS;
+    return sanitizeContactSettings(JSON.parse(row.value));
+  } catch {
+    return DEFAULT_CONTACT_SETTINGS;
+  }
+}
+
+export async function setContactSettings(v: unknown): Promise<ContactSettings> {
+  const clean = sanitizeContactSettings(v);
+  await prisma.appSetting.upsert({
+    where: { key: CONTACT_SETTINGS_KEY },
+    update: { value: JSON.stringify(clean) },
+    create: { key: CONTACT_SETTINGS_KEY, value: JSON.stringify(clean) },
+  });
+  return clean;
+}

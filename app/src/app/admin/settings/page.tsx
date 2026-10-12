@@ -118,6 +118,109 @@ function ThemeSection() {
   );
 }
 
+type Person = { name: string; phone: string };
+
+function PeopleEditor({ title, hint, people, onChange }: { title: string; hint: string; people: Person[]; onChange: (p: Person[]) => void }) {
+  const set = (i: number, patch: Partial<Person>) => onChange(people.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  return (
+    <div className="space-y-2">
+      <div>
+        <h3 className="font-semibold text-stone-800">{title}</h3>
+        <p className="text-xs text-stone-500">{hint}</p>
+      </div>
+      {people.map((p, i) => (
+        <div key={i} className="flex flex-col sm:flex-row gap-2">
+          <input
+            value={p.name}
+            onChange={(e) => set(i, { name: e.target.value })}
+            placeholder="ชื่อ-นามสกุล"
+            aria-label={`${title} ชื่อ ลำดับที่ ${i + 1}`}
+            className="border border-stone-300 rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-primary-400"
+          />
+          <input
+            value={p.phone}
+            onChange={(e) => set(i, { phone: e.target.value })}
+            placeholder="เบอร์โทร"
+            aria-label={`${title} เบอร์โทร ลำดับที่ ${i + 1}`}
+            className="border border-stone-300 rounded-lg px-3 py-2 sm:w-44 focus:outline-none focus:ring-2 focus:ring-primary-400"
+          />
+          <button type="button" onClick={() => onChange(people.filter((_, j) => j !== i))} className="text-sm text-red-600 border border-red-200 rounded-lg px-3 py-2 hover:bg-red-50">
+            ลบ
+          </button>
+        </div>
+      ))}
+      {people.length < 12 && (
+        <button type="button" onClick={() => onChange([...people, { name: "", phone: "" }])} className="text-sm text-primary-700 border border-primary-300 rounded-lg px-3 py-1.5 hover:bg-cream-100">
+          + เพิ่มรายชื่อ
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ContactsSection() {
+  const [booking, setBooking] = useState<Person[]>([]);
+  const [coord, setCoord] = useState<Person[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/contacts")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => {
+        setBooking(d.bookingContacts ?? []);
+        setCoord(d.coordinators ?? []);
+      })
+      .catch(() => setMsg("โหลดรายชื่อผู้ประสานงานไม่สำเร็จ"));
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setMsg("");
+    setOk(false);
+    try {
+      const res = await fetch("/api/admin/contacts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingContacts: booking, coordinators: coord }),
+      });
+      if (res.status === 401) {
+        window.location.href = "/admin/login?next=/admin/settings";
+        return;
+      }
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(d.error || "บันทึกไม่สำเร็จ");
+        return;
+      }
+      setBooking(d.bookingContacts ?? []);
+      setCoord(d.coordinators ?? []);
+      setOk(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-5">
+      <div>
+        <h2 className="font-display font-semibold text-stone-800">ผู้ประสานงาน / ช่องทางติดต่อ</h2>
+        <p className="text-sm text-stone-500 mt-1">
+          แสดงท้าย PDF &quot;หลักฐานการชำระเงิน&quot; ที่แนบกับอีเมลยืนยัน (ของที่ระลึกและจองโต๊ะ) มีผลกับอีเมลที่ส่ง<b>หลังบันทึก</b> — แถวที่ไม่มีชื่อจะไม่ถูกแสดง
+        </p>
+      </div>
+      <PeopleEditor title="ติดต่อจองโต๊ะ" hint="เช่น คุณแพตตี้ — แสดงเป็นบรรทัดแรกท้ายเอกสาร" people={booking} onChange={setBooking} />
+      <PeopleEditor title="ผู้ประสานงาน" hint="แสดงเรียงเป็น 2 คอลัมน์ท้ายเอกสาร" people={coord} onChange={setCoord} />
+      {msg && <p className="text-red-600 text-sm">{msg}</p>}
+      {ok && <p className="text-emerald-600 text-sm">บันทึกรายชื่อเรียบร้อยแล้ว</p>}
+      <button type="button" onClick={save} disabled={saving} className="bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg px-5 py-2.5 font-semibold disabled:opacity-50">
+        {saving ? "กำลังบันทึก..." : "บันทึกรายชื่อ"}
+      </button>
+    </div>
+  );
+}
+
 export default function SystemSettingsPage() {
   const [promptPayId, setPromptPayId] = useState("");
   const [shippingFee, setShippingFee] = useState("");
@@ -180,6 +283,8 @@ export default function SystemSettingsPage() {
       </div>
 
       <ThemeSection />
+
+      <ContactsSection />
 
       <form onSubmit={save} className="bg-white rounded-xl border border-cream-200 shadow-md p-5 space-y-5">
         {/* บัญชีพร้อมเพย์รับเงิน (ใช้ทั้งจองออนไลน์/ของที่ระลึก และ POS) */}

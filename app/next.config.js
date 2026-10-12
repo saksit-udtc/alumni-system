@@ -9,7 +9,7 @@ const nextConfig = {
   experimental: {
     // Next 14: เปิดใช้ src/instrumentation.ts (ตัวกวาดร่างหมดเวลา)
     instrumentationHook: true,
-    serverComponentsExternalPackages: ["@prisma/client", "bcryptjs"],
+    serverComponentsExternalPackages: ["@prisma/client", "bcryptjs", "pdfkit"],
   },
 };
 
