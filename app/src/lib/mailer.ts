@@ -100,7 +100,7 @@ function mailExtras(html: string): { html: string; text: string; replyTo: string
 // can't be built the email still goes out without it.
 // ---------------------------------------------------------------------------
 
-async function loadMerchProofPdf(orderCode: string): Promise<Buffer | null> {
+export async function loadMerchProofPdf(orderCode: string): Promise<Buffer | null> {
   try {
     const o = await prisma.merchOrder.findUnique({
       where: { orderCode },
@@ -128,7 +128,7 @@ async function loadMerchProofPdf(orderCode: string): Promise<Buffer | null> {
   }
 }
 
-async function loadReservationProofPdf(bookingCode: string): Promise<Buffer | null> {
+export async function loadReservationProofPdf(bookingCode: string): Promise<Buffer | null> {
   try {
     const r = await prisma.reservation.findUnique({
       where: { bookingCode },

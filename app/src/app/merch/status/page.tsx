@@ -156,6 +156,15 @@ function MerchStatusForm() {
                 </div>
               )}
 
+              {o.paymentStatus === "confirmed" && (
+                <a
+                  href={`/api/merch/orders/status/proof?orderCode=${encodeURIComponent(o.orderCode)}&phone=${encodeURIComponent(phone)}`}
+                  className="block text-center rounded-lg border border-maroon-700 text-maroon-700 hover:bg-maroon-50 transition-colors py-2 mt-2 text-sm font-medium"
+                >
+                  ดาวน์โหลดหลักฐานการชำระเงิน (PDF)
+                </a>
+              )}
+
               {["pending", "awaiting_verify"].includes(o.paymentStatus) && (
                 <a
                   href={`/merch/orders/${o.orderCode}/upload-slip?phone=${encodeURIComponent(phone)}`}

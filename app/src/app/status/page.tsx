@@ -136,6 +136,15 @@ function StatusForm() {
                 </div>
               )}
 
+              {r.paymentStatus === "confirmed" && (
+                <a
+                  href={`/api/reservations/status/proof?bookingCode=${encodeURIComponent(r.bookingCode)}&phone=${encodeURIComponent(phone)}`}
+                  className="block text-center rounded-lg border border-maroon-700 text-maroon-700 hover:bg-maroon-50 transition-colors py-2 mt-2 text-sm font-medium"
+                >
+                  ดาวน์โหลดหลักฐานการชำระเงิน (PDF)
+                </a>
+              )}
+
               {["pending", "awaiting_verify"].includes(r.paymentStatus) && (
                 <a
                   href={`/reservations/${r.bookingCode}/upload-slip?phone=${encodeURIComponent(phone)}`}
