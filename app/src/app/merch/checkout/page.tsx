@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "../../components/site-nav";
 import PageTitle from "@/app/components/page-title";
+import AddressFields from "@/app/components/address-fields";
+import { EMPTY_ADDRESS, validateThaiAddress, composeThaiAddress, normalizeThaiAddress, type ThaiAddress } from "@/lib/thaiAddress";
 import { PENDING_HOLD_MINUTES } from "@/lib/holdPolicy";
 import { useMerchCart } from "@/lib/merch-cart";
 import {
@@ -23,7 +25,7 @@ export default function MerchCheckoutPage() {
   const [bookerLastName, setBookerLastName] = useState("");
   const [bookerPhone, setBookerPhone] = useState("");
   const [bookerEmail, setBookerEmail] = useState("");
-  const [shippingAddress, setShippingAddress] = useState("");
+  const [addr, setAddr] = useState<ThaiAddress>(EMPTY_ADDRESS);
   const [consent, setConsent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // เมื่อกดส่งครั้งแรกแล้ว จะตรวจซ้ำแบบสดทุกครั้งที่แก้ข้อมูล เพื่อให้ข้อความแดงหายทันทีเมื่อกรอกถูก
@@ -32,13 +34,20 @@ export default function MerchCheckoutPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [orderCode, setOrderCode] = useState("");
-  const [shippingFee, setShippingFee] = useState(0);
+  const [baseShippingFee, setShippingFee] = useState(0);
+  const [pickupEnabled, setPickupEnabled] = useState(false);
+  const [pickup, setPickup] = useState(false);
+  const usePickup = pickupEnabled && pickup;
+  const shippingFee = usePickup ? 0 : baseShippingFee;
   // Same PromptPay setting the POS payment screen and table-booking form use
 
   useEffect(() => {
     fetch("/api/merch/products")
       .then((r) => r.json())
-      .then((d) => setShippingFee(Number(d.shippingFee) || 0))
+      .then((d) => {
+        setShippingFee(Number(d.shippingFee) || 0);
+        setPickupEnabled(!!d.pickupEnabled);
+      })
       .catch(() => {});
   }, []);
 
@@ -68,9 +77,7 @@ export default function MerchCheckoutPage() {
       errs.bookerEmail = "รูปแบบอีเมลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง";
     }
 
-    if (!shippingAddress.trim()) {
-      errs.shippingAddress = "กรุณากรอกที่อยู่สำหรับจัดส่ง";
-    }
+    if (!usePickup) Object.assign(errs, validateThaiAddress(addr));
     if (!consent) {
       errs.consent = "กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนสั่งซื้อ";
     }
@@ -87,7 +94,7 @@ export default function MerchCheckoutPage() {
   useEffect(() => {
     if (submitted) setFieldErrors(computeErrors());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitted, bookerFirstName, bookerLastName, bookerPhone, bookerEmail, shippingAddress, consent]);
+  }, [submitted, bookerFirstName, bookerLastName, bookerPhone, bookerEmail, addr, consent, usePickup]);
 
   async function checkout(e: React.FormEvent) {
     e.preventDefault();
@@ -108,7 +115,17 @@ export default function MerchCheckoutPage() {
       formData.append("bookerName", bookerName);
       formData.append("bookerPhone", cleanedPhone);
       formData.append("bookerEmail", cleanedEmail);
-      formData.append("shippingAddress", shippingAddress);
+      formData.append("shippingAddress", usePickup ? "" : composeThaiAddress(normalizeThaiAddress(addr)));
+      if (!usePickup) {
+        const a = normalizeThaiAddress(addr);
+        formData.append("addrLine", a.line);
+        formData.append("addrSubdistrict", a.subdistrict);
+        formData.append("addrDistrict", a.district);
+        formData.append("addrProvince", a.province);
+        formData.append("addrPostcode", a.postcode);
+        if (a.manual) formData.append("addrManual", "1");
+      }
+      if (usePickup) formData.append("pickup", "1");
       formData.append(
         "items",
         JSON.stringify(
@@ -246,20 +263,26 @@ export default function MerchCheckoutPage() {
           {fieldErrors.bookerEmail && <span className="text-xs text-red-600">{fieldErrors.bookerEmail}</span>}
           <p className="text-xs text-stone-400">ใช้แจ้งสถานะและติดต่อกลับเรื่องการสั่งซื้อ (หากไม่พบอีเมลในกล่องจดหมายเข้า กรุณาตรวจสอบในโฟลเดอร์อีเมลขยะ (Junk/Spam))</p>
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-stone-700">
-            ที่อยู่สำหรับจัดส่ง <span className="text-red-600">*</span>
-          </span>
-          <textarea
-            value={shippingAddress}
-            onChange={(e) => setShippingAddress(e.target.value)}
-            autoComplete="street-address"
-            className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-shadow ${fieldErrors.shippingAddress ? "border-red-400 focus:ring-red-300 focus:border-red-500" : "border-stone-300 focus:ring-primary-400 focus:border-primary-500"}`}
-            rows={3}
-            placeholder="บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์"
-          />
-          {fieldErrors.shippingAddress && <span className="text-xs text-red-600">{fieldErrors.shippingAddress}</span>}
-        </label>
+
+        {pickupEnabled && (
+          <div className="flex flex-col gap-2 text-sm">
+            <span className="font-medium text-stone-700">วิธีรับสินค้า <span className="text-red-600">*</span></span>
+            <div role="group" aria-label="วิธีรับสินค้า" className="relative grid grid-cols-2 p-1.5 rounded-full bg-slate-100">
+              <span aria-hidden="true" className={`absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-0.375rem)] rounded-full bg-white shadow-md transition-transform duration-300 ease-out ${usePickup ? "translate-x-0" : "translate-x-full"}`} />
+              <button type="button" aria-pressed={usePickup} onClick={() => setPickup(true)}
+                className={`relative z-10 flex items-center justify-center gap-2 rounded-full px-3 py-3 transition-colors duration-300 ${usePickup ? "text-maroon-700 font-semibold" : "text-stone-500 hover:text-stone-700"}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg>
+                <span>รับที่วิทยาลัย</span>
+              </button>
+              <button type="button" aria-pressed={!usePickup} onClick={() => setPickup(false)}
+                className={`relative z-10 flex items-center justify-center gap-2 rounded-full px-3 py-3 transition-colors duration-300 ${!usePickup ? "text-maroon-700 font-semibold" : "text-stone-500 hover:text-stone-700"}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+                <span>จัดส่งทางไปรษณีย์ (+{baseShippingFee.toLocaleString()} บาท)</span>
+              </button>
+            </div>
+          </div>
+        )}
+        {!usePickup && <AddressFields value={addr} onChange={setAddr} errors={fieldErrors} />}
 
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
           ระบบจะกันสินค้าไว้ให้ท่าน {PENDING_HOLD_MINUTES} นาที หลังกดยืนยัน ท่านจะไปหน้าชำระเงิน (สแกน QR และแนบสลิป) หากไม่ชำระภายในเวลาดังกล่าว คำสั่งซื้อจะถูกยกเลิกและสินค้าจะกลับเข้าหน้าร้าน

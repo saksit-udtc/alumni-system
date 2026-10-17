@@ -224,6 +224,7 @@ function ContactsSection() {
 export default function SystemSettingsPage() {
   const [promptPayId, setPromptPayId] = useState("");
   const [shippingFee, setShippingFee] = useState("");
+  const [pickupEnabled, setPickupEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -235,6 +236,7 @@ export default function SystemSettingsPage() {
       .then((d) => {
         setPromptPayId(d.promptPayId ?? "");
         setShippingFee(String(d.shippingFee ?? 0));
+        setPickupEnabled(!!d.pickupEnabled);
       })
       .catch(() => setError("โหลดค่าตั้งค่าไม่สำเร็จ"))
       .finally(() => setLoading(false));
@@ -254,7 +256,7 @@ export default function SystemSettingsPage() {
       const res = await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ promptPayId: promptPayId.trim(), shippingFee: fee }),
+        body: JSON.stringify({ promptPayId: promptPayId.trim(), shippingFee: fee, pickupEnabled }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -263,6 +265,7 @@ export default function SystemSettingsPage() {
       }
       setPromptPayId(data.promptPayId ?? "");
       setShippingFee(String(data.shippingFee ?? 0));
+      setPickupEnabled(!!data.pickupEnabled);
       setSaved(true);
     } finally {
       setSaving(false);
@@ -323,6 +326,31 @@ export default function SystemSettingsPage() {
               className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2 w-40"
             />
           </label>
+        </div>
+
+        <hr className="border-cream-200" />
+
+        {/* เงื่อนไขการรับสินค้า: รับที่วิทยาลัย */}
+        <div className="space-y-2">
+          <h2 className="font-display font-semibold text-stone-800">เงื่อนไขการรับสินค้า: รับที่วิทยาลัย</h2>
+          <p className="text-sm text-stone-500">
+            เปิดเพื่อให้ผู้สั่งซื้อเลือก <b>&quot;รับสินค้าที่วิทยาลัย&quot;</b> ได้ในหน้าสั่งซื้อของที่ระลึก (ไม่ต้องกรอกที่อยู่ และไม่คิดค่าจัดส่ง)
+            ปิดไว้ = มีเฉพาะการจัดส่งทางไปรษณีย์ (มีผลกับคำสั่งซื้อ<b>ใหม่</b>เท่านั้น)
+          </p>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pickupEnabled}
+            onClick={() => setPickupEnabled(!pickupEnabled)}
+            className="flex items-center gap-3 text-sm"
+          >
+            <span className={`relative inline-block w-14 h-8 rounded-full transition-colors duration-300 ${pickupEnabled ? "bg-emerald-500" : "bg-stone-300"}`}>
+              <span className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-white shadow transition-transform duration-300 ease-out ${pickupEnabled ? "translate-x-6" : ""}`} />
+            </span>
+            <span className={`font-semibold ${pickupEnabled ? "text-emerald-700" : "text-stone-500"}`}>
+              {pickupEnabled ? "เปิด — ผู้สั่งเลือกรับที่วิทยาลัยได้" : "ปิด — จัดส่งอย่างเดียว"}
+            </span>
+          </button>
         </div>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}

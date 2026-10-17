@@ -358,6 +358,11 @@ export default function AdminMerchOrdersPage() {
                   ) : (
                     <div className="text-xs text-stone-600 bg-cream-50/70 border border-cream-200 rounded-lg p-2.5 space-y-1">
                       <div className="whitespace-pre-wrap break-words">{o.shippingAddress}</div>
+                      {o.addrManual && (
+                        <div className="inline-block text-[11px] font-semibold text-amber-800 bg-amber-100 border border-amber-300 rounded px-1.5 py-0.5">
+                          ⚠ ที่อยู่กรอกเอง (ไม่พบในรายการ) — กรุณาตรวจก่อนส่ง
+                        </div>
+                      )}
                       <button
                         onClick={() => startEditAddress(o.id, o.shippingAddress)}
                         className="text-primary-700 hover:text-primary-800 hover:underline"

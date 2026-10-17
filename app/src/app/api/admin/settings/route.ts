@@ -5,6 +5,8 @@ import {
   setPosPromptPayId,
   getMerchShippingFee,
   setMerchShippingFee,
+  getMerchPickupEnabled,
+  setMerchPickupEnabled,
 } from "@/lib/settings";
 import { isValidPromptPayTarget } from "@/lib/promptpay";
 import { logAdminAction } from "@/lib/auditLog";
@@ -18,11 +20,12 @@ export async function GET(req: NextRequest) {
   const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (!admin) return response;
 
-  const [promptPayId, shippingFee] = await Promise.all([
+  const [promptPayId, shippingFee, pickupEnabled] = await Promise.all([
     getPosPromptPayId(),
     getMerchShippingFee(),
+    getMerchPickupEnabled(),
   ]);
-  return NextResponse.json({ promptPayId, shippingFee });
+  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled });
 }
 
 export async function PUT(req: NextRequest) {
@@ -48,16 +51,19 @@ export async function PUT(req: NextRequest) {
     return jsonError("กรุณากรอกค่าจัดส่งเป็นตัวเลขที่มากกว่าหรือเท่ากับ 0");
   }
 
+  const pickupEnabled = body.pickupEnabled === true;
+
   await Promise.all([
     setPosPromptPayId(promptPayId),
     setMerchShippingFee(shippingFee),
+    setMerchPickupEnabled(pickupEnabled),
   ]);
 
   await logAdminAction({
     adminId: admin.adminId,
     action: "SYSTEM_SETTINGS_UPDATE",
-    detail: `พร้อมเพย์: ${promptPayId || "(ว่าง)"} · ค่าจัดส่ง: ${shippingFee} บาท`,
+    detail: `พร้อมเพย์: ${promptPayId || "(ว่าง)"} · ค่าจัดส่ง: ${shippingFee} บาท · รับสินค้าที่วิทยาลัย: ${pickupEnabled ? "เปิด" : "ปิด"}`,
   });
 
-  return NextResponse.json({ promptPayId, shippingFee });
+  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled });
 }

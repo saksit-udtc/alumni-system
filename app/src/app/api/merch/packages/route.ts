@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getMerchShippingFee } from "@/lib/settings";
+import { getMerchShippingFee, getMerchPickupEnabled } from "@/lib/settings";
 import { publicMerchProductUrl } from "@/lib/minio";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // ระลึก", no table involved) for the merch shop page. Sold online only —
 // see lib/createMerchPackageOrder.ts and /merch/package/[id].
 export async function GET() {
-  const [packages, shippingFee] = await Promise.all([
+  const [packages, shippingFee, pickupEnabled] = await Promise.all([
     prisma.package.findMany({
       where: { active: true, bookingType: null },
       orderBy: { createdAt: "asc" },
@@ -22,10 +22,12 @@ export async function GET() {
       },
     }),
     getMerchShippingFee(),
+    getMerchPickupEnabled(),
   ]);
 
   return NextResponse.json({
     shippingFee,
+    pickupEnabled,
     packages: packages.map((p) => ({
       id: p.id,
       name: p.name,

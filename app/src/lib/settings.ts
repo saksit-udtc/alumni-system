@@ -265,3 +265,22 @@ export async function setContactSettings(v: unknown): Promise<ContactSettings> {
   });
   return clean;
 }
+
+const MERCH_PICKUP_ENABLED_KEY = "merchPickupEnabled";
+
+/** ข้อความที่เก็บในช่อง shippingAddress ของออเดอร์ที่เลือก "รับสินค้าที่วิทยาลัย" */
+export const MERCH_PICKUP_ADDRESS_TEXT = "รับสินค้าเองที่วิทยาลัยเทคนิคอุดรธานี (ไม่มีค่าจัดส่ง)";
+
+/** เปิด/ปิดตัวเลือก "รับสินค้าที่วิทยาลัย" ในหน้าสั่งซื้อของที่ระลึก (ค่าเริ่มต้น = ปิด) */
+export async function getMerchPickupEnabled(): Promise<boolean> {
+  const row = await prisma.appSetting.findUnique({ where: { key: MERCH_PICKUP_ENABLED_KEY } });
+  return row?.value === "true";
+}
+
+export async function setMerchPickupEnabled(enabled: boolean): Promise<void> {
+  await prisma.appSetting.upsert({
+    where: { key: MERCH_PICKUP_ENABLED_KEY },
+    update: { value: enabled ? "true" : "false" },
+    create: { key: MERCH_PICKUP_ENABLED_KEY, value: enabled ? "true" : "false" },
+  });
+}

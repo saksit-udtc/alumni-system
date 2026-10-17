@@ -2,7 +2,8 @@ import { prisma } from "./prisma";
 import crypto from "crypto";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
 import { validateNamePart, validateThaiPhone, cleanPhoneForStorage } from "./formValidation";
-import { getMerchShippingFee } from "./settings";
+import { getMerchShippingFee, getMerchPickupEnabled, MERCH_PICKUP_ADDRESS_TEXT } from "./settings";
+import { type ThaiAddress, normalizeThaiAddress, validateThaiAddress, composeThaiAddress } from "./thaiAddress";
 import { merchHoldUntil } from "./holdPolicy";
 
 export interface CreateMerchPackageOrderInput {
@@ -11,6 +12,10 @@ export interface CreateMerchPackageOrderInput {
   bookerPhone: string;
   bookerEmail: string;
   shippingAddress: string;
+  /** รับสินค้าที่วิทยาลัย (ต้องเปิดไว้ในหน้าตั้งค่า admin) */
+  pickup?: boolean;
+  /** ที่อยู่แบบแยกช่อง (ใช้เมื่อไม่ได้เลือกรับที่วิทยาลัย) — ถ้าไม่ส่งมาจะใช้ shippingAddress ข้อความเดิม */
+  address?: ThaiAddress;
   /** Buyer-chosen sizes for the package's PackageItem rows that have
    * buyerChoosesSize:true — keyed by PackageItem.id. */
   itemSizeSelections?: Record<string, string>;
@@ -49,7 +54,24 @@ function generateOrderCode(): string {
  * prices. Never touches Table or Reservation at all.
  */
 export async function createMerchPackageOrder(input: CreateMerchPackageOrderInput) {
-  const { packageId, bookerName, bookerPhone, bookerEmail, shippingAddress, itemSizeSelections, slipFileKey } = input;
+  const { packageId, bookerName, bookerPhone, bookerEmail, itemSizeSelections, slipFileKey } = input;
+  const pickup = !!input.pickup;
+  if (pickup && !(await getMerchPickupEnabled())) {
+    throw new MerchPackageOrderError("PICKUP_DISABLED", "ขณะนี้ปิดรับสินค้าที่วิทยาลัย กรุณาเลือกจัดส่งทางไปรษณีย์");
+  }
+  let addr: ThaiAddress | null = null;
+  let shippingAddress: string;
+  if (pickup) {
+    shippingAddress = MERCH_PICKUP_ADDRESS_TEXT;
+  } else if (input.address) {
+    addr = normalizeThaiAddress(input.address);
+    const addrErrs = validateThaiAddress(addr);
+    const firstErr = Object.values(addrErrs)[0];
+    if (firstErr) throw new MerchPackageOrderError("INVALID_ADDRESS", firstErr);
+    shippingAddress = composeThaiAddress(addr);
+  } else {
+    shippingAddress = input.shippingAddress;
+  }
 
   if (!bookerName?.trim() || !bookerPhone?.trim() || !bookerEmail?.trim()) {
     throw new MerchPackageOrderError("MISSING_FIELDS", "กรุณากรอกชื่อ เบอร์โทรศัพท์ และอีเมล");
@@ -92,7 +114,7 @@ export async function createMerchPackageOrder(input: CreateMerchPackageOrderInpu
   // Snapshotted onto the order below so a later change to the configured
   // fee never retroactively changes a past order's total — same pattern
   // as lib/createMerchOrder.ts.
-  const shippingFee = await getMerchShippingFee();
+  const shippingFee = pickup ? 0 : await getMerchShippingFee();
   const totalAmount = Number(pkg.price) + shippingFee;
 
   let orderCode = generateOrderCode();
@@ -154,6 +176,12 @@ export async function createMerchPackageOrder(input: CreateMerchPackageOrderInpu
           bookerPhone: cleanPhoneForStorage(bookerPhone),
           bookerEmail: email,
           shippingAddress: shippingAddress.trim(),
+        addrLine: addr?.line ?? null,
+        addrSubdistrict: addr?.subdistrict ?? null,
+        addrDistrict: addr?.district ?? null,
+        addrProvince: addr?.province ?? null,
+        addrPostcode: addr?.postcode ?? null,
+        addrManual: addr?.manual ?? false,
           shippingFee,
           totalAmount,
           paymentStatus: slipFileKey ? "awaiting_verify" : "pending",

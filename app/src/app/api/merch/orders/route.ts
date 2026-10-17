@@ -18,7 +18,19 @@ export async function POST(req: NextRequest) {
   const bookerName = String(formData.get("bookerName") || "");
   const bookerPhone = String(formData.get("bookerPhone") || "");
   const bookerEmail = String(formData.get("bookerEmail") || "");
+  const pickup = String(formData.get("pickup") || "") === "1";
   const shippingAddress = String(formData.get("shippingAddress") || "");
+  const hasAddr = ["addrLine", "addrSubdistrict", "addrDistrict", "addrProvince", "addrPostcode"].some((k) => formData.get(k));
+  const address = hasAddr
+    ? {
+        line: String(formData.get("addrLine") || ""),
+        subdistrict: String(formData.get("addrSubdistrict") || ""),
+        district: String(formData.get("addrDistrict") || ""),
+        province: String(formData.get("addrProvince") || ""),
+        postcode: String(formData.get("addrPostcode") || ""),
+        manual: String(formData.get("addrManual") || "") === "1",
+      }
+    : undefined;
   const itemsRaw = formData.get("items");
   const file = formData.get("file") as File | null;
 
@@ -36,7 +48,7 @@ export async function POST(req: NextRequest) {
     !bookerName ||
     !bookerPhone ||
     !bookerEmail ||
-    !shippingAddress ||
+    (!pickup && !shippingAddress && !address) ||
     !Array.isArray(items) ||
     items.length === 0
   ) {
@@ -63,6 +75,8 @@ export async function POST(req: NextRequest) {
       bookerPhone,
       bookerEmail,
       shippingAddress,
+      pickup,
+      address,
       items: items.map((i: any) => ({
         productId: i.productId,
         size: i.size,

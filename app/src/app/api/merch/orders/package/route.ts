@@ -22,7 +22,19 @@ export async function POST(req: NextRequest) {
   const bookerName = String(formData.get("bookerName") || "");
   const bookerPhone = String(formData.get("bookerPhone") || "");
   const bookerEmail = String(formData.get("bookerEmail") || "");
+  const pickup = String(formData.get("pickup") || "") === "1";
   const shippingAddress = String(formData.get("shippingAddress") || "");
+  const hasAddr = ["addrLine", "addrSubdistrict", "addrDistrict", "addrProvince", "addrPostcode"].some((k) => formData.get(k));
+  const address = hasAddr
+    ? {
+        line: String(formData.get("addrLine") || ""),
+        subdistrict: String(formData.get("addrSubdistrict") || ""),
+        district: String(formData.get("addrDistrict") || ""),
+        province: String(formData.get("addrProvince") || ""),
+        postcode: String(formData.get("addrPostcode") || ""),
+        manual: String(formData.get("addrManual") || "") === "1",
+      }
+    : undefined;
   const file = formData.get("file") as File | null;
   const itemSizeSelectionsRaw = formData.get("itemSizeSelections");
   let itemSizeSelections: Record<string, string> | undefined;
@@ -36,7 +48,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (!packageId || !bookerName || !bookerPhone || !bookerEmail || !shippingAddress) {
+  if (!packageId || !bookerName || !bookerPhone || !bookerEmail || (!pickup && !shippingAddress && !address)) {
     return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" }, { status: 400 });
   }
   // Same upload-before-DB-write pattern as ../route.ts — cleaned up below
@@ -61,6 +73,8 @@ export async function POST(req: NextRequest) {
       bookerPhone,
       bookerEmail,
       shippingAddress,
+      pickup,
+      address,
       itemSizeSelections,
       slipFileKey,
     });

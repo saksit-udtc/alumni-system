@@ -336,6 +336,14 @@ model MerchOrder {
   bookerPhone     String
   bookerEmail     String
   shippingAddress String        @db.Text
+  // ที่อยู่จัดส่งแบบแยกช่อง (ใช้กับ API ขนส่ง) — null สำหรับออเดอร์เก่าและออเดอร์ "รับที่วิทยาลัย"
+  addrLine        String?       @db.Text
+  addrSubdistrict String?
+  addrDistrict    String?
+  addrProvince    String?
+  addrPostcode    String?
+  // ผู้สั่งติ๊ก "ไม่พบที่อยู่ในรายการ (กรอกเอง)" — เจ้าหน้าที่ควรตรวจที่อยู่ก่อนส่ง
+  addrManual      Boolean       @default(false)
   // Snapshot of the shipping fee in effect at order time (same idea as
   // MerchOrderItem.unitPrice below) — a later change to the configured fee
   // in AppSetting must never retroactively change a past order's total.

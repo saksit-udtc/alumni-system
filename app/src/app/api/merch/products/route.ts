@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { publicMerchProductUrl } from "@/lib/minio";
-import { getMerchShippingFee } from "@/lib/settings";
+import { getMerchShippingFee, getMerchPickupEnabled } from "@/lib/settings";
 import { sweepExpiredThrottled } from "@/lib/releaseExpired";
 
 export const dynamic = "force-dynamic";
@@ -14,13 +14,14 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   // คืนสต็อกที่กันไว้เกินเวลาก่อนอ่าน เพื่อให้หน้าร้านแสดงสต็อกล่าสุดเสมอ
   await sweepExpiredThrottled();
-  const [products, shippingFee] = await Promise.all([
+  const [products, shippingFee, pickupEnabled] = await Promise.all([
     prisma.merchProduct.findMany({
       where: { active: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       include: { stocks: true, images: { orderBy: { sortOrder: "asc" } } },
     }),
     getMerchShippingFee(),
+    getMerchPickupEnabled(),
   ]);
 
   // ลำดับแสดงหน้าร้าน (ซ้าย→ขวา): เสื้อคอปก, เสื้อคอกลม, แก้วน้ำ, เหรียญ แล้วตามด้วยสินค้าอื่น
@@ -34,6 +35,7 @@ export async function GET() {
 
   return NextResponse.json({
     shippingFee,
+    pickupEnabled,
     products: products.map((p) => ({
       id: p.id,
       name: p.name,
