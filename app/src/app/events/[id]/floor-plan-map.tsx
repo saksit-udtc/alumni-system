@@ -379,6 +379,8 @@ export default function FloorPlanMap({
   const [focusTableId, setFocusTableId] = useState<string | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [scrollTick, setScrollTick] = useState(0);
+  // โซนที่เมาส์ชี้อยู่บนผัง (แสดงกรอบสี่เหลี่ยมคลุมโซน + ชื่อโซน)
+  const [hoverZone, setHoverZone] = useState<string | null>(null);
   const [infoTable, setInfoTable] = useState<TableRow | null>(null);
   // Matched to the uploaded image's real aspect ratio once it loads, so the
   // canvas frame fits the image exactly (no letterboxing) instead of
@@ -400,6 +402,55 @@ export default function FloorPlanMap({
   const hasZones = zoneNames.length > 0;
   const zoneStats = useMemo(() => buildZoneStats(tables), [tables]);
   const guest = !readOnly;
+
+  // กรอบสี่เหลี่ยมของแต่ละโซน (หน่วย % ของผัง) จากตำแหน่งโต๊ะทั้งหมดในโซนนั้น
+  const zoneBoxes = useMemo(() => {
+    const m = new Map<string, { x0: number; y0: number; x1: number; y1: number }>();
+    for (const t of tables) {
+      if (t.posX === null || t.posY === null) continue;
+      const k = zoneKey(t.zone);
+      const b = m.get(k);
+      if (!b) m.set(k, { x0: t.posX, y0: t.posY, x1: t.posX, y1: t.posY });
+      else {
+        b.x0 = Math.min(b.x0, t.posX);
+        b.y0 = Math.min(b.y0, t.posY);
+        b.x1 = Math.max(b.x1, t.posX);
+        b.y1 = Math.max(b.y1, t.posY);
+      }
+    }
+    return m;
+  }, [tables]);
+
+  function handleCanvasMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!hasZones) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const r = canvas.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return;
+    const x = ((e.clientX - r.left) / r.width) * 100;
+    const y = ((e.clientY - r.top) / r.height) * 100;
+    const padX = 2.6;
+    const padY = padX * imageRatio;
+    // โซนที่กรอบ (เผื่อขอบเท่ารัศมีโต๊ะ) ครอบจุดที่ชี้ → ถ้าซ้อนกันเลือกโซนที่มีโต๊ะใกล้เมาส์สุด
+    const cand = new Set<string>();
+    zoneBoxes.forEach((b, k) => {
+      if (x >= b.x0 - padX && x <= b.x1 + padX && y >= b.y0 - padY && y <= b.y1 + padY) cand.add(k);
+    });
+    let best: string | null = null;
+    let bestD = Infinity;
+    for (const t of positioned) {
+      const k = zoneKey(t.zone);
+      if (!cand.has(k)) continue;
+      const dx = (x - (t.posX as number)) * imageRatio;
+      const dy = y - (t.posY as number);
+      const d = dx * dx + dy * dy;
+      if (d < bestD) {
+        bestD = d;
+        best = k;
+      }
+    }
+    setHoverZone((prev) => (prev === best ? prev : best));
+  }
 
   // Zone overview = the guest's first step when the plan has zones: big zone
   // cards with vacancy, no individual tables yet.
@@ -710,6 +761,8 @@ export default function FloorPlanMap({
               ref={canvasRef}
               className="relative"
               style={{ width: `${100 * scale}%`, aspectRatio: `${imageRatio} / 1` }}
+              onMouseMove={handleCanvasMove}
+              onMouseLeave={() => setHoverZone(null)}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -717,6 +770,32 @@ export default function FloorPlanMap({
                 alt="ผังพื้นที่งาน"
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none"
               />
+              {hoverZone !== null && zoneBoxes.get(hoverZone) && (() => {
+                const b = zoneBoxes.get(hoverZone)!;
+                const st = zoneStats.find((z) => z.key === hoverZone);
+                const color = zoneColor(st?.zone ?? null).bg;
+                const padX = 2.6;
+                const padY = padX * imageRatio;
+                const left = Math.max(0, b.x0 - padX);
+                const top = Math.max(0, b.y0 - padY);
+                const width = Math.min(100, b.x1 + padX) - left;
+                const height = Math.min(100, b.y1 + padY) - top;
+                const labelInside = top < 6;
+                return (
+                  <div className="pointer-events-none absolute" style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%`, zIndex: 5 }}>
+                    <div className="absolute inset-0 rounded-lg" style={{ border: `3px solid ${color}`, background: color, opacity: 0.12 }} />
+                    <div className="absolute inset-0 rounded-lg" style={{ border: `3px solid ${color}` }} />
+                    {st && (
+                      <span
+                        className="absolute left-0 whitespace-nowrap rounded-md px-2 py-0.5 text-xs sm:text-sm font-semibold text-white shadow-md"
+                        style={{ background: color, ...(labelInside ? { top: 4, left: 4 } : { top: 0, transform: "translateY(-100%)" }) }}
+                      >
+                        {zoneLabel(st)} · ว่าง {st.free}/{st.total}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
               {positioned.map((t) => (
                 <PlacedTable
                   key={t.id}

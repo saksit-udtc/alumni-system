@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import TableMap from "./table-map";
+import LayoutImageWithZones from "./layout-image-zones";
 import type { TableRow } from "./table-graphic";
 import SiteNav from "@/app/components/site-nav";
 import PageTitle from "@/app/components/page-title";
@@ -140,13 +141,7 @@ export default function EventDetailPage() {
           >
             ×
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={event.layoutImageUrl}
-            alt="แผนผังการจัดงาน"
-            className="max-w-full max-h-full object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <LayoutImageWithZones src={event.layoutImageUrl} tables={tables} />
         </div>
       )}
 
