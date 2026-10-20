@@ -27,6 +27,7 @@ interface LandingContent {
   heroTitleLine2: string;
   heroLead: string;
   heroImageUrl: string;
+  concertPosterUrl: string;
   timeline: TimelineItem[];
   honorGuests: HonorGuest[];
   merchItems: MerchItem[];
@@ -123,7 +124,7 @@ const SECTION_FIELDS: Record<SectionId, (keyof LandingContent)[]> = {
   main: [
     "heroTitleLine1", "heroTitleLine2", "heroLead", "eventDateISO", "registrationTime",
     "eventDateLabel", "eventDateShortLabel", "venueName", "seatCapacityLabel", "venueAddress",
-    "parkingNote", "mapUrl", "pricePerSeat", "pricePerTable", "heroImageUrl",
+    "parkingNote", "mapUrl", "pricePerSeat", "pricePerTable", "heroImageUrl", "concertPosterUrl",
   ],
   timeline: ["timeline"],
   honorGuests: ["honorGuests"],
@@ -204,6 +205,8 @@ export default function AdminLandingPage() {
 
   const [heroImgUploading, setHeroImgUploading] = useState(false);
   const [heroImgError, setHeroImgError] = useState("");
+  const [concertUploading, setConcertUploading] = useState(false);
+  const [concertError, setConcertError] = useState("");
 
   function load() {
     fetch("/api/admin/landing")
@@ -313,6 +316,7 @@ export default function AdminLandingPage() {
     setContent({
       ...d,
       heroImageUrl: content.heroImageUrl,
+      concertPosterUrl: content.concertPosterUrl,
       visibleSections: content.visibleSections,
       howToBooking: content.howToBooking,
       howToMerch: content.howToMerch,
@@ -535,6 +539,39 @@ export default function AdminLandingPage() {
             </div>
             {heroImgError && <span className="text-xs text-red-600">{heroImgError}</span>}
             <span className="text-xs text-stone-400">แนะนำรูปแนวนอนขนาดใหญ่ (1600×900px ขึ้นไป) จะแสดงเป็นพื้นหลังส่วน Hero บนสุดของหน้าแรก หากไม่อัปโหลด จะใช้พื้นหลังไล่สีเดิม</span>
+          </label>
+          <label className={labelCls}>
+            <span className="font-medium">โปสเตอร์คอนเสิร์ต (แสดงใต้บล็อกกำหนดการ)</span>
+            <div className="flex items-center gap-3 flex-wrap">
+              {content.concertPosterUrl && (
+                <img src={content.concertPosterUrl} alt="โปสเตอร์คอนเสิร์ต" className="w-16 h-28 object-cover rounded-lg border border-cream-200" />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="text-sm"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setConcertError("");
+                  setConcertUploading(true);
+                  try {
+                    const imageUrl = await uploadLandingImage(file);
+                    setContent({ ...content, concertPosterUrl: imageUrl });
+                  } catch (err) {
+                    setConcertError(err instanceof Error ? err.message : "อัปโหลดไม่สำเร็จ");
+                  } finally {
+                    setConcertUploading(false);
+                  }
+                }}
+              />
+              {concertUploading && <span className="text-xs text-stone-500">กำลังอัปโหลด...</span>}
+              {content.concertPosterUrl && (
+                <button type="button" onClick={() => setContent({ ...content, concertPosterUrl: "" })} className="text-xs text-red-600 hover:underline">ลบรูป (ซ่อนโปสเตอร์)</button>
+              )}
+            </div>
+            {concertError && <span className="text-xs text-red-600">{concertError}</span>}
+            <span className="text-xs text-stone-400">ค่าเริ่มต้นใช้รูปที่มากับแอป (/concert-poster.jpg) — อัปโหลดใหม่เพื่อเปลี่ยน หรือกดลบเพื่อซ่อน</span>
           </label>
           {saveBar("main")}
         </div>

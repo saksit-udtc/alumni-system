@@ -37,6 +37,7 @@ interface LandingContent {
   heroTitleLine2: string;
   heroLead: string;
   heroImageUrl: string;
+  concertPosterUrl?: string;
   timeline: TimelineItem[];
   honorGuests: HonorGuest[];
   merchItems: MerchItem[];
@@ -589,6 +590,15 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
               </div>
             ))}
           </div>
+          {content.concertPosterUrl && (
+            <div className="concert-poster">
+              <h3>คอนเสิร์ตตวาไรตี้เต็มวง ต่ายสุมาลี</h3>
+              <button type="button" className="concert-frame" onClick={() => setLightboxImage(content.concertPosterUrl!)} aria-label="ขยายโปสเตอร์คอนเสิร์ต">
+                <img src={content.concertPosterUrl} alt="โปสเตอร์คอนเสิร์ตต่ายสุมาลี งานคืนสู่เหย้า 89 ปี เทคนิคอุดร วันที่ 27 ธันวาคม 2569 เวลา 19.00-24.00 น." loading="lazy" />
+              </button>
+              <p>แตะที่รูปเพื่อขยายดูเต็มจอ</p>
+            </div>
+          )}
         </div>
       </section>
       )}
@@ -1105,6 +1115,11 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         .tl-dot{ position:absolute; left:60px; top:8px; width:9px; height:9px; border-radius:50%; background:var(--gold); border:2px solid var(--bg-page); box-shadow:0 0 0 1px var(--gold); }
         .tl-body :global(h4){ font-size:16px; color:var(--head); margin-bottom:4px; }
         .tl-body :global(p){ font-size:14px; color:var(--slate); }
+        .concert-poster{ margin:36px auto 0; max-width:420px; text-align:center; }
+        .concert-poster h3{ font-size:18px; font-weight:700; color:var(--head); margin:0 0 14px; }
+        .concert-frame{ display:block; width:100%; padding:0; border:0; background:none; border-radius:16px; overflow:hidden; cursor:zoom-in; box-shadow:0 14px 34px var(--card-shadow); border-top:3px solid var(--gold); }
+        .concert-frame img{ display:block; width:100%; height:auto; }
+        .concert-poster p{ margin:10px 0 0; font-size:13px; color:var(--gold-ink); }
         .tl-group{ position:relative; margin:18px 0 4px calc(64px + 28px); padding:12px 16px; border-left:3px solid var(--gold); background:var(--bg-page); border-radius:0 10px 10px 0; }
         .tl-line + .tl-group{ margin-top:0; }
         .tl-group h3{ font-size:18px; font-weight:700; color:var(--head); line-height:1.4; }

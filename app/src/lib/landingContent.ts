@@ -91,6 +91,7 @@ export interface LandingContent {
   heroTitleLine2: string;
   heroLead: string;
   heroImageUrl: string; // optional background photo for the hero section
+  concertPosterUrl: string; // โปสเตอร์คอนเสิร์ตวงต่ายสุมาลี (แสดงใต้กำหนดการ) — ว่าง = ไม่แสดง
   timeline: LandingTimelineItem[];
   honorGuests: LandingHonorGuest[];
   merchItems: LandingMerchItem[];
@@ -122,6 +123,7 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
   heroLead:
     "กลับมาพบเพื่อน พบครู และร่วมฉลองค่ำคืนแห่งความทรงจำ วันอาทิตย์ที่ 27 ธันวาคม 2569 เวลา 17.00-24.00 น. รายได้หลังหักค่าใช้จ่ายสมทบทุนจัดซื้อรถมินิบัสสำหรับนักเรียน-นักศึกษา",
   heroImageUrl: "",
+  concertPosterUrl: "/concert-poster.jpg",
   timeline: [
     { time: "", title: "ช่วงเช้า · พิธีทอดผ้าป่าการศึกษา", description: "ณ โรงอาหาร วิทยาลัยเทคนิคอุดรธานี" },
     { time: "09:00", title: "สักการะสิ่งศักดิ์สิทธิ์", description: "คณะผู้บริหาร ครู บุคลากร แขกผู้มีเกียรติ และศิษย์เก่า ไหว้พระพุทธรูป พระภูมิเจ้าที่ ศาลตายาย และองค์พระวิษณุกรรม" },
@@ -270,6 +272,7 @@ export function sanitizeLandingContent(input: unknown): LandingContent {
     heroTitleLine2: str(raw.heroTitleLine2, d.heroTitleLine2),
     heroLead: str(raw.heroLead, d.heroLead),
     heroImageUrl: str(raw.heroImageUrl, d.heroImageUrl),
+    concertPosterUrl: str(raw.concertPosterUrl, d.concertPosterUrl),
     timeline: timeline.length ? timeline : d.timeline,
     honorGuests: honorGuests.length ? honorGuests : d.honorGuests,
     merchItems: merchItems.length ? merchItems : d.merchItems,
