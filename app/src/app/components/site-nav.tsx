@@ -12,7 +12,7 @@ const STATIC_NAV_LINKS = [
 
 function MenuIcon({ open }: { open: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
+    <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
       {open ? (
         <path d="M6 6l12 12M18 6L6 18" />
       ) : (
@@ -44,7 +44,7 @@ export default function SiteNav() {
       .catch(() => {});
   }, []);
 
-  const NAV_LINKS = [{ href: bookingHref, label: "จองโต๊ะงานเลี้ยง" }, ...STATIC_NAV_LINKS];
+  const NAV_LINKS = [{ href: "/", label: "หน้าแรก" }, { href: bookingHref, label: "จองโต๊ะงานเลี้ยง" }, ...STATIC_NAV_LINKS];
 
   function isActive(href: string) {
     // "/merch" is checked with an exact match (not startsWith) so it
@@ -57,27 +57,29 @@ export default function SiteNav() {
   return (
     <>
     {/* ฟอนต์เดียวกับหน้าแรก (หน้าแรกโหลดผ่าน @import ใน page.tsx) */}
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" />
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-cream-200">
-      <div className="max-w-6xl mx-auto px-4 h-10 flex items-center justify-between gap-3">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" />
+    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-cream-200" style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }}>
+      <div className="max-w-6xl mx-auto px-4 h-[52px] flex items-center justify-between gap-3">
         <Link href="/" className="flex items-center gap-2 min-w-0">
           {/* โลโก้และชื่อเหมือนแถบเมนูหน้าแรก (.brand ใน app/page.tsx) */}
           <img src="/logo-89.png" alt="โลโก้ 89 ปี วิทยาลัยเทคนิคอุดรธานี" className="w-[30px] h-[30px] object-contain shrink-0" />
           <span
-            className="font-semibold text-stone-800 text-[13px] tracking-[0.01em] truncate"
+            className="font-bold text-stone-900 text-[15px] tracking-[0.01em] truncate"
             style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }}
           >
             คืนสู่เหย้า วท.อุดรธานี
           </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-4 text-[13px]">
+        <nav className="hidden lg:flex items-center gap-2 text-[15px]">
           {NAV_LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className={`transition-colors ${
-                isActive(l.href) ? "text-maroon-700 font-semibold" : "text-stone-600 hover:text-maroon-700"
+              className={`transition-colors rounded-full border h-9 px-4 inline-flex items-center leading-none whitespace-nowrap font-semibold ${
+                isActive(l.href)
+                  ? "bg-[#f15a22] border-[#f15a22] text-white font-bold shadow-[0_3px_10px_rgba(241,90,34,0.35)]"
+                  : "bg-white border-stone-200 text-stone-800 hover:border-[#f15a22] hover:text-[#f15a22] hover:bg-[#fff3ed]"
               }`}
             >
               {l.label}
@@ -85,10 +87,10 @@ export default function SiteNav() {
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center gap-3 shrink-0">
+        <div className="hidden lg:flex items-center gap-3 shrink-0">
           <Link
             href="/admin/login"
-            className="text-xs font-medium bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-full px-3 py-1 shadow-sm"
+            className="h-9 px-4 inline-flex items-center leading-none whitespace-nowrap text-[15px] font-bold bg-[#9452b8] hover:bg-[#7f3fa3] transition-colors text-white rounded-full shadow-[0_4px_14px_rgba(148,82,184,0.45)]"
           >
             สำหรับเจ้าหน้าที่
           </Link>
@@ -99,21 +101,21 @@ export default function SiteNav() {
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "ปิดเมนู" : "เปิดเมนู"}
           aria-expanded={open}
-          className="md:hidden p-1.5 -mr-1.5 text-stone-700 hover:text-maroon-700"
+          className="lg:hidden p-1.5 -mr-1.5 text-stone-800 hover:text-maroon-700"
         >
           <MenuIcon open={open} />
         </button>
       </div>
 
       {open && (
-        <nav className="md:hidden border-t border-cream-200 bg-white px-4 py-2 flex flex-col gap-0.5">
+        <nav className="lg:hidden border-t border-cream-200 bg-white px-4 py-2 flex flex-col gap-0.5">
           {NAV_LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
               onClick={() => setOpen(false)}
-              className={`px-2 py-2 rounded-lg text-[13px] transition-colors ${
-                isActive(l.href) ? "bg-primary-50 text-maroon-700 font-semibold" : "text-stone-700 hover:bg-cream-50"
+              className={`px-3 py-2.5 rounded-lg text-base font-semibold transition-colors ${
+                isActive(l.href) ? "bg-[#f15a22] text-white font-bold" : "text-stone-800 hover:bg-[#fff3ed] hover:text-[#f15a22]"
               }`}
             >
               {l.label}
@@ -122,7 +124,7 @@ export default function SiteNav() {
           <Link
             href="/admin/login"
             onClick={() => setOpen(false)}
-            className="mt-1 text-center bg-maroon-700 hover:bg-maroon-800 transition-colors text-white rounded-lg px-3 py-2.5 text-sm font-medium"
+            className="mt-1 text-center bg-[#9452b8] hover:bg-[#7f3fa3] transition-colors text-white rounded-lg px-3 py-2.5 text-base font-bold shadow-[0_4px_14px_rgba(148,82,184,0.35)]"
           >
             สำหรับเจ้าหน้าที่
           </Link>

@@ -304,7 +304,16 @@ export default function AdminLandingPage() {
       eventDateISO: content.eventDateISO.replace("T18:00", "T17:00"),
       registrationTime: d.registrationTime,
       heroLead: fix(content.heroLead),
-      faq: content.faq.map((f) => ({ ...f, answer: fix(f.answer) })),
+      faq: (() => {
+        // ข้อ "งานจัดวันไหน" ใช้ตามเอกสารงาน + เพิ่มข้อ "แต่งกายอย่างไร?" ถ้ายังไม่มี
+        const list = content.faq.map((f) => {
+          const doc = d.faq.find((x) => f.question.startsWith("งานจัดวันไหน") && x.question.startsWith("งานจัดวันไหน"));
+          return doc ? { ...doc } : { ...f, answer: fix(f.answer) };
+        });
+        const dress = d.faq.find((x) => x.question.startsWith("แต่งกาย"));
+        if (dress && !list.some((f) => f.question.startsWith("แต่งกาย"))) list.splice(1, 0, { ...dress });
+        return list;
+      })(),
     });
     setSaveMsg("");
   }

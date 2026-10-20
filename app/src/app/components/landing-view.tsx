@@ -268,19 +268,21 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
             <span className="brand-text">คืนสู่เหย้า วท.อุดรธานี</span>
           </Link>
           <div className="nav-links">
-            {variant === "home" && <Link href={LANDING_HREF}>รายละเอียดงาน 89 ปี</Link>}
+            <Link href="/" className="nav-home">หน้าแรก</Link>
+            {variant === "home" && <Link href={LANDING_HREF}>รายละเอียดงาน</Link>}
             {show("howTo") && <a href={`${anchorBase}#howto`}>วิธีจอง</a>}
             {show("schedule") && <a href={`${anchorBase}#schedule`}>กำหนดการ</a>}
             {show("venue") && <a href={`${anchorBase}#venue`}>สถานที่</a>}
             {show("faq") && <a href={`${anchorBase}#faq`}>คำถาม</a>}
             <Link href="/status">ตรวจสอบการจอง</Link>
-            <Link href="/admin/login" style={{ opacity: 0.6, fontSize: 12 }}>เจ้าหน้าที่</Link>
+            <Link href="/admin/login" className="nav-staff">สำหรับเจ้าหน้าที่</Link>
           </div>
           <button className="burger" onClick={() => setMobileOpen((v) => !v)} aria-label="เมนู">☰</button>
         </nav>
         <div className={`mobile-menu${mobileOpen ? " open" : ""}`}>
+          <Link href="/" onClick={() => setMobileOpen(false)}>หน้าแรก</Link>
           {variant === "home" && (
-            <Link href={LANDING_HREF} onClick={() => setMobileOpen(false)}>รายละเอียดงาน 89 ปี</Link>
+            <Link href={LANDING_HREF} onClick={() => setMobileOpen(false)}>รายละเอียดงาน</Link>
           )}
           {(
             [
@@ -296,7 +298,7 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
             <a key={href} href={href} onClick={() => setMobileOpen(false)}>{label}</a>
           ))}
           <Link href="/status" onClick={() => setMobileOpen(false)}>ตรวจสอบการจอง</Link>
-          <Link href="/admin/login" onClick={() => setMobileOpen(false)}>เจ้าหน้าที่</Link>
+          <Link href="/admin/login" onClick={() => setMobileOpen(false)}>สำหรับเจ้าหน้าที่</Link>
         </div>
       </header>
 
@@ -394,8 +396,6 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
         <div className="corner tl" /><div className="corner tr" />
         <div className="wrap hero-grid">
           <div>
-            <img src="/logo-89.png" alt="โลโก้ 89 ปี วิทยาลัยเทคนิคอุดรธานี" className="hero-logo" />
-            <div className="eyebrow-tech">89 ปี วิทยาลัยเทคนิคอุดรธานี</div>
             <h1>{content.heroTitleLine1}<br /><span className="accent accent-serif">{content.heroTitleLine2}</span></h1>
             <p className="lead">{content.heroLead}</p>
             <div className="hero-actions">
@@ -962,14 +962,17 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           backdrop-filter:blur(8px);
           border-bottom:1px solid rgba(var(--gold-rgb),0.2);
         }
-        .nav{ display:flex; align-items:center; justify-content:space-between; max-width:1120px; margin:0 auto; padding:5px 16px; gap:12px; }
+        .nav{ display:flex; align-items:center; justify-content:space-between; max-width:1120px; margin:0 auto; padding:0 16px; height:52px; gap:12px; }
         /* .brand เป็น <Link> (คอมโพเนนต์ลูก) — styled-jsx แบบ scoped ใช้กับมันไม่ได้ ต้องใช้ :global ไม่งั้นโลโก้กับชื่อจะซ้อนเป็น 2 บรรทัด แถบบนสูงเกิน */
         .nav :global(.brand){ display:flex; align-items:center; gap:8px; color:var(--on-surf); }
         .brand-logo{ width:30px; height:30px; object-fit:contain; }
-        .brand-text{ font-family:'IBM Plex Sans Thai', sans-serif; font-weight:600; font-size:13px; letter-spacing:0.01em; color: var(--on-surf); }
-        .nav-links{ display:flex; gap:16px; align-items:center; }
-        .nav-links :global(a){ color:var(--on-surf-dim); font-size:13px; transition:color .2s; white-space:nowrap; }
-        .nav-links :global(a:hover){ color:var(--gold-text); }
+        .brand-text{ white-space:nowrap; font-family:'IBM Plex Sans Thai', sans-serif; font-weight:700; font-size:15px; letter-spacing:0.01em; color: var(--on-surf); }
+        .nav-links{ display:flex; gap:8px; align-items:center; }
+        .nav-links :global(a){ font-family:'IBM Plex Sans Thai', sans-serif; color:var(--on-surf); font-size:15px; font-weight:600; height:36px; display:inline-flex; align-items:center; line-height:1; padding:0 16px; border:1px solid rgba(120,120,120,0.28); background:rgba(255,255,255,0.7); border-radius:999px; transition:color .2s, background .2s, border-color .2s; white-space:nowrap; }
+        .nav-links :global(a:hover){ color:#f15a22; border-color:#f15a22; background:#fff3ed; }
+        .nav-links :global(a.nav-staff){ background:#9452b8; border-color:#9452b8; color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(148,82,184,0.45); }
+        .nav-links :global(a.nav-staff:hover){ background:#7f3fa3; border-color:#7f3fa3; color:#fff; }
+        .nav-links :global(a.nav-home), .nav-links :global(a.nav-home:hover){ background:#f15a22; border-color:#f15a22; color:#fff; font-weight:700; box-shadow:0 3px 10px rgba(241,90,34,0.35); }
         :global(.nav-cta){ background:var(--gold); color:var(--on-gold); padding:10px 20px; border-radius:2px; font-weight:600; font-size:14px; transition:background .2s; white-space:nowrap; }
         :global(.nav-cta:hover){ background:var(--gold-bright); }
 
@@ -995,12 +998,12 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           .fab-toggle:hover{ background:var(--gold-bright); }
           .fab-toggle:active{ transform:scale(.94); }
         }
-        .burger{ display:none; color:var(--on-surf); font-size:20px; line-height:1; padding:0; background:none; border:none; cursor:pointer; }
+        .burger{ display:none; color:var(--on-surf); font-size:26px; line-height:1; padding:0; background:none; border:none; cursor:pointer; }
         .mobile-menu{ display:none; flex-direction:column; gap:0; background:var(--surf-deep); border-top:1px solid rgba(var(--gold-rgb),0.2); }
-        .mobile-menu :global(a){ color:var(--on-surf-dim); padding:11px 20px; border-bottom:1px solid rgba(var(--gold-rgb),0.1); font-size:14px; display:block; }
+        .mobile-menu :global(a){ font-family:'IBM Plex Sans Thai', sans-serif; color:var(--on-surf); font-weight:600; padding:13px 20px; border-bottom:1px solid rgba(var(--gold-rgb),0.15); font-size:16px; display:block; }
         .mobile-menu.open{ display:flex; }
 
-        @media(max-width:860px){
+        @media(max-width:1020px){
           .nav-links{ display:none; }
           .burger{ display:block; }
         }
