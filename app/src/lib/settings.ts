@@ -284,3 +284,61 @@ export async function setMerchPickupEnabled(enabled: boolean): Promise<void> {
     create: { key: MERCH_PICKUP_ENABLED_KEY, value: enabled ? "true" : "false" },
   });
 }
+
+// ---- ที่อยู่ผู้ส่ง (วิทยาลัย) สำหรับสร้างรายการขนส่ง เช่น Flash Express ----
+const SENDER_ADDRESS_KEY = "senderAddress";
+
+export interface SenderAddress {
+  name: string; // ชื่อผู้ส่ง/หน่วยงาน
+  phone: string;
+  line: string;
+  subdistrict: string;
+  district: string;
+  province: string;
+  postcode: string;
+}
+
+export const DEFAULT_SENDER_ADDRESS: SenderAddress = {
+  name: "วิทยาลัยเทคนิคอุดรธานี",
+  phone: "",
+  line: "",
+  subdistrict: "",
+  district: "",
+  province: "",
+  postcode: "",
+};
+
+export function sanitizeSenderAddress(raw: unknown): SenderAddress {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const t = (v: unknown, d: string) => (typeof v === "string" ? v.trim() : d);
+  return {
+    name: t(r.name, DEFAULT_SENDER_ADDRESS.name),
+    phone: t(r.phone, ""),
+    line: t(r.line, ""),
+    subdistrict: t(r.subdistrict, ""),
+    district: t(r.district, ""),
+    province: t(r.province, ""),
+    postcode: t(r.postcode, ""),
+  };
+}
+
+/** Never throws — อ่านไม่ได้/ยังไม่เคยตั้งค่า จะได้ค่าเริ่มต้น (ที่อยู่ว่าง) */
+export async function getSenderAddress(): Promise<SenderAddress> {
+  try {
+    const row = await prisma.appSetting.findUnique({ where: { key: SENDER_ADDRESS_KEY } });
+    if (!row) return DEFAULT_SENDER_ADDRESS;
+    return sanitizeSenderAddress(JSON.parse(row.value));
+  } catch {
+    return DEFAULT_SENDER_ADDRESS;
+  }
+}
+
+export async function setSenderAddress(addr: SenderAddress): Promise<SenderAddress> {
+  const clean = sanitizeSenderAddress(addr);
+  await prisma.appSetting.upsert({
+    where: { key: SENDER_ADDRESS_KEY },
+    update: { value: JSON.stringify(clean) },
+    create: { key: SENDER_ADDRESS_KEY, value: JSON.stringify(clean) },
+  });
+  return clean;
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
+import { parseParcelFields } from "@/lib/parcelFields";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF"]);
@@ -24,6 +25,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   if (body.requiresSize !== undefined) data.requiresSize = !!body.requiresSize;
   if (body.active !== undefined) data.active = !!body.active;
+  const parcel = parseParcelFields(body);
+  if ("error" in parcel) return jsonError(parcel.error);
+  Object.assign(data, parcel.data);
 
   const product = await prisma.merchProduct.update({ where: { id: params.id }, data });
   return NextResponse.json({ product });

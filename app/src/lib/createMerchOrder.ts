@@ -5,6 +5,7 @@ import { validateNamePart, validateThaiPhone, cleanPhoneForStorage } from "./for
 import { getMerchShippingFee, getMerchPickupEnabled, MERCH_PICKUP_ADDRESS_TEXT } from "./settings";
 import { type ThaiAddress, normalizeThaiAddress, validateThaiAddress, composeThaiAddress } from "./thaiAddress";
 import { merchHoldUntil } from "./holdPolicy";
+import { computeParcel, type ParcelLine } from "./parcel";
 
 export interface CreateMerchOrderItemInput {
   productId: string;
@@ -131,6 +132,7 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
     unitPrice: number;
   }[] = [];
   let totalAmount = 0;
+  const parcelLines: ParcelLine[] = [];
 
   // Snapshotted onto the order below so a later change to the configured
   // fee never retroactively changes a past order's total.
@@ -150,6 +152,13 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
 
     const unitPrice = Number(product.price);
     totalAmount += unitPrice * item.quantity;
+    parcelLines.push({
+      quantity: item.quantity,
+      weightGrams: product.weightGrams,
+      lengthCm: product.lengthCm,
+      widthCm: product.widthCm,
+      heightCm: product.heightCm,
+    });
 
     orderItemsData.push({
       productId: product.id,
@@ -161,6 +170,9 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
   }
 
   totalAmount += shippingFee;
+
+  // น้ำหนัก/ขนาดพัสดุรวม (snapshot) — เฉพาะออเดอร์จัดส่ง; รับที่วิทยาลัยไม่มีพัสดุ
+  const parcel = pickup ? null : computeParcel(parcelLines);
 
   let orderCode = generateOrderCode();
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -202,6 +214,11 @@ export async function createMerchOrder(input: CreateMerchOrderInput) {
         addrPostcode: addr?.postcode ?? null,
         addrManual: addr?.manual ?? false,
         shippingFee,
+        parcelWeightGrams: parcel?.weightGrams ?? null,
+        parcelLengthCm: parcel?.lengthCm ?? null,
+        parcelWidthCm: parcel?.widthCm ?? null,
+        parcelHeightCm: parcel?.heightCm ?? null,
+        parcelIncomplete: parcel?.incomplete ?? false,
         totalAmount,
         paymentStatus: slipFileKey ? "awaiting_verify" : "pending",
         reservedUntil: merchHoldUntil(slipFileKey ? "awaiting_verify" : "pending"),

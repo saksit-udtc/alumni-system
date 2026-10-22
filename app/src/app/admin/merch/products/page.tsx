@@ -9,6 +9,11 @@ interface Product {
   description: string | null;
   price: string;
   requiresSize: boolean;
+  // ข้อมูลพัสดุต่อชิ้น (น้ำหนักกรัม / ขนาดซม. ตอนบรรจุ) — null = ยังไม่กรอก
+  weightGrams: number | null;
+  lengthCm: number | null;
+  widthCm: number | null;
+  heightCm: number | null;
   active: boolean;
   imageUrl: string | null;
   // Extra gallery photos (the cover image above is separate) + optional
@@ -494,6 +499,8 @@ export default function AdminMerchProductsPage() {
                 )}
               </div>
 
+              <ParcelEditor product={p} onSaved={load} />
+
               <div className="border-t border-cream-200 pt-3">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="text-xs font-medium text-stone-500">
@@ -554,6 +561,83 @@ export default function AdminMerchProductsPage() {
         })}
       </div>
       )}
+    </div>
+  );
+}
+
+// น้ำหนัก/ขนาดพัสดุต่อชิ้น — ระบบรวมเป็นน้ำหนักพัสดุต่อออเดอร์ (ยาว/กว้าง = ค่ามากสุด, สูง = ผลรวม) ส่งให้ขนส่ง
+function ParcelEditor({ product, onSaved }: { product: Product; onSaved: () => void }) {
+  const init = () => ({
+    weightGrams: product.weightGrams?.toString() ?? "",
+    lengthCm: product.lengthCm?.toString() ?? "",
+    widthCm: product.widthCm?.toString() ?? "",
+    heightCm: product.heightCm?.toString() ?? "",
+  });
+  const [v, setV] = useState(init);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const missing = !product.weightGrams || !product.lengthCm || !product.widthCm || !product.heightCm;
+
+  async function save() {
+    setSaving(true);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/admin/merch/products/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(v),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(data.error || "บันทึกไม่สำเร็จ");
+        return;
+      }
+      setMsg("บันทึกแล้ว");
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const fields: { key: keyof typeof v; label: string }[] = [
+    { key: "weightGrams", label: "น้ำหนัก (กรัม)" },
+    { key: "lengthCm", label: "ยาว (ซม.)" },
+    { key: "widthCm", label: "กว้าง (ซม.)" },
+    { key: "heightCm", label: "สูง (ซม.)" },
+  ];
+
+  return (
+    <div className="border-t border-cream-200 pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="text-xs font-medium text-stone-500">
+          ข้อมูลพัสดุต่อชิ้น (ตอนบรรจุ เช่น เสื้อพับแล้ว)
+          {missing && <span className="ml-2 text-amber-600">⚠ ยังกรอกไม่ครบ</span>}
+        </div>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="bg-maroon-700 hover:bg-maroon-800 transition-colors text-white text-xs rounded-lg px-3 py-1.5 font-medium disabled:opacity-50"
+        >
+          {saving ? "กำลังบันทึก..." : "บันทึกข้อมูลพัสดุ"}
+        </button>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {fields.map((f) => (
+          <label key={f.key} className="flex flex-col gap-1 text-xs">
+            <span className="text-stone-500">{f.label}</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={v[f.key]}
+              onChange={(e) => setV({ ...v, [f.key]: e.target.value })}
+              className="w-full border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-2 py-1.5 text-sm"
+            />
+          </label>
+        ))}
+      </div>
+      {msg && <p className={`text-xs mt-1 ${msg === "บันทึกแล้ว" ? "text-emerald-600" : "text-red-600"}`}>{msg}</p>}
     </div>
   );
 }

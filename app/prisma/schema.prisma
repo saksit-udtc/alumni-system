@@ -286,6 +286,11 @@ model MerchProduct {
   active       Boolean  @default(true)
   // ลำดับแสดงในหน้าร้าน (น้อย = ขึ้นก่อน) — ตรงกับคอลัมน์ในมิเกรชัน 20260919120000
   sortOrder    Int      @default(0)
+  // ข้อมูลพัสดุต่อชิ้น (ใช้รวมเป็นน้ำหนัก/ขนาดพัสดุของออเดอร์ส่งให้ขนส่ง) — null = ยังไม่กรอก
+  weightGrams  Int?
+  lengthCm     Int?
+  widthCm      Int?
+  heightCm     Int?
   createdAt    DateTime @default(now())
 
   orderItems   MerchOrderItem[]
@@ -344,6 +349,13 @@ model MerchOrder {
   addrPostcode    String?
   // ผู้สั่งติ๊ก "ไม่พบที่อยู่ในรายการ (กรอกเอง)" — เจ้าหน้าที่ควรตรวจที่อยู่ก่อนส่ง
   addrManual      Boolean       @default(false)
+  // น้ำหนัก/ขนาดพัสดุรวมของออเดอร์ (snapshot ตอนสั่ง) — null สำหรับออเดอร์รับที่วิทยาลัยและออเดอร์เก่า
+  // parcelIncomplete = มีสินค้าที่ยังไม่ได้กรอกน้ำหนัก/ขนาดตอนสั่ง
+  parcelWeightGrams Int?
+  parcelLengthCm    Int?
+  parcelWidthCm     Int?
+  parcelHeightCm    Int?
+  parcelIncomplete  Boolean     @default(false)
   // Snapshot of the shipping fee in effect at order time (same idea as
   // MerchOrderItem.unitPrice below) — a later change to the configured fee
   // in AppSetting must never retroactively change a past order's total.

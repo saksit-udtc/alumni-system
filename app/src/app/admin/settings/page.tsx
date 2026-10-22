@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AddressFields from "@/app/components/address-fields";
+import { EMPTY_ADDRESS, type ThaiAddress } from "@/lib/thaiAddress";
 
 /**
  * ตั้งค่าระบบ — เฉพาะผู้ดูแลระบบสูงสุด (SUPER_ADMIN)
@@ -225,6 +227,9 @@ export default function SystemSettingsPage() {
   const [promptPayId, setPromptPayId] = useState("");
   const [shippingFee, setShippingFee] = useState("");
   const [pickupEnabled, setPickupEnabled] = useState(false);
+  const [senderName, setSenderName] = useState("");
+  const [senderPhone, setSenderPhone] = useState("");
+  const [senderAddr, setSenderAddr] = useState<ThaiAddress>(EMPTY_ADDRESS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -237,10 +242,24 @@ export default function SystemSettingsPage() {
         setPromptPayId(d.promptPayId ?? "");
         setShippingFee(String(d.shippingFee ?? 0));
         setPickupEnabled(!!d.pickupEnabled);
+        applySender(d.sender);
       })
       .catch(() => setError("โหลดค่าตั้งค่าไม่สำเร็จ"))
       .finally(() => setLoading(false));
   }, []);
+
+  function applySender(s: { name?: string; phone?: string; line?: string; subdistrict?: string; district?: string; province?: string; postcode?: string } | undefined) {
+    setSenderName(s?.name ?? "");
+    setSenderPhone(s?.phone ?? "");
+    setSenderAddr({
+      line: s?.line ?? "",
+      subdistrict: s?.subdistrict ?? "",
+      district: s?.district ?? "",
+      province: s?.province ?? "",
+      postcode: s?.postcode ?? "",
+      manual: false,
+    });
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -256,7 +275,18 @@ export default function SystemSettingsPage() {
       const res = await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ promptPayId: promptPayId.trim(), shippingFee: fee, pickupEnabled }),
+        body: JSON.stringify({ promptPayId: promptPayId.trim(), shippingFee: fee,
+          pickupEnabled,
+          sender: {
+            name: senderName,
+            phone: senderPhone,
+            line: senderAddr.line,
+            subdistrict: senderAddr.subdistrict,
+            district: senderAddr.district,
+            province: senderAddr.province,
+            postcode: senderAddr.postcode,
+          },
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -266,6 +296,7 @@ export default function SystemSettingsPage() {
       setPromptPayId(data.promptPayId ?? "");
       setShippingFee(String(data.shippingFee ?? 0));
       setPickupEnabled(!!data.pickupEnabled);
+      applySender(data.sender);
       setSaved(true);
     } finally {
       setSaving(false);
@@ -351,6 +382,37 @@ export default function SystemSettingsPage() {
               {pickupEnabled ? "เปิด — ผู้สั่งเลือกรับที่วิทยาลัยได้" : "ปิด — จัดส่งอย่างเดียว"}
             </span>
           </button>
+        </div>
+
+        <hr className="border-cream-200" />
+
+        {/* ที่อยู่ผู้ส่ง (วิทยาลัย) — ใช้สร้างรายการขนส่ง เช่น Flash Express */}
+        <div className="space-y-3">
+          <h2 className="font-display font-semibold text-stone-800">ที่อยู่ผู้ส่งพัสดุ (วิทยาลัย)</h2>
+          <p className="text-sm text-stone-500">
+            ใช้เป็นต้นทางตอนสร้างรายการจัดส่งกับบริษัทขนส่ง เว้นว่างได้ถ้ายังไม่พร้อม แต่ถ้ากรอกแล้วต้องกรอกให้ครบทุกช่อง
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">ชื่อผู้ส่ง/หน่วยงาน</span>
+              <input
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">เบอร์โทรผู้ส่ง</span>
+              <input
+                value={senderPhone}
+                onChange={(e) => setSenderPhone(e.target.value)}
+                inputMode="tel"
+                placeholder="เช่น 0812345678"
+                className="border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-shadow px-3 py-2"
+              />
+            </label>
+          </div>
+          <AddressFields value={senderAddr} onChange={setSenderAddr} errors={{}} idPrefix="sender-" />
         </div>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}

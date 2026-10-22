@@ -5,6 +5,7 @@ import { validateNamePart, validateThaiPhone, cleanPhoneForStorage } from "./for
 import { getMerchShippingFee, getMerchPickupEnabled, MERCH_PICKUP_ADDRESS_TEXT } from "./settings";
 import { type ThaiAddress, normalizeThaiAddress, validateThaiAddress, composeThaiAddress } from "./thaiAddress";
 import { merchHoldUntil } from "./holdPolicy";
+import { computeParcel, type ParcelLine } from "./parcel";
 
 export interface CreateMerchPackageOrderInput {
   packageId: string;
@@ -126,6 +127,7 @@ export async function createMerchPackageOrder(input: CreateMerchPackageOrderInpu
 
   const order = await prisma.$transaction(
     async (tx) => {
+      const parcelLines: ParcelLine[] = [];
       const itemsData: {
         productId: string;
         productName: string;
@@ -157,6 +159,13 @@ export async function createMerchPackageOrder(input: CreateMerchPackageOrderInpu
           const label = size ? `${product?.name ?? "สินค้า"} (ไซส์ ${size})` : product?.name ?? "สินค้า";
           throw new MerchPackageOrderError("ITEM_OUT_OF_STOCK", `สินค้าในแพ็กเกจ "${label}" มีไม่เพียงพอ`);
         }
+        parcelLines.push({
+          quantity: item.quantity,
+          weightGrams: product?.weightGrams,
+          lengthCm: product?.lengthCm,
+          widthCm: product?.widthCm,
+          heightCm: product?.heightCm,
+        });
         itemsData.push({
           productId: item.productId,
           productName: product?.name ?? "สินค้า",
@@ -168,6 +177,8 @@ export async function createMerchPackageOrder(input: CreateMerchPackageOrderInpu
           unitPrice: product ? Number(product.price) : 0,
         });
       }
+
+      const parcel = pickup ? null : computeParcel(parcelLines);
 
       const created = await tx.merchOrder.create({
         data: {
@@ -183,6 +194,11 @@ export async function createMerchPackageOrder(input: CreateMerchPackageOrderInpu
         addrPostcode: addr?.postcode ?? null,
         addrManual: addr?.manual ?? false,
           shippingFee,
+          parcelWeightGrams: parcel?.weightGrams ?? null,
+          parcelLengthCm: parcel?.lengthCm ?? null,
+          parcelWidthCm: parcel?.widthCm ?? null,
+          parcelHeightCm: parcel?.heightCm ?? null,
+          parcelIncomplete: parcel?.incomplete ?? false,
           totalAmount,
           paymentStatus: slipFileKey ? "awaiting_verify" : "pending",
           reservedUntil: merchHoldUntil(slipFileKey ? "awaiting_verify" : "pending"),

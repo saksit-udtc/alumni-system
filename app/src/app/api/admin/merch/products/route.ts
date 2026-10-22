@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { publicMerchProductUrl } from "@/lib/minio";
+import { parseParcelFields } from "@/lib/parcelFields";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,10 @@ export async function GET(req: NextRequest) {
       description: p.description,
       price: p.price,
       requiresSize: p.requiresSize,
+      weightGrams: p.weightGrams,
+      lengthCm: p.lengthCm,
+      widthCm: p.widthCm,
+      heightCm: p.heightCm,
       active: p.active,
       imageUrl: p.imageKey ? publicMerchProductUrl(p.imageKey) : null,
       images: p.images.map((img) => ({ id: img.id, imageUrl: publicMerchProductUrl(img.imageKey) })),
@@ -39,6 +44,8 @@ export async function POST(req: NextRequest) {
   if (!body) return jsonError("invalid body");
 
   const { name, description, price, requiresSize } = body;
+  const parcel = parseParcelFields(body);
+  if ("error" in parcel) return jsonError(parcel.error);
   if (!name?.trim() || price === undefined || price === null || Number(price) < 0) {
     return jsonError("กรุณากรอกชื่อสินค้าและราคาให้ถูกต้อง");
   }
@@ -49,6 +56,7 @@ export async function POST(req: NextRequest) {
       description: description?.trim() || null,
       price: Number(price),
       requiresSize: !!requiresSize,
+      ...parcel.data,
     },
   });
 
