@@ -68,7 +68,7 @@ export default function PackageSaleReceiptPage({ params }: { params: { id: strin
         </Link>
       </div>
 
-      <div className="max-w-xs mx-auto bg-white border border-cream-200 shadow-md print:shadow-none print:border-0 rounded-lg p-4 font-mono text-sm text-stone-800">
+      <div className="pos-receipt-print max-w-xs mx-auto bg-white border border-cream-200 shadow-md print:shadow-none print:border-0 rounded-lg p-4 font-mono text-sm text-stone-800">
         <div className="text-center mb-2">
           <div className="font-display font-bold text-base">ใบยืนยันการจอง (แพ็กเกจ)</div>
           <div className="text-xs text-stone-500">ขายหน้างาน (POS) — งานคืนสู่เหย้า</div>
@@ -121,18 +121,33 @@ export default function PackageSaleReceiptPage({ params }: { params: { id: strin
       </div>
 
       <style jsx global>{`
+        @page {
+          size: 80mm auto;
+          margin: 0;
+        }
         @media print {
+          html,
+          body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+          }
           body * {
             visibility: hidden;
           }
-          .print\\:shadow-none,
-          .print\\:shadow-none * {
+          .pos-receipt-print,
+          .pos-receipt-print * {
             visibility: visible;
           }
-          .print\\:shadow-none {
+          .pos-receipt-print {
             position: absolute;
             left: 0;
             top: 0;
+            width: 72mm; /* TSC TDM-30: พื้นที่พิมพ์จริง 72mm บนกระดาษ 80mm */
+            max-width: 72mm;
+            margin: 0;
+            padding: 2mm;
+            box-sizing: border-box;
           }
         }
       `}</style>
