@@ -141,9 +141,10 @@ export async function bookPackage(input: BookPackageInput) {
           capacity: number;
           seatsReserved: number;
           isFullTableBooking: boolean;
+          isLocked: boolean;
         }>
       >(Prisma.sql`
-        SELECT "id", "eventId", "capacity", "seatsReserved", "isFullTableBooking"
+        SELECT "id", "eventId", "capacity", "seatsReserved", "isFullTableBooking", "isLocked"
         FROM "Table"
         WHERE "id" = ${tableId}
         FOR UPDATE
@@ -152,6 +153,9 @@ export async function bookPackage(input: BookPackageInput) {
       const table = locked[0];
       if (!table) {
         throw new PackageBookingError("TABLE_NOT_FOUND", "ไม่พบโต๊ะที่ระบุ");
+      }
+      if (table.isLocked) {
+        throw new PackageBookingError("TABLE_LOCKED", "โต๊ะนี้ไม่เปิดให้จอง กรุณาเลือกโต๊ะอื่น");
       }
       if (table.eventId !== pkg.eventId) {
         throw new PackageBookingError("EVENT_MISMATCH", "โต๊ะนี้ไม่ได้อยู่ในงานเดียวกับแพ็กเกจ");

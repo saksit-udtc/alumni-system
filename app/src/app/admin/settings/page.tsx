@@ -227,7 +227,6 @@ export default function SystemSettingsPage() {
   const [promptPayId, setPromptPayId] = useState("");
   const [shippingFee, setShippingFee] = useState("");
   const [pickupEnabled, setPickupEnabled] = useState(false);
-  const [longHoldDays, setLongHoldDays] = useState("3");
   const [senderName, setSenderName] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
   const [senderAddr, setSenderAddr] = useState<ThaiAddress>(EMPTY_ADDRESS);
@@ -243,7 +242,6 @@ export default function SystemSettingsPage() {
         setPromptPayId(d.promptPayId ?? "");
         setShippingFee(String(d.shippingFee ?? 0));
         setPickupEnabled(!!d.pickupEnabled);
-        setLongHoldDays(String(d.tableLongHoldDays ?? 3));
         applySender(d.sender);
       })
       .catch(() => setError("โหลดค่าตั้งค่าไม่สำเร็จ"))
@@ -272,11 +270,6 @@ export default function SystemSettingsPage() {
       setError("กรุณากรอกค่าจัดส่งเป็นตัวเลขที่มากกว่าหรือเท่ากับ 0");
       return;
     }
-    const holdDays = Number(longHoldDays);
-    if (!Number.isInteger(holdDays) || holdDays < 1 || holdDays > 14) {
-      setError("จำนวนวันล็อกโต๊ะต้องเป็นจำนวนเต็ม 1–14 วัน");
-      return;
-    }
     setSaving(true);
     try {
       const res = await fetch("/api/admin/settings", {
@@ -284,7 +277,6 @@ export default function SystemSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ promptPayId: promptPayId.trim(), shippingFee: fee,
           pickupEnabled,
-          tableLongHoldDays: holdDays,
           sender: {
             name: senderName,
             phone: senderPhone,
@@ -304,7 +296,6 @@ export default function SystemSettingsPage() {
       setPromptPayId(data.promptPayId ?? "");
       setShippingFee(String(data.shippingFee ?? 0));
       setPickupEnabled(!!data.pickupEnabled);
-      setLongHoldDays(String(data.tableLongHoldDays ?? 3));
       applySender(data.sender);
       setSaved(true);
     } finally {
@@ -391,30 +382,6 @@ export default function SystemSettingsPage() {
               {pickupEnabled ? "เปิด — ผู้สั่งเลือกรับที่วิทยาลัยได้" : "ปิด — จัดส่งอย่างเดียว"}
             </span>
           </button>
-        </div>
-
-        <hr className="border-cream-200" />
-
-        {/* ล็อกโต๊ะรอชำระเงินหลายวัน (เฉพาะโต๊ะ) */}
-        <div className="space-y-3">
-          <h2 className="font-display font-semibold text-stone-800">ล็อกโต๊ะรอชำระเงิน (แอดมิน)</h2>
-          <p className="text-sm text-stone-500">
-            ฟังก์ชันนี้ใช้ได้<b>เฉพาะแอดมิน</b> — ที่หน้า &quot;รายการจอง&quot; กดปุ่ม <b>&quot;ล็อกโต๊ะ&quot;</b> เพื่อกันโต๊ะให้ผู้จองตามจำนวนวันที่ตั้งนี้ (ผู้จองทั่วไปไม่เห็นตัวเลือกนี้ และยังกันโต๊ะ 30 นาทีตามปกติ)
-            ครบกำหนดแล้วไม่ชำระ ระบบปล่อยโต๊ะอัตโนมัติ ของที่ระลึกและแพ็กเกจไม่เกี่ยวข้อง
-          </p>
-          <label className="flex items-center gap-2 text-sm">
-            <span className="font-medium">จำนวนวันที่ล็อก</span>
-            <input
-              type="number"
-              min={1}
-              max={14}
-              step={1}
-              value={longHoldDays}
-              onChange={(e) => setLongHoldDays(e.target.value)}
-              className="w-24 border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400"
-            />
-            <span className="text-stone-500">วัน (1–14) — ค่าเริ่มต้นตอนแอดมินล็อก แก้ได้ทีละรายการ</span>
-          </label>
         </div>
 
         <hr className="border-cream-200" />

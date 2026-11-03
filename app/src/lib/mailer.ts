@@ -301,9 +301,6 @@ interface BookingReceivedEmailArgs {
   awaitingSlip?: boolean;
   /** นาทีที่กันโต๊ะไว้ (ใช้คู่กับ awaitingSlip) */
   holdMinutes?: number;
-  /** ล็อกโต๊ะแบบหลายวัน: ใช้ holdUntil แสดงกำหนดชำระแทนนาที */
-  longHold?: boolean;
-  holdUntil?: Date | null;
 }
 
 // Same URL shape the booking form itself navigates to after a successful
@@ -313,22 +310,6 @@ interface BookingReceivedEmailArgs {
 function uploadSlipUrl(bookingCode: string, bookerPhone: string) {
   const base = process.env.APP_BASE_URL || "http://localhost:3000";
   return `${base}/reservations/${bookingCode}/upload-slip?phone=${encodeURIComponent(bookerPhone)}`;
-}
-
-function holdDurationLabel(args: { holdMinutes?: number; longHold?: boolean; holdUntil?: Date | null }) {
-  if (args.longHold && args.holdUntil) {
-    const days = Math.max(1, Math.round((args.holdUntil.getTime() - Date.now()) / 86_400_000));
-    return `${days} วัน`;
-  }
-  return `${args.holdMinutes ?? 30} นาที`;
-}
-
-function holdDeadlineText(args: { holdMinutes?: number; longHold?: boolean; holdUntil?: Date | null }) {
-  if (args.longHold && args.holdUntil) {
-    const when = args.holdUntil.toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "long", timeStyle: "short" });
-    return `กรุณาชำระเงินและแนบสลิปภายใน ${holdDurationLabel(args)} (ภายใน ${when} น.)`;
-  }
-  return `กรุณาชำระเงินและแนบสลิปภายใน ${holdDurationLabel(args)}`;
 }
 
 function buildBookingReceivedHtml(args: BookingReceivedEmailArgs) {
@@ -344,7 +325,7 @@ function buildBookingReceivedHtml(args: BookingReceivedEmailArgs) {
         ${args.tableNumber ? `<li>โต๊ะหมายเลข: <strong>${args.tableNumber}${args.zone ? ` (โซน ${args.zone})` : ""}</strong></li>` : ""}
         <li>ยอดชำระ: <strong>${args.totalAmount.toLocaleString("th-TH")} บาท</strong></li>
       </ul>
-      <p><strong>${holdDeadlineText(args)}</strong> หากเกินเวลา ระบบจะปล่อยโต๊ะให้ผู้อื่นโดยอัตโนมัติ</p>
+      <p><strong>กรุณาชำระเงินและแนบสลิปภายใน ${args.holdMinutes ?? 30} นาที</strong> หากเกินเวลา ระบบจะปล่อยโต๊ะให้ผู้อื่นโดยอัตโนมัติ</p>
       <p style="margin: 20px 0;">
         <a href="${slipUrl}" style="display:inline-block; background:#1e3a8a; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:6px;">ชำระเงินและแนบสลิป</a>
       </p>
@@ -383,7 +364,7 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
       const { error } = await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
         to: args.to,
-        subject: args.awaitingSlip ? `รอชำระเงิน — กันโต๊ะไว้ ${holdDurationLabel(args)} - ${args.eventName}` : `จองโต๊ะสำเร็จ - ${args.eventName}`,
+        subject: args.awaitingSlip ? `รอชำระเงิน — กันโต๊ะไว้ ${args.holdMinutes ?? 30} นาที - ${args.eventName}` : `จองโต๊ะสำเร็จ - ${args.eventName}`,
         ...mailExtras(buildBookingReceivedHtml(args)),
       });
       if (error) throw new Error(typeof error === "string" ? error : JSON.stringify(error));
@@ -395,7 +376,7 @@ export async function sendBookingReceivedEmail(args: BookingReceivedEmailArgs): 
       await transport.sendMail({
         from: process.env.SMTP_FROM || "noreply@alumni-homecoming.local",
         to: args.to,
-        subject: args.awaitingSlip ? `รอชำระเงิน — กันโต๊ะไว้ ${holdDurationLabel(args)} - ${args.eventName}` : `จองโต๊ะสำเร็จ - ${args.eventName}`,
+        subject: args.awaitingSlip ? `รอชำระเงิน — กันโต๊ะไว้ ${args.holdMinutes ?? 30} นาที - ${args.eventName}` : `จองโต๊ะสำเร็จ - ${args.eventName}`,
         ...mailExtras(buildBookingReceivedHtml(args)),
       });
       await logEmail({ type: "BOOKING_RECEIVED", recipient: args.to, ref: args.bookingCode, status: "SUCCESS" });

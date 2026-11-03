@@ -127,6 +127,8 @@ model Table {
   capacity           Int
   seatsReserved      Int      @default(0)
   isFullTableBooking Boolean  @default(false)
+  // แอดมินล็อกโต๊ะ: true = ไม่เปิดให้จอง (ไม่เกี่ยวกับรายการจอง) — จัดการที่ /admin/table-locks
+  isLocked           Boolean  @default(false)
   zone               String?
   zoneColor          String?
   positionX          Float?

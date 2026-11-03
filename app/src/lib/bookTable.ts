@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { generateBookingCode, generateQrToken } from "./qrcode";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
-import { holdUntil, longHoldUntil } from "./holdPolicy";
+import { holdUntil } from "./holdPolicy";
 import { validateNamePart, validateThaiPhone, cleanPhoneForStorage, normalizeEmail } from "./formValidation";
 
 export interface BookTableInput {
@@ -21,9 +21,6 @@ export interface BookTableInput {
    * directly in "awaiting_verify" status with its PaymentSlip row, in the
    * same transaction. */
   slipFileKey?: string;
-  /** ล็อกโต๊ะรอชำระเงินหลายวัน — ส่งได้เฉพาะจาก API ฝั่งแอดมิน (/api/admin/reservations/lock) เท่านั้น
-   * ห้ามรับค่านี้จากฟอร์มสาธารณะ */
-  adminHoldDays?: number;
 }
 
 export class BookingError extends Error {
@@ -54,7 +51,6 @@ export async function bookTable(input: BookTableInput) {
     bookerEmail,
     partyNames,
     slipFileKey,
-    adminHoldDays,
   } = input;
 
   if (seatCount <= 0) {
@@ -97,8 +93,6 @@ export async function bookTable(input: BookTableInput) {
     }
   }
 
-  const longHoldDays = adminHoldDays && !slipFileKey ? adminHoldDays : null;
-
   return prisma.$transaction(async (tx) => {
     // Row-level lock: raw SELECT ... FOR UPDATE on the target table row.
     const locked = await tx.$queryRaw<
@@ -108,9 +102,10 @@ export async function bookTable(input: BookTableInput) {
         capacity: number;
         seatsReserved: number;
         isFullTableBooking: boolean;
+        isLocked: boolean;
       }>
     >(Prisma.sql`
-      SELECT "id", "eventId", "capacity", "seatsReserved", "isFullTableBooking"
+      SELECT "id", "eventId", "capacity", "seatsReserved", "isFullTableBooking", "isLocked"
       FROM "Table"
       WHERE "id" = ${tableId}
       FOR UPDATE
@@ -119,6 +114,9 @@ export async function bookTable(input: BookTableInput) {
     const table = locked[0];
     if (!table) {
       throw new BookingError("TABLE_NOT_FOUND", "ไม่พบโต๊ะที่ระบุ");
+    }
+    if (table.isLocked) {
+      throw new BookingError("TABLE_LOCKED", "โต๊ะนี้ไม่เปิดให้จอง กรุณาเลือกโต๊ะอื่น");
     }
     // Anti-IDOR: the locked table must actually belong to the given event.
     if (table.eventId !== eventId) {
@@ -165,7 +163,7 @@ export async function bookTable(input: BookTableInput) {
       bookingCode = generateBookingCode();
     }
 
-    const reservedUntil = longHoldDays ? longHoldUntil(longHoldDays) : holdUntil(slipFileKey ? "awaiting_verify" : "pending");
+    const reservedUntil = holdUntil(slipFileKey ? "awaiting_verify" : "pending");
 
     const reservation = await tx.reservation.create({
       data: {

@@ -136,6 +136,7 @@ const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; r
   { href: "/admin", label: "แดชบอร์ด", icon: "dashboard", exact: true, roles: ["SUPER_ADMIN"] },
   { href: "/admin/events", label: "งานเลี้ยง", icon: "calendar", roles: ["SUPER_ADMIN", "RESERVATION_STAFF"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/reservations", label: "รายการจอง", icon: "checkin", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "งานเลี้ยงและการจอง" },
+  { href: "/admin/table-locks", label: "การล็อคโต๊ะ", icon: "calendar", roles: ["SUPER_ADMIN", "RESERVATION_STAFF"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/support-registrations", label: "ศิษย์เก่าดีเด่น/ผู้สนับสนุน", icon: "users", roles: ["SUPER_ADMIN"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN"], section: "งานเลี้ยงและการจอง" },
@@ -189,7 +190,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     CHECKIN_STAFF: ["/admin/checkin"],
     MERCH_STAFF: ["/admin/merch", "/admin/pos", "/admin/packages"],
     FINANCE_STAFF: ["/admin/reservations", "/admin/support-registrations", "/admin/merch/orders", "/admin/merch/summary"],
-    RESERVATION_STAFF: ["/admin/events", "/admin/merch/orders", "/admin/merch/summary", "/admin/packages", "/admin/pos/package"],
+    RESERVATION_STAFF: ["/admin/events", "/admin/table-locks", "/admin/merch/orders", "/admin/merch/summary", "/admin/packages", "/admin/pos/package"],
   };
   const ROLE_HOME: Record<string, string> = {
     CHECKIN_STAFF: "/admin/checkin",

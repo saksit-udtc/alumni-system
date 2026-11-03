@@ -9,9 +9,6 @@ import {
   setMerchPickupEnabled,
   getSenderAddress,
   setSenderAddress,
-  getTableLongHoldDays,
-  setTableLongHoldDays,
-  MAX_TABLE_LONG_HOLD_DAYS,
 } from "@/lib/settings";
 import { validateThaiAddress } from "@/lib/thaiAddress";
 import { validateThaiPhone, cleanPhoneForStorage } from "@/lib/formValidation";
@@ -27,14 +24,13 @@ export async function GET(req: NextRequest) {
   const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (!admin) return response;
 
-  const [promptPayId, shippingFee, pickupEnabled, sender, tableLongHoldDays] = await Promise.all([
+  const [promptPayId, shippingFee, pickupEnabled, sender] = await Promise.all([
     getPosPromptPayId(),
     getMerchShippingFee(),
     getMerchPickupEnabled(),
     getSenderAddress(),
-    getTableLongHoldDays(),
   ]);
-  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled, sender, tableLongHoldDays });
+  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled, sender });
 }
 
 export async function PUT(req: NextRequest) {
@@ -62,12 +58,6 @@ export async function PUT(req: NextRequest) {
 
   const pickupEnabled = body.pickupEnabled === true;
 
-  // ล็อกโต๊ะรอชำระเงินหลายวัน (แอดมินล็อกให้ผู้จอง): จำนวนวันเริ่มต้น 1–MAX
-  const longHoldDays = Number(body.tableLongHoldDays);
-  if (!Number.isInteger(longHoldDays) || longHoldDays < 1 || longHoldDays > MAX_TABLE_LONG_HOLD_DAYS) {
-    return jsonError(`จำนวนวันล็อกโต๊ะต้องเป็นจำนวนเต็ม 1–${MAX_TABLE_LONG_HOLD_DAYS} วัน`);
-  }
-
   // ที่อยู่ผู้ส่ง: เว้นว่างทั้งหมดได้ (ยังไม่ตั้งค่า) แต่ถ้ากรอกอะไรแล้วต้องครบและถูกต้อง
   const rawSender = body.sender && typeof body.sender === "object" ? body.sender : {};
   const sender = {
@@ -89,8 +79,7 @@ export async function PUT(req: NextRequest) {
     sender.phone = cleanPhoneForStorage(sender.phone);
   }
 
-  const [, , , , savedSender] = await Promise.all([
-    setTableLongHoldDays(longHoldDays),
+  const [, , , savedSender] = await Promise.all([
     setPosPromptPayId(promptPayId),
     setMerchShippingFee(shippingFee),
     setMerchPickupEnabled(pickupEnabled),
@@ -100,8 +89,8 @@ export async function PUT(req: NextRequest) {
   await logAdminAction({
     adminId: admin.adminId,
     action: "SYSTEM_SETTINGS_UPDATE",
-    detail: `พร้อมเพย์: ${promptPayId || "(ว่าง)"} · ค่าจัดส่ง: ${shippingFee} บาท · รับสินค้าที่วิทยาลัย: ${pickupEnabled ? "เปิด" : "ปิด"} · ล็อกโต๊ะรอชำระ (แอดมิน): ${longHoldDays} วัน · ที่อยู่ผู้ส่ง: ${senderTouched ? `${sender.province} ${sender.postcode}` : "(ว่าง)"}`,
+    detail: `พร้อมเพย์: ${promptPayId || "(ว่าง)"} · ค่าจัดส่ง: ${shippingFee} บาท · รับสินค้าที่วิทยาลัย: ${pickupEnabled ? "เปิด" : "ปิด"} · ที่อยู่ผู้ส่ง: ${senderTouched ? `${sender.province} ${sender.postcode}` : "(ว่าง)"}`,
   });
 
-  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled, sender: savedSender, tableLongHoldDays: longHoldDays });
+  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled, sender: savedSender });
 }

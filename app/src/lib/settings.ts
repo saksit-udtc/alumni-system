@@ -342,23 +342,3 @@ export async function setSenderAddress(addr: SenderAddress): Promise<SenderAddre
   });
   return clean;
 }
-
-// ---- ล็อกโต๊ะรอชำระเงินหลายวัน (ฟังก์ชันของแอดมินเท่านั้น — เฉพาะโต๊ะ ของที่ระลึกยังกัน 30 นาที) ----
-const TABLE_LONG_HOLD_DAYS_KEY = "tableLongHoldDays";
-export const DEFAULT_TABLE_LONG_HOLD_DAYS = 3;
-export const MAX_TABLE_LONG_HOLD_DAYS = 14;
-
-/** จำนวนวันเริ่มต้นที่แอดมินล็อกโต๊ะให้ผู้จอง (ตั้งในหน้าตั้งค่า) */
-export async function getTableLongHoldDays(): Promise<number> {
-  const row = await prisma.appSetting.findUnique({ where: { key: TABLE_LONG_HOLD_DAYS_KEY } });
-  const n = Number(row?.value);
-  return Number.isInteger(n) && n >= 1 && n <= MAX_TABLE_LONG_HOLD_DAYS ? n : DEFAULT_TABLE_LONG_HOLD_DAYS;
-}
-
-export async function setTableLongHoldDays(days: number): Promise<void> {
-  await prisma.appSetting.upsert({
-    where: { key: TABLE_LONG_HOLD_DAYS_KEY },
-    update: { value: String(days) },
-    create: { key: TABLE_LONG_HOLD_DAYS_KEY, value: String(days) },
-  });
-}

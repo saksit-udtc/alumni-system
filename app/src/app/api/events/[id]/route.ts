@@ -21,23 +21,26 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "ไม่พบงานที่ระบุ" }, { status: 404 });
   }
 
+  // โต๊ะที่แอดมินล็อก (isLocked): แสดงเป็น "ไม่ว่าง" กดจองไม่ได้ (ฝั่งเซิร์ฟเวอร์ตรวจซ้ำใน bookTable/bookPackage)
+  // ไม่เปิดเผยว่าถูกล็อก และไม่นับรวมในสถิติจำนวนโต๊ะ/ที่นั่ง
   const publicTables = event.tables.map((t) => ({
     id: t.id,
     tableNumber: t.tableNumber,
     capacity: t.capacity,
-    seatsReserved: t.seatsReserved,
-    isFullTableBooking: t.isFullTableBooking,
+    seatsReserved: t.isLocked ? t.capacity : t.seatsReserved,
+    isFullTableBooking: t.isLocked ? true : t.isFullTableBooking,
     zone: t.zone,
     zoneColor: t.zoneColor,
     positionX: t.positionX,
     positionY: t.positionY,
-    seatsAvailable: t.capacity - t.seatsReserved,
+    seatsAvailable: t.isLocked ? 0 : t.capacity - t.seatsReserved,
   }));
 
   const layoutKey = await getEventLayoutImageKey(event.id);
 
-  const totalCapacity = event.tables.reduce((s, t) => s + t.capacity, 0);
-  const totalReserved = event.tables.reduce((s, t) => s + t.seatsReserved, 0);
+  const openTables = event.tables.filter((t) => !t.isLocked);
+  const totalCapacity = openTables.reduce((s, t) => s + t.capacity, 0);
+  const totalReserved = openTables.reduce((s, t) => s + t.seatsReserved, 0);
 
   return NextResponse.json({
     event: {
@@ -58,7 +61,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       totalCapacity,
       totalReserved,
       totalAvailable: totalCapacity - totalReserved,
-      totalTables: event.tables.length,
+      totalTables: openTables.length,
     },
   });
 }
