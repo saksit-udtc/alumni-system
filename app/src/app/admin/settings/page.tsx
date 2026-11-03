@@ -227,7 +227,6 @@ export default function SystemSettingsPage() {
   const [promptPayId, setPromptPayId] = useState("");
   const [shippingFee, setShippingFee] = useState("");
   const [pickupEnabled, setPickupEnabled] = useState(false);
-  const [longHoldEnabled, setLongHoldEnabled] = useState(false);
   const [longHoldDays, setLongHoldDays] = useState("3");
   const [senderName, setSenderName] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
@@ -244,8 +243,7 @@ export default function SystemSettingsPage() {
         setPromptPayId(d.promptPayId ?? "");
         setShippingFee(String(d.shippingFee ?? 0));
         setPickupEnabled(!!d.pickupEnabled);
-        setLongHoldEnabled(!!d.tableLongHold?.enabled);
-        setLongHoldDays(String(d.tableLongHold?.days ?? 3));
+        setLongHoldDays(String(d.tableLongHoldDays ?? 3));
         applySender(d.sender);
       })
       .catch(() => setError("โหลดค่าตั้งค่าไม่สำเร็จ"))
@@ -286,7 +284,7 @@ export default function SystemSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ promptPayId: promptPayId.trim(), shippingFee: fee,
           pickupEnabled,
-          tableLongHold: { enabled: longHoldEnabled, days: holdDays },
+          tableLongHoldDays: holdDays,
           sender: {
             name: senderName,
             phone: senderPhone,
@@ -306,8 +304,7 @@ export default function SystemSettingsPage() {
       setPromptPayId(data.promptPayId ?? "");
       setShippingFee(String(data.shippingFee ?? 0));
       setPickupEnabled(!!data.pickupEnabled);
-      setLongHoldEnabled(!!data.tableLongHold?.enabled);
-      setLongHoldDays(String(data.tableLongHold?.days ?? 3));
+      setLongHoldDays(String(data.tableLongHoldDays ?? 3));
       applySender(data.sender);
       setSaved(true);
     } finally {
@@ -400,26 +397,11 @@ export default function SystemSettingsPage() {
 
         {/* ล็อกโต๊ะรอชำระเงินหลายวัน (เฉพาะโต๊ะ) */}
         <div className="space-y-3">
-          <h2 className="font-display font-semibold text-stone-800">ล็อกโต๊ะรอชำระเงิน (หลายวัน)</h2>
+          <h2 className="font-display font-semibold text-stone-800">ล็อกโต๊ะรอชำระเงิน (แอดมิน)</h2>
           <p className="text-sm text-stone-500">
-            เปิดเพื่อให้ผู้จองเลือก <b>&quot;ล็อกโต๊ะไว้ก่อน ชำระภายหลัง&quot;</b> ได้ในหน้าจองโต๊ะ — โต๊ะจะถูกกันไว้ตามจำนวนวันที่ตั้ง
-            (ใช้กับการจองโต๊ะปกติเท่านั้น ไม่รวมแพ็กเกจและของที่ระลึก ซึ่งยังกัน 30 นาทีเหมือนเดิม) ครบกำหนดแล้วไม่ชำระ ระบบปล่อยโต๊ะอัตโนมัติ
-            ปิดไว้ = กันโต๊ะ 30 นาทีตามปกติ (มีผลกับการจอง<b>ใหม่</b>เท่านั้น)
+            ฟังก์ชันนี้ใช้ได้<b>เฉพาะแอดมิน</b> — ที่หน้า &quot;รายการจอง&quot; กดปุ่ม <b>&quot;ล็อกโต๊ะ&quot;</b> เพื่อกันโต๊ะให้ผู้จองตามจำนวนวันที่ตั้งนี้ (ผู้จองทั่วไปไม่เห็นตัวเลือกนี้ และยังกันโต๊ะ 30 นาทีตามปกติ)
+            ครบกำหนดแล้วไม่ชำระ ระบบปล่อยโต๊ะอัตโนมัติ ของที่ระลึกและแพ็กเกจไม่เกี่ยวข้อง
           </p>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={longHoldEnabled}
-            onClick={() => setLongHoldEnabled(!longHoldEnabled)}
-            className="flex items-center gap-3 text-sm"
-          >
-            <span className={`relative inline-block w-14 h-8 rounded-full transition-colors duration-300 ${longHoldEnabled ? "bg-emerald-500" : "bg-stone-300"}`}>
-              <span className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-white shadow transition-transform duration-300 ease-out ${longHoldEnabled ? "translate-x-6" : ""}`} />
-            </span>
-            <span className={`font-semibold ${longHoldEnabled ? "text-emerald-700" : "text-stone-500"}`}>
-              {longHoldEnabled ? "เปิด — ผู้จองเลือกล็อกโต๊ะหลายวันได้" : "ปิด — กันโต๊ะ 30 นาทีเท่านั้น"}
-            </span>
-          </button>
           <label className="flex items-center gap-2 text-sm">
             <span className="font-medium">จำนวนวันที่ล็อก</span>
             <input
@@ -431,7 +413,7 @@ export default function SystemSettingsPage() {
               onChange={(e) => setLongHoldDays(e.target.value)}
               className="w-24 border border-stone-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400"
             />
-            <span className="text-stone-500">วัน (1–14)</span>
+            <span className="text-stone-500">วัน (1–14) — ค่าเริ่มต้นตอนแอดมินล็อก แก้ได้ทีละรายการ</span>
           </label>
         </div>
 

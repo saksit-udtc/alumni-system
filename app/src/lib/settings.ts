@@ -343,29 +343,19 @@ export async function setSenderAddress(addr: SenderAddress): Promise<SenderAddre
   return clean;
 }
 
-// ---- ล็อกโต๊ะรอชำระเงินแบบยาว (เฉพาะโต๊ะ — ของที่ระลึกยังกัน 30 นาทีตามเดิม) ----
-const TABLE_LONG_HOLD_ENABLED_KEY = "tableLongHoldEnabled";
+// ---- ล็อกโต๊ะรอชำระเงินหลายวัน (ฟังก์ชันของแอดมินเท่านั้น — เฉพาะโต๊ะ ของที่ระลึกยังกัน 30 นาที) ----
 const TABLE_LONG_HOLD_DAYS_KEY = "tableLongHoldDays";
 export const DEFAULT_TABLE_LONG_HOLD_DAYS = 3;
 export const MAX_TABLE_LONG_HOLD_DAYS = 14;
 
-/** ค่าเริ่มต้น = ปิด (แอดมินต้องเปิดเองในหน้าตั้งค่า) กันโต๊ะค้างโดยไม่ตั้งใจ */
-export async function getTableLongHold(): Promise<{ enabled: boolean; days: number }> {
-  const rows = await prisma.appSetting.findMany({
-    where: { key: { in: [TABLE_LONG_HOLD_ENABLED_KEY, TABLE_LONG_HOLD_DAYS_KEY] } },
-  });
-  const enabled = rows.find((r) => r.key === TABLE_LONG_HOLD_ENABLED_KEY)?.value === "true";
-  const n = Number(rows.find((r) => r.key === TABLE_LONG_HOLD_DAYS_KEY)?.value);
-  const days = Number.isInteger(n) && n >= 1 && n <= MAX_TABLE_LONG_HOLD_DAYS ? n : DEFAULT_TABLE_LONG_HOLD_DAYS;
-  return { enabled, days };
+/** จำนวนวันเริ่มต้นที่แอดมินล็อกโต๊ะให้ผู้จอง (ตั้งในหน้าตั้งค่า) */
+export async function getTableLongHoldDays(): Promise<number> {
+  const row = await prisma.appSetting.findUnique({ where: { key: TABLE_LONG_HOLD_DAYS_KEY } });
+  const n = Number(row?.value);
+  return Number.isInteger(n) && n >= 1 && n <= MAX_TABLE_LONG_HOLD_DAYS ? n : DEFAULT_TABLE_LONG_HOLD_DAYS;
 }
 
-export async function setTableLongHold(enabled: boolean, days: number): Promise<void> {
-  await prisma.appSetting.upsert({
-    where: { key: TABLE_LONG_HOLD_ENABLED_KEY },
-    update: { value: enabled ? "true" : "false" },
-    create: { key: TABLE_LONG_HOLD_ENABLED_KEY, value: enabled ? "true" : "false" },
-  });
+export async function setTableLongHoldDays(days: number): Promise<void> {
   await prisma.appSetting.upsert({
     where: { key: TABLE_LONG_HOLD_DAYS_KEY },
     update: { value: String(days) },

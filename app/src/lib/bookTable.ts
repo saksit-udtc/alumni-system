@@ -3,7 +3,6 @@ import { prisma } from "./prisma";
 import { generateBookingCode, generateQrToken } from "./qrcode";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
 import { holdUntil, longHoldUntil } from "./holdPolicy";
-import { getTableLongHold } from "./settings";
 import { validateNamePart, validateThaiPhone, cleanPhoneForStorage, normalizeEmail } from "./formValidation";
 
 export interface BookTableInput {
@@ -22,8 +21,9 @@ export interface BookTableInput {
    * directly in "awaiting_verify" status with its PaymentSlip row, in the
    * same transaction. */
   slipFileKey?: string;
-  /** ผู้จองเลือก "ล็อกโต๊ะรอชำระเงินหลายวัน" — ใช้ได้เมื่อแอดมินเปิดไว้ และยังไม่แนบสลิป */
-  longHold?: boolean;
+  /** ล็อกโต๊ะรอชำระเงินหลายวัน — ส่งได้เฉพาะจาก API ฝั่งแอดมิน (/api/admin/reservations/lock) เท่านั้น
+   * ห้ามรับค่านี้จากฟอร์มสาธารณะ */
+  adminHoldDays?: number;
 }
 
 export class BookingError extends Error {
@@ -54,7 +54,7 @@ export async function bookTable(input: BookTableInput) {
     bookerEmail,
     partyNames,
     slipFileKey,
-    longHold,
+    adminHoldDays,
   } = input;
 
   if (seatCount <= 0) {
@@ -97,15 +97,7 @@ export async function bookTable(input: BookTableInput) {
     }
   }
 
-  // ล็อกโต๊ะแบบยาว: ตรวจฝั่งเซิร์ฟเวอร์เสมอ (ห้ามเชื่อค่าจากฟอร์ม) และนอกทรานแซกชัน
-  let longHoldDays: number | null = null;
-  if (longHold && !slipFileKey) {
-    const cfg = await getTableLongHold();
-    if (!cfg.enabled) {
-      throw new BookingError("LONG_HOLD_DISABLED", "ขณะนี้ไม่เปิดให้ล็อกโต๊ะรอชำระเงิน กรุณาลองใหม่อีกครั้ง");
-    }
-    longHoldDays = cfg.days;
-  }
+  const longHoldDays = adminHoldDays && !slipFileKey ? adminHoldDays : null;
 
   return prisma.$transaction(async (tx) => {
     // Row-level lock: raw SELECT ... FOR UPDATE on the target table row.

@@ -9,8 +9,8 @@ import {
   setMerchPickupEnabled,
   getSenderAddress,
   setSenderAddress,
-  getTableLongHold,
-  setTableLongHold,
+  getTableLongHoldDays,
+  setTableLongHoldDays,
   MAX_TABLE_LONG_HOLD_DAYS,
 } from "@/lib/settings";
 import { validateThaiAddress } from "@/lib/thaiAddress";
@@ -27,14 +27,14 @@ export async function GET(req: NextRequest) {
   const { admin, response } = requireAdmin(req, ["SUPER_ADMIN"]);
   if (!admin) return response;
 
-  const [promptPayId, shippingFee, pickupEnabled, sender, tableLongHold] = await Promise.all([
+  const [promptPayId, shippingFee, pickupEnabled, sender, tableLongHoldDays] = await Promise.all([
     getPosPromptPayId(),
     getMerchShippingFee(),
     getMerchPickupEnabled(),
     getSenderAddress(),
-    getTableLongHold(),
+    getTableLongHoldDays(),
   ]);
-  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled, sender, tableLongHold });
+  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled, sender, tableLongHoldDays });
 }
 
 export async function PUT(req: NextRequest) {
@@ -62,9 +62,8 @@ export async function PUT(req: NextRequest) {
 
   const pickupEnabled = body.pickupEnabled === true;
 
-  // ล็อกโต๊ะรอชำระเงินหลายวัน (เฉพาะโต๊ะ): เปิด/ปิด + จำนวนวัน 1–MAX
-  const longHoldEnabled = body.tableLongHold?.enabled === true;
-  const longHoldDays = Number(body.tableLongHold?.days);
+  // ล็อกโต๊ะรอชำระเงินหลายวัน (แอดมินล็อกให้ผู้จอง): จำนวนวันเริ่มต้น 1–MAX
+  const longHoldDays = Number(body.tableLongHoldDays);
   if (!Number.isInteger(longHoldDays) || longHoldDays < 1 || longHoldDays > MAX_TABLE_LONG_HOLD_DAYS) {
     return jsonError(`จำนวนวันล็อกโต๊ะต้องเป็นจำนวนเต็ม 1–${MAX_TABLE_LONG_HOLD_DAYS} วัน`);
   }
@@ -91,7 +90,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const [, , , , savedSender] = await Promise.all([
-    setTableLongHold(longHoldEnabled, longHoldDays),
+    setTableLongHoldDays(longHoldDays),
     setPosPromptPayId(promptPayId),
     setMerchShippingFee(shippingFee),
     setMerchPickupEnabled(pickupEnabled),
@@ -101,8 +100,8 @@ export async function PUT(req: NextRequest) {
   await logAdminAction({
     adminId: admin.adminId,
     action: "SYSTEM_SETTINGS_UPDATE",
-    detail: `พร้อมเพย์: ${promptPayId || "(ว่าง)"} · ค่าจัดส่ง: ${shippingFee} บาท · รับสินค้าที่วิทยาลัย: ${pickupEnabled ? "เปิด" : "ปิด"} · ล็อกโต๊ะรอชำระ: ${longHoldEnabled ? `เปิด ${longHoldDays} วัน` : "ปิด"} · ที่อยู่ผู้ส่ง: ${senderTouched ? `${sender.province} ${sender.postcode}` : "(ว่าง)"}`,
+    detail: `พร้อมเพย์: ${promptPayId || "(ว่าง)"} · ค่าจัดส่ง: ${shippingFee} บาท · รับสินค้าที่วิทยาลัย: ${pickupEnabled ? "เปิด" : "ปิด"} · ล็อกโต๊ะรอชำระ (แอดมิน): ${longHoldDays} วัน · ที่อยู่ผู้ส่ง: ${senderTouched ? `${sender.province} ${sender.postcode}` : "(ว่าง)"}`,
   });
 
-  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled, sender: savedSender, tableLongHold: { enabled: longHoldEnabled, days: longHoldDays } });
+  return NextResponse.json({ promptPayId, shippingFee, pickupEnabled, sender: savedSender, tableLongHoldDays: longHoldDays });
 }

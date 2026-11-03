@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AdminStatCard } from "@/app/components/admin-stat-card";
+import LockTableDialog from "./lock-table-dialog";
 import { UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
 import {
   AdminFilterBar,
@@ -68,6 +69,8 @@ export default function AdminAllReservationsPage() {
   const [reservations, setReservations] = useState<any[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [role, setRole] = useState<string | null>(null);
+  const [lockOpen, setLockOpen] = useState(false);
   const filters = useListFilters();
 
   function load() {
@@ -76,6 +79,9 @@ export default function AdminAllReservationsPage() {
       .then((d) => setReservations(d.reservations || []));
   }
   useEffect(load, []);
+  useEffect(() => {
+    fetch("/api/admin/me").then((r) => (r.ok ? r.json() : null)).then((d) => setRole(d?.role ?? null)).catch(() => {});
+  }, []);
 
   async function act(reservationId: string, action: "approve" | "reject" | "unconfirm", note?: string) {
     setBusyId(reservationId);
@@ -120,17 +126,28 @@ export default function AdminAllReservationsPage() {
   return (
     <div className="space-y-6">
       <UrlQuerySync onQuery={setQ} />
+      {lockOpen && <LockTableDialog onClose={() => setLockOpen(false)} onDone={load} />}
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-display font-semibold text-stone-800">รายการจอง</h1>
           <p className="text-sm text-stone-500 mt-0.5">ตรวจสอบสลิปและอนุมัติการจองโต๊ะทั้งหมดทุกงานเลี้ยง</p>
         </div>
-        <a
-          href="/api/admin/reservations/export"
-          className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
-        >
-          Export Excel
-        </a>
+        <div className="flex gap-2">
+          {role === "SUPER_ADMIN" && (
+            <button
+              onClick={() => setLockOpen(true)}
+              className="bg-maroon-700 hover:bg-maroon-800 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+            >
+              ล็อกโต๊ะ (รอชำระหลายวัน)
+            </button>
+          )}
+          <a
+            href="/api/admin/reservations/export"
+            className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
+          >
+            Export Excel
+          </a>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
