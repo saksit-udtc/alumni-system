@@ -53,10 +53,9 @@ function EventTables({ e, showMoney }: { e: EventTableSummary; showMoney: boolea
 
       <div className="space-y-2">
         <h4 className="text-sm font-semibold text-slate-500">รายละเอียดโต๊ะ</h4>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] gap-3">
-          <Num title="โต๊ะทั้งหมด" value={e.tables.confirmed} of={e.totalTables} unit="โต๊ะ" money={showMoney ? e.revenue.confirmed : undefined} tone={TABLE_TONE} />
-          <Num title="จองเต็มโต๊ะ" value={e.fullTableBookings.confirmed} unit="รายการ" tone={TABLE_TONE} />
-          <Num title="จองรายที่นั่ง" value={e.seatBookings.confirmed} unit="รายการ" tone={TABLE_TONE} />
+        <div className="grid grid-cols-2 gap-3">
+          <Num title="โต๊ะทั้งหมด" value={e.totalTables} unit="โต๊ะ" tone={TABLE_TONE} />
+          <Num title="จองแล้ว" value={e.tables.confirmed} unit="โต๊ะ" money={showMoney ? e.revenue.confirmed : undefined} tone={TABLE_TONE} />
         </div>
       </div>
 
@@ -185,7 +184,7 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                       </h3>
                       <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] gap-3">
                         {g.rows.map((r) => (
-                          <Num key={`${g.name}|${r.size}`} title={hasSize ? `ไซซ์ ${r.size ?? "-"}` : g.name} value={r.confirmed} unit="ชิ้น" money={showMoney ? r.revenueConfirmed : undefined} tone={tone} />
+                          <Num key={`${g.name}|${r.size}`} title={hasSize ? `ไซซ์ ${r.size ?? "-"}` : "จำนวนที่ขาย"} value={r.confirmed} unit="ชิ้น" money={showMoney ? r.revenueConfirmed : undefined} tone={tone} />
                         ))}
                       </div>
                     </div>
@@ -195,20 +194,7 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                 return (
                   <>
                     {shirts.map(renderGroup)}
-                    {combo.length > 0 && (
-                      <div key="combo" className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] gap-3">
-                        {combo.map(({ g, gi }) => (
-                          <Num
-                            key={g.name}
-                            title={g.name}
-                            value={g.rows.reduce((a, r) => a + r.confirmed, 0)}
-                            unit="ชิ้น"
-                            money={showMoney ? g.rows.reduce((a, r) => a + r.revenueConfirmed, 0) : undefined}
-                            tone={PALETTE[gi % PALETTE.length]}
-                          />
-                        ))}
-                      </div>
-                    )}
+                    {combo.map(renderGroup)}
                     {others.map(renderGroup)}
                   </>
                 );
