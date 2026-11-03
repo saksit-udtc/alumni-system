@@ -61,7 +61,7 @@ export default function LayoutImageWithZones({ src, tables }: { src: string; tab
     const k = zoneKey(t.zone);
     const s = stats.get(k) ?? { zone: t.zone, free: 0, total: 0 };
     s.total += 1;
-    if (!(t.isFullTableBooking || t.seatsReserved > 0)) s.free += 1;
+    if (!(t.isLocked || t.isFullTableBooking || t.seatsReserved > 0)) s.free += 1;
     stats.set(k, s);
     const p = PX[Number(t.tableNumber)];
     if (!p) continue;

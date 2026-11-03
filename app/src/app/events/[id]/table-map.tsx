@@ -14,7 +14,7 @@ function TableCard({ t, eventId, eventOpen }: { t: TableRow; eventId: string; ev
       <TableGraphic table={t} eventId={eventId} eventOpen={eventOpen} />
       <div className="font-semibold">โต๊ะ {t.tableNumber}</div>
       <div className="text-xs text-primary-500">
-        {t.isFullTableBooking ? "เหมาแล้ว" : t.seatsRemaining === 0 ? "เต็ม" : `เหลือ ${t.seatsRemaining}/${t.capacity} ที่`}
+        {t.isLocked ? "ไม่เปิดจอง" : t.isFullTableBooking ? "เหมาแล้ว" : t.seatsRemaining === 0 ? "เต็ม" : `เหลือ ${t.seatsRemaining}/${t.capacity} ที่`}
       </div>
       {t.alumniBookers.length > 0 && (
         <div className="text-xs text-primary-500 border-t border-cream-200 pt-1.5 space-y-0.5 w-full">
@@ -72,7 +72,7 @@ function HowToGuide({ hasZones, onDismiss }: { hasZones: boolean; onDismiss: () 
   );
 }
 
-function Legend() {
+function Legend({ hasLocked = false }: { hasLocked?: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-4 text-xs text-primary-500 bg-white border border-cream-200 shadow-md rounded-lg px-3 py-2">
       <span className="flex items-center gap-1.5">
@@ -83,6 +83,12 @@ function Legend() {
         <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#ef4444", border: "1.5px solid #dc2626" }} />
         โต๊ะจองแล้ว
       </span>
+      {hasLocked && (
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#a8a29e", border: "1.5px solid #78716c" }} />
+          โต๊ะไม่เปิดจอง
+        </span>
+      )}
     </div>
   );
 }

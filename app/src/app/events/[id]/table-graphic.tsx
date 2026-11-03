@@ -17,6 +17,8 @@ export type TableRow = {
   seatsReserved: number;
   seatsRemaining: number;
   isFullTableBooking: boolean;
+  /** แอดมินล็อกโต๊ะ — ไม่เปิดให้จอง (แสดงสีเทา แยกจากโต๊ะที่ถูกจองสีแดง) */
+  isLocked?: boolean;
   alumniBookers: AlumniInfo[];
   posX: number | null;
   posY: number | null;
@@ -53,8 +55,9 @@ export default function TableGraphic({
   const center = size / 2;
   const tableRadius = 60;
 
-  const isBooked = table.isFullTableBooking || table.seatsReserved > 0;
-  const canBook = !disableBooking && eventOpen && !isBooked;
+  const isLocked = !!table.isLocked;
+  const isBooked = !isLocked && (table.isFullTableBooking || table.seatsReserved > 0);
+  const canBook = !disableBooking && eventOpen && !isBooked && !isLocked;
   const zoneStroke = zoneColor(table.zone).bg;
 
   function goToFullTable() {
@@ -69,13 +72,13 @@ export default function TableGraphic({
         cx={center}
         cy={center}
         r={tableRadius}
-        fill={isBooked ? "#ef4444" : "#22c55e"}
+        fill={isLocked ? "#a8a29e" : isBooked ? "#ef4444" : "#22c55e"}
         stroke={zoneStroke}
         strokeWidth={18}
         className={disableBooking || canBook ? "cursor-pointer" : ""}
         onClick={goToFullTable}
       >
-        <title>{disableBooking ? "คลิกเพื่อดูข้อมูลโต๊ะ" : canBook ? "คลิกเพื่อเหมาโต๊ะ" : isBooked ? "จองแล้ว" : "ปิดรับจอง"}</title>
+        <title>{disableBooking ? "คลิกเพื่อดูข้อมูลโต๊ะ" : canBook ? "คลิกเพื่อเหมาโต๊ะ" : isLocked ? "ไม่เปิดจอง" : isBooked ? "จองแล้ว" : "ปิดรับจอง"}</title>
       </circle>
       <text
         x={center}

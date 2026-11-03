@@ -21,14 +21,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "ไม่พบงานที่ระบุ" }, { status: 404 });
   }
 
-  // โต๊ะที่แอดมินล็อก (isLocked): แสดงเป็น "ไม่ว่าง" กดจองไม่ได้ (ฝั่งเซิร์ฟเวอร์ตรวจซ้ำใน bookTable/bookPackage)
-  // ไม่เปิดเผยว่าถูกล็อก และไม่นับรวมในสถิติจำนวนโต๊ะ/ที่นั่ง
+  // โต๊ะที่แอดมินล็อก (isLocked): หน้าเว็บแสดงสีเทา "ไม่เปิดจอง" แยกจากโต๊ะที่ถูกจอง กดจองไม่ได้
+  // (ฝั่งเซิร์ฟเวอร์ตรวจซ้ำใน bookTable/bookPackage) และไม่นับรวมในสถิติจำนวนโต๊ะ/ที่นั่ง
   const publicTables = event.tables.map((t) => ({
     id: t.id,
     tableNumber: t.tableNumber,
     capacity: t.capacity,
-    seatsReserved: t.isLocked ? t.capacity : t.seatsReserved,
-    isFullTableBooking: t.isLocked ? true : t.isFullTableBooking,
+    seatsReserved: t.seatsReserved,
+    isFullTableBooking: t.isFullTableBooking,
+    isLocked: t.isLocked,
     zone: t.zone,
     zoneColor: t.zoneColor,
     positionX: t.positionX,

@@ -9,7 +9,9 @@ import type { TableRow } from "./table-graphic";
 // standalone tables endpoint and the parent event page already polls
 // `/api/events/[id]` — so `tables` arrives as a prop, kept in sync with the
 // same data TableMap renders instead of a second independent fetch loop.
-export default function EventHeaderStats({ tables }: { tables: TableRow[] }) {
+export default function EventHeaderStats({ tables: allTables }: { tables: TableRow[] }) {
+  // โต๊ะที่แอดมินล็อกไม่นับรวมในสถิติ (ไม่เปิดให้จอง)
+  const tables = allTables.filter((t) => !t.isLocked);
   if (tables.length === 0) return null;
 
   const totalTables = tables.length;

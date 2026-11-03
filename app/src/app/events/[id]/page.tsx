@@ -44,6 +44,7 @@ export default function EventDetailPage() {
         seatsReserved: t.seatsReserved,
         seatsRemaining: t.seatsAvailable,
         isFullTableBooking: t.isFullTableBooking,
+        isLocked: !!t.isLocked,
         alumniBookers: badgesByTable[t.id] || [],
         posX: t.positionX,
         posY: t.positionY,
@@ -124,6 +125,12 @@ export default function EventDetailPage() {
             <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#ef4444", border: "1.5px solid #dc2626" }} />
             โต๊ะจองแล้ว
           </span>
+          {tables.some((t) => t.isLocked) && (
+            <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-full" style={{ background: "#a8a29e", border: "1.5px solid #78716c" }} />
+            โต๊ะไม่เปิดจอง
+            </span>
+          )}
         </div>
       </div>
       </div>

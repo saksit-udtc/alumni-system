@@ -149,6 +149,8 @@ export default function ReservePage() {
     content = <p className="text-stone-500">กำลังโหลด...</p>;
   } else if (event.status !== "open") {
     content = <p className="text-red-600">งานนี้ปิดรับจองแล้ว</p>;
+  } else if (table.isLocked) {
+    content = <p className="text-red-600">โต๊ะนี้ไม่เปิดให้จอง</p>;
   } else if (table.seatsReserved !== 0 || table.isFullTableBooking) {
     content = <p className="text-red-600">โต๊ะนี้ถูกจองไปแล้ว</p>;
   } else {

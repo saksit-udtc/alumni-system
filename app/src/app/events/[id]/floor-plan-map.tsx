@@ -29,7 +29,7 @@ type ZoneStat = { key: string; zone: string | null; name: string; total: number;
 
 // Booked = same rule TableGraphic uses to paint a table red.
 function isTableBooked(t: TableRow) {
-  return t.isFullTableBooking || t.seatsReserved > 0;
+  return !!t.isLocked || t.isFullTableBooking || t.seatsReserved > 0;
 }
 
 function zoneLabel(z: { zone: string | null }) {
@@ -125,7 +125,7 @@ function TableInfoModal({
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-sm">✕</button>
         </div>
         <p className="text-sm text-stone-600">
-          {table.isFullTableBooking ? "เหมาแล้ว" : table.seatsRemaining === 0 ? "เต็ม" : `เหลือ ${table.seatsRemaining}/${table.capacity} ที่`}
+          {table.isLocked ? "ไม่เปิดจอง" : table.isFullTableBooking ? "เหมาแล้ว" : table.seatsRemaining === 0 ? "เต็ม" : `เหลือ ${table.seatsRemaining}/${table.capacity} ที่`}
         </p>
         <div className="border-t border-cream-200 pt-2">
           <p className="text-xs text-stone-500 mb-1">ศิษย์เก่าที่จองโต๊ะนี้</p>
