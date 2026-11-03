@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     }
   }
   const file = formData.get("file") as File | null;
+  const longHold = formData.get("longHold") === "1";
 
   if (!eventId || !tableId || !bookingType || !seatCount || !bookerName || !bookerPhone || !bookerEmail) {
     return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" }, { status: 400 });
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
       bookerEmail,
       partyNames,
       slipFileKey,
+      longHold,
     });
 
     // Fire-and-forget "booking + slip received" email — now that the slip
@@ -101,6 +103,8 @@ export async function POST(req: NextRequest) {
           bookingCode: reservation.bookingCode,
           awaitingSlip: !slipFileKey,
           holdMinutes: PENDING_HOLD_MINUTES,
+          holdUntil: reservation.reservedUntil,
+          longHold: longHold && !slipFileKey,
         });
       })().catch((err) => console.error("[POST /api/reservations] booking-received email failed:", err));
     }

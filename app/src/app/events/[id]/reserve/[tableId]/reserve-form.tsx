@@ -29,6 +29,7 @@ export default function ReserveForm({
   eventName,
   tableNumber,
   packageName,
+  longHoldOption,
 }: {
   eventId: string;
   tableId: string;
@@ -55,6 +56,8 @@ export default function ReserveForm({
   eventName?: string;
   tableNumber?: string | number;
   packageName?: string;
+  /** แอดมินเปิดตัวเลือกล็อกโต๊ะหลายวันไว้ (ส่งมาจาก ../page.tsx) — ใช้เฉพาะการจองโต๊ะปกติ ไม่ใช้กับแพ็กเกจ */
+  longHoldOption?: { enabled: boolean; days: number };
 }) {
   const router = useRouter();
   const [seatCount, setSeatCount] = useState(bookingType === "full_table" ? capacity : 1);
@@ -91,6 +94,9 @@ export default function ReserveForm({
   }
 
   const [submitting, setSubmitting] = useState(false);
+  const [longHold, setLongHold] = useState(false);
+  const longHoldAvailable = !!longHoldOption?.enabled && !packageId;
+  const useLongHold = longHoldAvailable && longHold;
   const [error, setError] = useState("");
   // Max number of companion names = seats booked minus the booker's own
   // seat. Guests add one name at a time with a button, capped at this
@@ -178,6 +184,7 @@ export default function ReserveForm({
     formData.append("bookerEmail", cleanedEmail);
     if (partyNames.length > 0) formData.append("partyNames", JSON.stringify(partyNames));
     if (packageId) formData.append("packageId", packageId);
+    if (useLongHold) formData.append("longHold", "1");
     if (packageId && packageItemSizeSelections && Object.keys(packageItemSizeSelections).length > 0) {
       formData.append("itemSizeSelections", JSON.stringify(packageItemSizeSelections));
     }
@@ -415,8 +422,24 @@ export default function ReserveForm({
       </div>
 
       <div className="text-sm font-medium text-stone-800">ยอดชำระ: {total.toLocaleString()} บาท</div>
+      {longHoldAvailable && (
+        <label className="flex items-start gap-2 text-sm bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={longHold}
+            onChange={(e) => setLongHold(e.target.checked)}
+            className="mt-1 accent-maroon-700"
+          />
+          <span>
+            <span className="block font-medium text-stone-800">ล็อกโต๊ะไว้ก่อน {longHoldOption!.days} วัน แล้วค่อยชำระเงิน</span>
+            <span className="block text-xs text-stone-500">
+              ระบบจะกันโต๊ะไว้ให้ท่าน {longHoldOption!.days} วัน หากไม่ชำระและแนบสลิปภายในกำหนด โต๊ะจะถูกปล่อยให้ผู้อื่นโดยอัตโนมัติ
+            </span>
+          </span>
+        </label>
+      )}
       <p className="text-xs text-stone-500 bg-cream-50 border border-cream-200 rounded-lg px-3 py-2">
-        เมื่อกดปุ่มด้านล่าง ระบบจะ<strong>กัน{bookingType === "full_table" ? "โต๊ะ" : "ที่นั่ง"}ไว้ให้ท่าน {PENDING_HOLD_MINUTES} นาที</strong>
+        เมื่อกดปุ่มด้านล่าง ระบบจะ<strong>กัน{bookingType === "full_table" ? "โต๊ะ" : "ที่นั่ง"}ไว้ให้ท่าน {useLongHold ? `${longHoldOption!.days} วัน` : `${PENDING_HOLD_MINUTES} นาที`}</strong>
         แล้วพาไปหน้าชำระเงิน (สแกน QR และแนบสลิป) หากไม่ชำระภายในเวลา ระบบจะปล่อย{bookingType === "full_table" ? "โต๊ะ" : "ที่นั่ง"}ให้ผู้อื่นโดยอัตโนมัติ
       </p>
 

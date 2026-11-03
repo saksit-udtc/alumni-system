@@ -2,7 +2,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { generateBookingCode, generateQrToken } from "./qrcode";
 import { isValidEmailFormat, hasDeliverableEmailDomain } from "./validateEmail";
-import { holdUntil } from "./holdPolicy";
+import { holdUntil, longHoldUntil } from "./holdPolicy";
+import { getTableLongHold } from "./settings";
 import { validateNamePart, validateThaiPhone, cleanPhoneForStorage, normalizeEmail } from "./formValidation";
 
 export interface BookTableInput {
@@ -21,6 +22,8 @@ export interface BookTableInput {
    * directly in "awaiting_verify" status with its PaymentSlip row, in the
    * same transaction. */
   slipFileKey?: string;
+  /** ผู้จองเลือก "ล็อกโต๊ะรอชำระเงินหลายวัน" — ใช้ได้เมื่อแอดมินเปิดไว้ และยังไม่แนบสลิป */
+  longHold?: boolean;
 }
 
 export class BookingError extends Error {
@@ -51,6 +54,7 @@ export async function bookTable(input: BookTableInput) {
     bookerEmail,
     partyNames,
     slipFileKey,
+    longHold,
   } = input;
 
   if (seatCount <= 0) {
@@ -91,6 +95,16 @@ export async function bookTable(input: BookTableInput) {
         "ไม่พบเซิร์ฟเวอร์รับอีเมลสำหรับโดเมนนี้ กรุณาตรวจสอบอีเมลอีกครั้ง"
       );
     }
+  }
+
+  // ล็อกโต๊ะแบบยาว: ตรวจฝั่งเซิร์ฟเวอร์เสมอ (ห้ามเชื่อค่าจากฟอร์ม) และนอกทรานแซกชัน
+  let longHoldDays: number | null = null;
+  if (longHold && !slipFileKey) {
+    const cfg = await getTableLongHold();
+    if (!cfg.enabled) {
+      throw new BookingError("LONG_HOLD_DISABLED", "ขณะนี้ไม่เปิดให้ล็อกโต๊ะรอชำระเงิน กรุณาลองใหม่อีกครั้ง");
+    }
+    longHoldDays = cfg.days;
   }
 
   return prisma.$transaction(async (tx) => {
@@ -159,7 +173,7 @@ export async function bookTable(input: BookTableInput) {
       bookingCode = generateBookingCode();
     }
 
-    const reservedUntil = holdUntil(slipFileKey ? "awaiting_verify" : "pending");
+    const reservedUntil = longHoldDays ? longHoldUntil(longHoldDays) : holdUntil(slipFileKey ? "awaiting_verify" : "pending");
 
     const reservation = await tx.reservation.create({
       data: {

@@ -37,6 +37,13 @@ function formatFileSize(bytes: number): string {
 
 function formatCountdown(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
+  // ล็อกโต๊ะหลายวัน: เกิน 1 ชม. แสดงเป็น "X วัน X ชม. X นาที" แทน mm:ss
+  if (total >= 3600) {
+    const d = Math.floor(total / 86400);
+    const h = Math.floor((total % 86400) / 3600);
+    const mi = Math.floor((total % 3600) / 60);
+    return `${d > 0 ? `${d} วัน ` : ""}${h} ชม. ${mi}`;
+  }
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;

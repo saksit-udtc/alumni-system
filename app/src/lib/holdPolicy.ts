@@ -25,3 +25,8 @@ export function holdUntil(status: "pending" | "awaiting_verify", from: number = 
       : PENDING_HOLD_MINUTES * 60 * 1000;
   return new Date(from + ms);
 }
+
+/** ล็อกโต๊ะรอชำระเงินแบบยาว (ผู้จองเลือกเอง, เฉพาะโต๊ะ, แอดมินเปิด/ปิดและกำหนดจำนวนวันได้) */
+export function longHoldUntil(days: number, from: number = Date.now()): Date {
+  return new Date(from + days * 24 * 60 * 60 * 1000);
+}

@@ -120,6 +120,7 @@ export default function ReservePage() {
   const [packages, setPackages] = useState<PackageOption[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [itemSizeSelections, setItemSizeSelections] = useState<Record<string, string>>({});
+  const [longHoldOption, setLongHoldOption] = useState<{ enabled: boolean; days: number }>({ enabled: false, days: 3 });
 
   useEffect(() => {
     fetch(`/api/events/${id}`)
@@ -139,6 +140,10 @@ export default function ReservePage() {
       .then((r) => r.json())
       .then((d) => setPackages(d.packages || []))
       .catch(() => setPackages([]));
+    fetch("/api/table-hold-options")
+      .then((r) => r.json())
+      .then((d) => setLongHoldOption({ enabled: !!d.enabled, days: Number(d.days) || 3 }))
+      .catch(() => setLongHoldOption({ enabled: false, days: 3 }));
   }, [id, tableId]);
 
   let content: React.ReactNode;
@@ -193,6 +198,7 @@ export default function ReservePage() {
           eventName={event.name}
           tableNumber={table.tableNumber}
           packageName={selectedPackage?.name}
+          longHoldOption={longHoldOption}
         />
       </div>
     );
