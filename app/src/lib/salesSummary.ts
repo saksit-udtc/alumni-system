@@ -33,6 +33,7 @@ export interface MerchRow {
   pos: number; // ขายหน้างาน (ชำระแล้วทั้งหมด)
   withTable: number; // ของในแพ็กเกจจองโต๊ะ
   revenueConfirmed: number; // ยอดเงินที่ยืนยันแล้ว (ไม่รวมของในแพ็กเกจจองโต๊ะ ซึ่งไม่มีราคาแยก)
+  remaining?: number | null; // จำนวนคงเหลือในสต็อก (MerchProductStock.quantity — ถูกตัดตอนสั่งซื้อ/ขายแล้ว)
 }
 
 export interface ZoneRow {
@@ -72,7 +73,7 @@ const zero = (): Record<Bucket, number> => ({ confirmed: 0, awaiting: 0, pending
 export async function getSalesSummary(): Promise<SalesSummary> {
   const active = { in: ["confirmed", "awaiting_verify", "pending"] as any };
 
-  const [orderItems, posItems, resvItems, products, events, shipAgg] = await Promise.all([
+  const [orderItems, posItems, resvItems, products, stocks, events, shipAgg] = await Promise.all([
     prisma.merchOrderItem.findMany({
       where: { order: { paymentStatus: active } },
       select: { productId: true, productName: true, size: true, quantity: true, unitPrice: true, order: { select: { paymentStatus: true } } },
@@ -83,6 +84,7 @@ export async function getSalesSummary(): Promise<SalesSummary> {
       select: { productId: true, productName: true, size: true, quantity: true, reservation: { select: { paymentStatus: true } } },
     }),
     prisma.merchProduct.findMany({ select: { id: true, name: true, sortOrder: true } }),
+    prisma.merchProductStock.findMany({ where: { product: { active: true } }, select: { productId: true, size: true, quantity: true } }),
     prisma.event.findMany({
       orderBy: { eventDate: "asc" },
       select: {
@@ -109,10 +111,16 @@ export async function getSalesSummary(): Promise<SalesSummary> {
     const key = `${productId ?? name}|${sz ?? ""}`;
     let r = rows.get(key);
     if (!r) {
-      r = { productName: name, size: sz, confirmed: 0, awaiting: 0, pending: 0, total: 0, online: 0, pos: 0, withTable: 0, revenueConfirmed: 0, sort: p?.sortOrder ?? 9999 };
+      r = { productName: name, size: sz, confirmed: 0, awaiting: 0, pending: 0, total: 0, online: 0, pos: 0, withTable: 0, revenueConfirmed: 0, remaining: null, sort: p?.sortOrder ?? 9999 };
       rows.set(key, r);
     }
     return r;
+  }
+  // ใส่ทุกไซซ์/สินค้าที่เปิดขายเข้ามาก่อน (แม้ยังไม่มีคนสั่ง) พร้อมจำนวนคงเหลือในสต็อก
+  for (const st of stocks) {
+    const p = productById.get(st.productId);
+    if (!p) continue;
+    row(st.productId, p.name, st.size).remaining = st.quantity;
   }
   for (const it of orderItems) {
     const b = BUCKET_OF[it.order.paymentStatus];

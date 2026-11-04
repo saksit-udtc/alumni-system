@@ -23,47 +23,68 @@ const TABLE_TONE = mk("text-[#f05a22]", "bg-[#f05a22]", "hover:border-[#f05a22] 
 
 type Tone = { card: string; text: string; chip: string; hover: string; pill: string };
 
-/** การ์ดตัวเลข: พื้นสีตามสินค้า/โซน มีเอฟเฟกต์ตอนวางเมาส์ */
-function Num({ title, sub, value, unit, of, money, tone }: { title: string; sub?: string; value: number; unit?: string; of?: number; money?: number; tone: Tone }) {
+/** การ์ดตัวเลข: หัวการ์ด (จุดสี + ชื่อ) → ตัวเลขหลัก + หน่วย → แถบท้ายการ์ด "คงเหลือ" (ทุกใบสูงเท่ากัน เรียงตรงกัน) */
+function Num({ title, sub, value, unit, of, money, tone, compact, remaining, caption, big }: { title: string; sub?: string; value: number; unit?: string; of?: number; money?: number; tone: Tone; compact?: boolean; remaining?: number | null; caption?: string; big?: boolean }) {
+  const out = remaining !== undefined && remaining !== null && remaining <= 0;
   return (
-    <div className={`group rounded-2xl border px-3.5 py-3 sm:px-5 sm:py-4 transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg ${tone.card} ${tone.hover}`}>
-      <div className="flex items-center gap-2 text-sm">
+    <div className={`group flex h-full flex-col rounded-2xl border ${compact ? "px-3 py-2.5" : "px-3.5 py-3 sm:px-5 sm:py-4"} transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg ${tone.card} ${tone.hover}`}>
+      <div className={`flex items-center gap-2 ${compact ? "text-xs" : "text-sm"}`}>
         <i className={`w-2 h-2 rounded-full shrink-0 transition-transform duration-200 group-hover:scale-150 ${tone.chip}`} />
-        <span className="truncate font-medium text-slate-400">{title}{sub ? ` · ${sub}` : ""}</span>
+        <span className="truncate font-medium text-slate-500">{title}{sub ? ` · ${sub}` : ""}</span>
       </div>
-      <div className={`text-[clamp(1.875rem,2.6vw,2.75rem)] font-display font-bold tabular-nums leading-tight mt-2 sm:mt-3 ${tone.text}`}>
-        {n(value)}
-        {of !== undefined && <span className="text-[0.45em] font-normal text-slate-400"> / {n(of)}</span>}
+      {(() => {
+        const inline = !!caption; // การ์ดโซน/ของที่ระลึก: caption ซ้าย · ตัวเลข/หน่วย ชิดขวา บรรทัดเดียวกัน
+        const cap = caption ? <span className={`font-medium text-slate-500 ${compact ? "text-xs" : "text-sm"}`}>{caption}</span> : null;
+        return (
+          <>
+            {!inline && cap && <div className={compact ? "mt-1.5" : "mt-2 sm:mt-3"}>{cap}</div>}
+            <div className={`flex items-baseline gap-1.5 ${inline ? "justify-between mt-2" : caption ? "mt-0.5" : compact ? "mt-1.5" : "mt-2 sm:mt-3"}`}>
+              {inline && cap}
+              <span className="flex items-baseline gap-1.5">
+                <span className={`${big ? "text-[clamp(2.75rem,4.5vw,4rem)]" : compact ? "text-[clamp(1.375rem,1.8vw,1.875rem)]" : "text-[clamp(1.875rem,2.6vw,2.75rem)]"} font-display font-bold tabular-nums leading-none ${tone.text}`}>{n(value)}</span>
+                {of !== undefined && <span className={`${big ? "text-[clamp(1.25rem,2vw,1.875rem)] font-semibold" : "text-xs"} text-slate-400 tabular-nums`}>/ {n(of)}</span>}
+                <span className={`font-semibold text-slate-500 ${big ? "text-[clamp(1rem,1.5vw,1.375rem)]" : compact ? "text-xs" : "text-sm"}`}>{unit ?? ""}</span>
+              </span>
+            </div>
+          </>
+        );
+      })()}
+      <div className="mt-auto">
+        {remaining !== undefined && remaining !== null && (
+          <div className={`mt-2.5 flex items-center justify-between border-t border-dashed border-slate-200 pt-2 ${compact ? "text-xs" : "text-sm"}`}>
+            <span className="text-slate-400">คงเหลือ</span>
+            <b className={`tabular-nums ${out ? "text-red-500" : "text-emerald-600"}`}>{out ? "หมด" : `${n(remaining)} ${unit ?? ""}`}</b>
+          </div>
+        )}
+        {money !== undefined && (
+          <div className="mt-2 pt-2 border-t border-slate-200 flex items-baseline justify-between text-sm">
+            <span className="opacity-70">ยอดเงิน</span>
+            <b className="tabular-nums">{n(money)} <span className="font-normal text-xs opacity-75">บาท</span></b>
+          </div>
+        )}
       </div>
-      <div className="text-sm font-semibold text-slate-500 mt-0.5">{unit ?? "\u00a0"}</div>
-      {money !== undefined && (
-        <div className="mt-3 pt-2 border-t border-slate-200 flex items-baseline justify-between text-sm">
-          <span className="opacity-70">ยอดเงิน</span>
-          <b className="tabular-nums">{n(money)} <span className="font-normal text-xs opacity-75">บาท</span></b>
-        </div>
-      )}
     </div>
   );
 }
 
-function EventTables({ e, showMoney }: { e: EventTableSummary; showMoney: boolean }) {
+function EventTables({ e, showMoney, compact }: { e: EventTableSummary; showMoney: boolean; compact?: boolean }) {
   return (
     <div className="space-y-5">
-      <h3 className="text-base font-semibold text-slate-800">{e.eventName}</h3>
+      {!compact && <h3 className="text-base font-semibold text-slate-800">{e.eventName}</h3>}
 
       <div className="space-y-2">
-        <h4 className="text-sm font-semibold text-slate-500">รายละเอียดโต๊ะ</h4>
-        <div className="grid grid-cols-2 gap-3">
-          <Num title="โต๊ะทั้งหมด" value={e.totalTables} unit="โต๊ะ" tone={TABLE_TONE} />
-          <Num title="จองแล้ว" value={e.tables.confirmed} unit="โต๊ะ" money={showMoney ? e.revenue.confirmed : undefined} tone={TABLE_TONE} />
+        {!compact && <h4 className="text-sm font-semibold text-slate-500">รายละเอียดโต๊ะ</h4>}
+        {/* การ์ดรวมทั้งงาน: โครงเดียวกับการ์ดโซน (จองแล้ว ซ้าย · ตัวเลข/ทั้งหมด ขวา · คงเหลือ ท้ายการ์ด) แต่ขนาดใหญ่กว่า */}
+        <div className="w-full">
+          <Num title="โต๊ะทั้งหมด" caption="จองแล้ว" value={e.tables.confirmed} of={e.totalTables} unit="โต๊ะ" remaining={e.freeTables} money={showMoney ? e.revenue.confirmed : undefined} tone={TABLE_TONE} big />
         </div>
       </div>
 
       <div className="space-y-2">
         <h4 className="text-sm font-semibold text-slate-500">รายละเอียดแยกตามโซน</h4>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] gap-3">
+        <div className={`grid gap-2 ${compact ? "grid-cols-[repeat(auto-fill,minmax(min(100%,120px),1fr))]" : "grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] sm:gap-3"}`}>
           {e.zones.map((z, i) => (
-            <Num key={z.zone} title={`โซน ${z.zone}`} value={z.confirmed} of={z.tables} unit="โต๊ะ" tone={PALETTE[i % PALETTE.length]} />
+            <Num key={z.zone} title={`โซน ${z.zone}`} value={z.confirmed} of={z.tables} unit="โต๊ะ" caption="จองแล้ว" remaining={z.free} tone={PALETTE[i % PALETTE.length]} compact={compact} />
           ))}
         </div>
       </div>
@@ -71,7 +92,7 @@ function EventTables({ e, showMoney }: { e: EventTableSummary; showMoney: boolea
   );
 }
 
-export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุปยอดสินค้าและโต๊ะ", showMoney = true }: { apiUrl: string; exportUrl?: string; title?: string; showMoney?: boolean }) {
+export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุปยอดสินค้าและโต๊ะ", showMoney = true, headingAs = "h1", compact = false }: { apiUrl: string; exportUrl?: string; title?: string; showMoney?: boolean; headingAs?: "h1" | "h2"; compact?: boolean }) {
   const [data, setData] = useState<SalesSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,6 +112,7 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
   useEffect(load, [apiUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const t = data?.merchTotals;
+  const Heading = headingAs;
 
   const groups: { name: string; rows: MerchRow[] }[] = [];
   for (const r of data?.merch ?? []) {
@@ -100,10 +122,10 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
   }
 
   return (
-    <div className="space-y-7">
+    <div className={compact ? "space-y-4" : "space-y-7"}>
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-display font-semibold text-slate-800">{title}</h1>
+          <Heading className={`font-display font-semibold text-slate-800 ${compact ? "text-lg" : "text-2xl"}`}>{title}</Heading>
           <p className="text-sm text-slate-500 mt-0.5">
             นับเฉพาะรายการที่ยืนยันสลิปแล้ว
             {data && ` · ข้อมูล ณ ${new Date(data.generatedAt).toLocaleString("th-TH")}`}
@@ -142,16 +164,16 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
           </div>
 
           <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
-          <section className={`space-y-4 ${tab === "tables" ? "" : "hidden"} lg:block lg:rounded-3xl lg:border lg:border-slate-200/70 lg:bg-white/40 lg:p-5`}>
+          <div className={`space-y-4 ${tab === "tables" ? "" : "hidden"} lg:block ${compact ? "" : "lg:rounded-3xl lg:border lg:border-slate-200/70 lg:bg-white/40 lg:p-5"}`}>
             <h2 className="text-lg font-semibold text-slate-800">การจองโต๊ะ</h2>
             {data.events.length === 0 && <p className="text-sm text-slate-500">ยังไม่มีงานเลี้ยง</p>}
             {data.events.map((e) => (
-              <EventTables key={e.eventId} e={e} showMoney={showMoney} />
+              <EventTables key={e.eventId} e={e} showMoney={showMoney} compact={compact} />
             ))}
-          </section>
+          </div>
 
-          <section className={`space-y-3 ${tab === "merch" ? "" : "hidden"} lg:block lg:rounded-3xl lg:border lg:border-slate-200/70 lg:bg-white/40 lg:p-5`}>
-            <h2 className="text-lg font-semibold text-slate-800">ของที่ระลึก (จำนวนชิ้น)</h2>
+          <div className={`space-y-3 ${tab === "merch" ? "" : "hidden"} lg:block ${compact ? "" : "lg:rounded-3xl lg:border lg:border-slate-200/70 lg:bg-white/40 lg:p-5"}`}>
+            <h2 className="text-lg font-semibold text-slate-800">ของที่ระลึก{!compact && " (จำนวนชิ้น)"}</h2>
             {groups.length === 0 && <p className="text-sm text-slate-500">ยังไม่มีการสั่งซื้อ</p>}
             <div className="space-y-5">
               {(() => {
@@ -171,7 +193,7 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                     <div key={g.name} className="space-y-2">
                       <h3 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-base font-semibold text-slate-800">
                         <span>{g.name}</span>
-                        {isShirt(g.name) && (
+                        {!compact && isShirt(g.name) && (
                           <span className={`rounded-full border px-3 py-0.5 text-sm font-semibold ${tone.pill}`}>
                             รวม <b className="text-base tabular-nums">{n(total)}</b> ชิ้น
                           </span>
@@ -182,9 +204,9 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                           </span>
                         )}
                       </h3>
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] gap-3">
+                      <div className={`grid gap-2 ${compact ? "grid-cols-[repeat(auto-fill,minmax(min(100%,120px),1fr))]" : "grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] sm:gap-3"}`}>
                         {g.rows.map((r) => (
-                          <Num key={`${g.name}|${r.size}`} title={hasSize ? `ไซซ์ ${r.size ?? "-"}` : "จำนวนที่ขาย"} value={r.confirmed} unit="ชิ้น" money={showMoney ? r.revenueConfirmed : undefined} tone={tone} />
+                          <Num key={`${g.name}|${r.size}`} title={hasSize ? `ไซซ์ ${r.size ?? "-"}` : "จำนวนที่ขาย"} value={r.confirmed} unit="ชิ้น" caption="สั่งซื้อแล้ว" remaining={r.remaining} money={showMoney ? r.revenueConfirmed : undefined} tone={tone} compact={compact} />
                         ))}
                       </div>
                     </div>
@@ -200,8 +222,8 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                 );
               })()}
             </div>
-            <p className="text-xs text-stone-400">รวมการขายหน้างาน (POS) และของในแพ็กเกจจองโต๊ะที่ยืนยันแล้ว · ของในแพ็กเกจไม่มีราคาแยก จึงไม่รวมในยอดเงิน</p>
-          </section>
+            {!compact && <p className="text-xs text-stone-400">รวมการขายหน้างาน (POS) และของในแพ็กเกจจองโต๊ะที่ยืนยันแล้ว · ของในแพ็กเกจไม่มีราคาแยก จึงไม่รวมในยอดเงิน</p>}
+          </div>
           </div>
         </>
       )}

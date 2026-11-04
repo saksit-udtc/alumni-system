@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SIZES, CHEST, LENGTH } from "@/app/components/size-chart";
+import SalesSummaryView from "@/app/components/sales-summary-view";
 
 interface EventItem {
   id: string;
@@ -375,6 +376,15 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
           </div>
         </section>
       )}
+
+      <section className="home-sales" id="sales-summary" aria-label="สรุปยอดสินค้าและโต๊ะ">
+        <div className="wrap">
+          <div className="home-sales-card">
+            <div className="home-sales-live"><i aria-hidden="true" />อัปเดตสด</div>
+            <SalesSummaryView apiUrl="/api/public/sales-summary" title="สรุปยอดสินค้าและโต๊ะ งานคืนสู่เหย้า" showMoney={false} headingAs="h2" compact />
+          </div>
+        </div>
+      </section>
       </>)}
 
       {variant === "full" && content && (<>
@@ -1041,6 +1051,13 @@ export default function LandingView({ variant }: { variant: "home" | "full" }) {
 
         .section-head{ margin-bottom:52px; max-width:600px; }
         /* บล็อก "วิธีจองและชำระเงิน" */
+        .landingRoot .home-sales{ padding:28px 0 48px; background:var(--surf-deep); }
+        .home-sales-card{ position:relative; background:#fff; border:1px solid rgba(15,23,42,.06); border-radius:28px; padding:22px 18px 20px; box-shadow:0 1px 2px rgba(15,23,42,.04),0 18px 40px -18px rgba(15,23,42,.28); overflow:hidden; }
+        .home-sales-card::before{ content:""; position:absolute; inset:0 0 auto 0; height:5px; background:linear-gradient(90deg,#d6407f,#2a6ab0,#9b4bb5,#f05a22); }
+        .home-sales-live{ display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:#15803d; background:#ecfdf3; border:1px solid #bbf7d0; border-radius:999px; padding:3px 11px; margin-bottom:10px; }
+        .home-sales-live i{ width:7px; height:7px; border-radius:50%; background:#22c55e; animation:salesPulse 1.8s ease-out infinite; }
+        @keyframes salesPulse{ 0%{ box-shadow:0 0 0 0 rgba(34,197,94,.55);} 100%{ box-shadow:0 0 0 8px rgba(34,197,94,0);} }
+        @media (min-width:861px){ .home-sales-card{ padding:26px 28px 24px; } }
         .howto-tabs{ display:flex; flex-wrap:wrap; gap:8px; margin:-24px 0 28px; }
         .howto-tab{ border:1px solid var(--frame); background:transparent; color:var(--head); padding:10px 20px; border-radius:999px; font:inherit; font-size:15px; font-weight:600; cursor:pointer; transition:background .15s,color .15s; }
         .howto-tab.on{ background:var(--head); color:var(--bg-page); }
