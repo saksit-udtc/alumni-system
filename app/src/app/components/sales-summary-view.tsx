@@ -25,6 +25,14 @@ type Tone = { card: string; text: string; chip: string; hover: string; pill: str
 
 /** การ์ดตัวเลข: หัวการ์ด (จุดสี + ชื่อ) → ตัวเลขหลัก + หน่วย → แถบท้ายการ์ด "คงเหลือ" (ทุกใบสูงเท่ากัน เรียงตรงกัน) */
 function Num({ title, sub, value, unit, of, money, tone, compact, remaining, caption, big }: { title: string; sub?: string; value: number; unit?: string; of?: number; money?: number; tone: Tone; compact?: boolean; remaining?: number | null; caption?: string; big?: boolean }) {
+  // เลขยาว (เช่น 250 / 350) → ย่อขนาดตัวเลขหลักเป็นขั้น ๆ ให้พอดีบรรทัดเดียว
+  const len = n(value).length + (of !== undefined ? n(of).length : 0);
+  const step = len >= 8 ? 2 : len >= 6 ? 1 : 0;
+  const SIZES = big
+    ? ["text-[clamp(2.75rem,4.5vw,4rem)]", "text-[clamp(2.25rem,3.6vw,3.25rem)]", "text-[clamp(1.75rem,2.8vw,2.5rem)]"]
+    : compact
+    ? ["text-[clamp(1.25rem,1.5vw,1.625rem)]", "text-[clamp(1.125rem,1.3vw,1.375rem)]", "text-[clamp(1rem,1.1vw,1.25rem)]"]
+    : ["text-[clamp(1.875rem,2.6vw,2.75rem)]", "text-[clamp(1.5rem,2.1vw,2.25rem)]", "text-[clamp(1.25rem,1.7vw,1.75rem)]"];
   return (
     <div className={`group flex h-full flex-col rounded-2xl border ${compact ? "px-3 py-2.5" : "px-3.5 py-3 sm:px-5 sm:py-4"} transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg ${tone.card} ${tone.hover}`}>
       <div className={`flex items-center gap-2 ${compact ? "text-xs" : "text-sm"}`}>
@@ -40,7 +48,7 @@ function Num({ title, sub, value, unit, of, money, tone, compact, remaining, cap
             <div className={`flex flex-nowrap items-baseline gap-1.5 ${inline ? "justify-between mt-2" : caption ? "mt-0.5" : compact ? "mt-1.5" : "mt-2 sm:mt-3"}`}>
               {inline && cap}
               <span className="flex shrink-0 items-baseline gap-1 whitespace-nowrap">
-                <span className={`${big ? "text-[clamp(2.75rem,4.5vw,4rem)]" : compact ? "text-[clamp(1.25rem,1.5vw,1.625rem)]" : "text-[clamp(1.875rem,2.6vw,2.75rem)]"} font-display font-bold tabular-nums leading-none ${caption ? "text-[#ef4423]" : tone.text}`}>{n(value)}</span>
+                <span className={`${SIZES[step]} font-display font-bold tabular-nums leading-none ${caption ? "text-[#ef4423]" : tone.text}`}>{n(value)}</span>
                 {of !== undefined && <span className={`${big ? "text-[clamp(1.25rem,2vw,1.875rem)] font-semibold" : "text-xs"} font-bold tabular-nums`}><span className="text-slate-700">/ </span><span className="text-emerald-600">{n(of)}</span></span>}
                 <span className={`font-semibold text-slate-700 ${big ? "text-[clamp(1rem,1.5vw,1.375rem)]" : compact ? "text-xs" : "text-sm"}`}>{unit ?? ""}</span>
               </span>
