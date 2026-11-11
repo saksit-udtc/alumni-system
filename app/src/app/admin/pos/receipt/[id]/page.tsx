@@ -5,6 +5,7 @@ import Link from "next/link";
 import JsBarcode from "jsbarcode";
 import QrCode from "@/app/components/qr-code";
 import { generatePromptPayPayload } from "@/lib/promptpay";
+import { publishDisplay, readDisplay } from "@/lib/posDisplay";
 
 interface SaleItem {
   id: string;
@@ -85,6 +86,41 @@ export default function PosReceiptPage({ params }: { params: { id: string } }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nowMs]);
 
+  // ส่งสถานะไปจอลูกค้า (/pos-display): รอชำระ → แสดงรายการ+QR/ยอดเงินสด, ยกเลิก → กลับหน้าว่าง
+  useEffect(() => {
+    if (!sale) return;
+    if (sale.status === "pending") {
+      const total = Number(sale.totalAmount);
+      let qrPayload: string | null = null;
+      if (sale.paymentMethod === "transfer" && promptPayId && total > 0) {
+        try {
+          qrPayload = generatePromptPayPayload(promptPayId, total);
+        } catch {
+          qrPayload = null;
+        }
+      }
+      publishDisplay({
+        kind: "pay",
+        saleId: sale.id,
+        saleCode: sale.saleCode,
+        method: sale.paymentMethod,
+        total,
+        holdUntil: sale.holdUntil,
+        lines: sale.items.map((it) => ({ name: it.productName, size: it.size, qty: it.quantity, unitPrice: Number(it.unitPrice) })),
+        qrPayload,
+      });
+    } else if (sale.status === "cancelled") {
+      publishDisplay({ kind: "idle" });
+    }
+  }, [sale, promptPayId]);
+  // ออกจากหน้ารอชำระโดยไม่ได้ยืนยัน → ล้างจอลูกค้า (ถ้ายังแสดงใบนี้อยู่)
+  useEffect(() => {
+    return () => {
+      const cur = readDisplay();
+      if (cur.kind === "pay" && cur.saleId === params.id) publishDisplay({ kind: "idle" });
+    };
+  }, [params.id]);
+
   async function runAction(kind: "confirm" | "cancel") {
     if (!sale) return;
     if (kind === "cancel" && !window.confirm("ยกเลิกรายการนี้และคืนสินค้าเข้าสต๊อก ใช่หรือไม่?")) return;
@@ -99,6 +135,7 @@ export default function PosReceiptPage({ params }: { params: { id: string } }) {
         return;
       }
       setSale(data.sale);
+      if (kind === "confirm") publishDisplay({ kind: "paid", total: Number(data.sale.totalAmount), at: Date.now() });
     } catch {
       setActionError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {

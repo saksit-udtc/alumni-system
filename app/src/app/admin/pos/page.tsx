@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SizeChart from "@/app/components/size-chart";
+import { publishDisplay } from "@/lib/posDisplay";
 
 interface StockRow {
   id: string;
@@ -232,6 +233,19 @@ export default function PosTerminalPage() {
 
   const total = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
 
+  // ส่งตะกร้าไปจอลูกค้า (/pos-display) แบบเรียลไทม์
+  useEffect(() => {
+    if (cart.length === 0) {
+      publishDisplay({ kind: "idle" });
+      return;
+    }
+    publishDisplay({
+      kind: "cart",
+      lines: cart.map((l) => ({ name: l.productName, size: l.size, qty: l.quantity, unitPrice: l.unitPrice })),
+      total: cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
+    });
+  }, [cart]);
+
   async function submitSale() {
     setSubmitError("");
     if (cart.length === 0) {
@@ -274,8 +288,18 @@ export default function PosTerminalPage() {
           <p className="text-sm text-stone-500 mt-0.5">สแกนบาร์โค้ดสินค้า รับชำระเงิน แล้วพิมพ์ใบเสร็จ</p>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => window.open("/pos-display", "pos-customer-display", "popup,width=1024,height=768")}
+            className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
+          >
+            เปิดจอลูกค้า
+          </button>
           <Link href="/admin/pos/package" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
             ขายแพ็กเกจ (จองโต๊ะ+ของแถม)
+          </Link>
+          <Link href="/admin/pos/daily" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
+            สรุปยอดรายวัน
           </Link>
           <Link href="/admin/pos/sales" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors">
             ประวัติการขาย
