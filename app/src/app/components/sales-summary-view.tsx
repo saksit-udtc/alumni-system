@@ -25,7 +25,6 @@ type Tone = { card: string; text: string; chip: string; hover: string; pill: str
 
 /** การ์ดตัวเลข: หัวการ์ด (จุดสี + ชื่อ) → ตัวเลขหลัก + หน่วย → แถบท้ายการ์ด "คงเหลือ" (ทุกใบสูงเท่ากัน เรียงตรงกัน) */
 function Num({ title, sub, value, unit, of, money, tone, compact, remaining, caption, big }: { title: string; sub?: string; value: number; unit?: string; of?: number; money?: number; tone: Tone; compact?: boolean; remaining?: number | null; caption?: string; big?: boolean }) {
-  const out = remaining !== undefined && remaining !== null && remaining <= 0;
   return (
     <div className={`group flex h-full flex-col rounded-2xl border ${compact ? "px-3 py-2.5" : "px-3.5 py-3 sm:px-5 sm:py-4"} transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg ${tone.card} ${tone.hover}`}>
       <div className={`flex items-center gap-2 ${compact ? "text-xs" : "text-sm"}`}>
@@ -42,20 +41,14 @@ function Num({ title, sub, value, unit, of, money, tone, compact, remaining, cap
               {inline && cap}
               <span className="flex items-baseline gap-1.5">
                 <span className={`${big ? "text-[clamp(2.75rem,4.5vw,4rem)]" : compact ? "text-[clamp(1.375rem,1.8vw,1.875rem)]" : "text-[clamp(1.875rem,2.6vw,2.75rem)]"} font-display font-bold tabular-nums leading-none ${caption ? "text-[#ef4423]" : tone.text}`}>{n(value)}</span>
-                {of !== undefined && <span className={`${big ? "text-[clamp(1.25rem,2vw,1.875rem)] font-semibold" : "text-xs"} text-[#fcd34d] tabular-nums`}>/ {n(of)}</span>}
-                <span className={`font-semibold text-slate-500 ${big ? "text-[clamp(1rem,1.5vw,1.375rem)]" : compact ? "text-xs" : "text-sm"}`}>{unit ?? ""}</span>
+                {of !== undefined && <span className={`${big ? "text-[clamp(1.25rem,2vw,1.875rem)] font-semibold" : "text-xs"} font-bold tabular-nums`}><span className="text-slate-700">/ </span><span className="text-emerald-600">{n(of)}</span></span>}
+                <span className={`font-semibold text-slate-700 ${big ? "text-[clamp(1rem,1.5vw,1.375rem)]" : compact ? "text-xs" : "text-sm"}`}>{unit ?? ""}</span>
               </span>
             </div>
           </>
         );
       })()}
       <div className="mt-auto">
-        {remaining !== undefined && remaining !== null && (
-          <div className={`mt-2.5 flex items-center justify-between border-t border-dashed border-slate-200 pt-2 ${compact ? "text-xs" : "text-sm"}`}>
-            <span className="text-slate-400">คงเหลือ</span>
-            <b className={`tabular-nums ${out ? "text-red-500" : "text-emerald-600"}`}>{out ? "หมด" : `${n(remaining)} ${unit ?? ""}`}</b>
-          </div>
-        )}
         {money !== undefined && (
           <div className="mt-2 pt-2 border-t border-slate-200 flex items-baseline justify-between text-sm">
             <span className="opacity-70">ยอดเงิน</span>
@@ -76,7 +69,7 @@ function EventTables({ e, showMoney, compact }: { e: EventTableSummary; showMone
         {!compact && <h4 className="text-sm font-semibold text-slate-500">รายละเอียดโต๊ะ</h4>}
         {/* การ์ดรวมทั้งงาน: โครงเดียวกับการ์ดโซน (จองแล้ว ซ้าย · ตัวเลข/ทั้งหมด ขวา · คงเหลือ ท้ายการ์ด) แต่ขนาดใหญ่กว่า */}
         <div className="w-full">
-          <Num title="โต๊ะทั้งหมด" caption="จองแล้ว" value={e.tables.confirmed} of={e.totalTables} unit="โต๊ะ" remaining={e.freeTables} money={showMoney ? e.revenue.confirmed : undefined} tone={TABLE_TONE} big />
+          <Num title="โต๊ะทั้งหมด" caption="จองแล้ว" value={e.tables.confirmed} of={e.totalTables} unit="โต๊ะ" money={showMoney ? e.revenue.confirmed : undefined} tone={TABLE_TONE} big />
         </div>
       </div>
 
@@ -84,7 +77,7 @@ function EventTables({ e, showMoney, compact }: { e: EventTableSummary; showMone
         <h4 className="text-sm font-semibold text-slate-500">รายละเอียดแยกตามโซน</h4>
         <div className={`grid gap-2 ${compact ? "grid-cols-[repeat(auto-fill,minmax(min(100%,120px),1fr))]" : "grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] sm:gap-3"}`}>
           {e.zones.map((z, i) => (
-            <Num key={z.zone} title={`โซน ${z.zone}`} value={z.confirmed} of={z.tables} unit="โต๊ะ" caption="จองแล้ว" remaining={z.free} tone={PALETTE[i % PALETTE.length]} compact={compact} />
+            <Num key={z.zone} title={`โซน ${z.zone}`} value={z.confirmed} of={z.tables} unit="โต๊ะ" caption="จองแล้ว" tone={PALETTE[i % PALETTE.length]} compact={compact} />
           ))}
         </div>
       </div>
@@ -195,7 +188,7 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                         <span>{g.name}</span>
                         {isShirt(g.name) && (
                           <span className={`rounded-full border px-3 py-0.5 text-sm font-semibold border-[#ef4423]/40 bg-orange-50 text-[#ef4423]`}>
-                            รวม <b className="text-base tabular-nums">{n(total)}</b> ชิ้น
+                            รวม <b className="text-base tabular-nums">{n(total)}</b> ตัว
                           </span>
                         )}
                         {showMoney && (
@@ -206,7 +199,7 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                       </h3>
                       <div className={`grid gap-2 ${compact ? "grid-cols-[repeat(auto-fill,minmax(min(100%,120px),1fr))]" : "grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] sm:gap-3"}`}>
                         {g.rows.map((r) => (
-                          <Num key={`${g.name}|${r.size}`} title={hasSize ? `ไซซ์ ${r.size ?? "-"}` : "จำนวนที่ขาย"} value={r.confirmed} unit="ชิ้น" caption="สั่งซื้อแล้ว" remaining={r.remaining} money={showMoney ? r.revenueConfirmed : undefined} tone={tone} compact={compact} />
+                          <Num key={`${g.name}|${r.size}`} title={hasSize ? `ไซซ์ ${r.size ?? "-"}` : "จำนวนที่ขาย"} value={r.confirmed} unit={isShirt(g.name) ? "ตัว" : "ชิ้น"} caption="สั่งซื้อแล้ว" of={r.remaining != null ? r.remaining + r.total : undefined} money={showMoney ? r.revenueConfirmed : undefined} tone={tone} compact={compact} />
                         ))}
                       </div>
                     </div>
