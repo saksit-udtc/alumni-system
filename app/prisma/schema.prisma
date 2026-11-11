@@ -442,6 +442,14 @@ enum PosPaymentMethod {
   transfer
 }
 
+// สถานะใบขายหน้างาน: ทุกวิธีชำระ (เงินสด/โอนเงิน) เริ่มที่ pending (กันสต๊อกไว้) จนผู้ขายติ๊กยืนยันรับเงิน
+// จึงเป็น paid และพิมพ์ใบเสร็จได้ — หมดเวลา/ยกเลิก = cancelled (คืนสต๊อกแล้ว)
+enum PosSaleStatus {
+  pending
+  paid
+  cancelled
+}
+
 model PosSale {
   id            String           @id @default(cuid())
   saleCode      String           @unique
@@ -455,6 +463,14 @@ model PosSale {
   buyerPhone    String?
   createdAt     DateTime         @default(now())
 
+  status       PosSaleStatus @default(paid)
+  paidAt       DateTime?
+  // เฉพาะสถานะ pending: เวลาที่หมดการกันสต๊อก (cron/instrumentation จะยกเลิกและคืนสต๊อกให้)
+  holdUntil    DateTime?
+  cancelledAt  DateTime?
+  // "expired" = หมดเวลาอัตโนมัติ, "manual" = ผู้ขายกดยกเลิก
+  cancelReason String?
+
   // Set only when this sale was created from a merch-only Package
   // (bookingType null) via lib/packageMerchSale.ts — null for every plain
   // barcode-scan POS sale (the original, still-untouched path).
@@ -466,6 +482,7 @@ model PosSale {
   @@index([cashierId])
   @@index([createdAt])
   @@index([packageId])
+  @@index([status, holdUntil])
 }
 
 model PosSaleItem {

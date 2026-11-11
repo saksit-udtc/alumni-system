@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
-import { createPosSale, PosSaleError } from "@/lib/posSale";
+import { createPosSale, PosSaleError, releaseExpiredPosSales } from "@/lib/posSale";
 import { logAdminAction } from "@/lib/auditLog";
 
 // Plain GET, no dynamic route segment, reads the DB — force-dynamic (see
@@ -13,6 +13,9 @@ export async function GET(req: NextRequest) {
   const { admin, response } = requireAdmin(req, ["MERCH_STAFF"]);
   if (!admin) return response;
 
+  // ปล่อยใบโอนเงินที่หมดเวลาก่อนแสดง ให้ประวัติ/สต๊อกตรงกับความจริงเสมอ
+  await releaseExpiredPosSales().catch((err) => console.error("releaseExpiredPosSales failed", err));
+
   const sales = await prisma.posSale.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -23,10 +26,9 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * Creates one POS sale from a scanned cart. Payment is assumed already
- * settled at the counter (cash in hand, or a transfer the cashier has
- * confirmed on their own phone/bank app) — this endpoint just records the
- * sale and decrements stock atomically, see lib/posSale.ts.
+ * Creates one POS sale from a scanned cart and decrements stock atomically,
+ * see lib/posSale.ts. ทุกวิธีชำระ (เงินสด/โอนเงิน) = สถานะ "รอชำระ" (กันสต๊อกไว้)
+ * จนกว่าผู้ขายจะกดยืนยันรับเงินที่ POST /api/admin/pos/sales/[id]/confirm
  */
 export async function POST(req: NextRequest) {
   const { admin, response } = requireAdmin(req, ["MERCH_STAFF"]);
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
       action: "POS_SALE_CREATE",
       targetType: "PosSale",
       targetId: sale.id,
-      detail: `${sale.saleCode} - ${Number(sale.totalAmount).toLocaleString()} บาท (${sale.paymentMethod})`,
+      detail: `${sale.saleCode} - ${Number(sale.totalAmount).toLocaleString()} บาท (${sale.paymentMethod})${sale.status === "pending" ? " [รอชำระ]" : ""}`,
     });
 
     return NextResponse.json({ sale });

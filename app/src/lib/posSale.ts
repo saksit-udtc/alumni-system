@@ -14,6 +14,9 @@ export interface CreatePosSaleInput {
   items: CreatePosSaleItemInput[];
 }
 
+/** รอชำระ (เงินสด/โอนเงิน): กันสต๊อกไว้กี่นาทีระหว่างรอลูกค้าสแกนจ่าย (หน้าเคาน์เตอร์ ไม่ต้องนานเท่าออนไลน์ 30 นาที) */
+export const POS_PENDING_HOLD_MINUTES = 15;
+
 export class PosSaleError extends Error {
   code: string;
   constructor(code: string, message: string) {
@@ -111,6 +114,10 @@ export async function createPosSale(input: CreatePosSaleInput) {
     saleCode = generateSaleCode();
   }
 
+  // ทุกวิธีชำระ (เงินสด/โอนเงิน) สร้างเป็น "รอชำระ" ก่อน แล้วผู้ขายติ๊กยืนยันรับเงินที่หน้ารอชำระ
+  // จึงเป็น paid และพิมพ์ใบเสร็จได้ — กันพิมพ์ใบเสร็จก่อนได้รับเงินจริง
+  const now = new Date();
+
   const sale = await prisma.$transaction(async (tx) => {
     // Decrement stock first, atomically and race-safely — the WHERE
     // clause re-checks quantity >= requested at the moment of the update,
@@ -136,6 +143,9 @@ export async function createPosSale(input: CreatePosSaleInput) {
         buyerName: buyerName?.trim() || null,
         buyerPhone: buyerPhone?.trim() || null,
         totalAmount,
+        status: "pending",
+        paidAt: null,
+        holdUntil: new Date(now.getTime() + POS_PENDING_HOLD_MINUTES * 60 * 1000),
         items: { create: saleItemsData },
       },
       include: { items: true, cashier: { select: { username: true } } },
@@ -144,3 +154,48 @@ export async function createPosSale(input: CreatePosSaleInput) {
 
   return sale;
 }
+
+/**
+ * ยืนยันรับเงินใบโอนเงิน → paid (พิมพ์ใบเสร็จได้)
+ *  - pending → paid ทันที (สต๊อกถูกกันไว้แล้ว)
+ *  - ถ้า paid อยู่แล้ว: คืนใบเดิม (กดซ้ำไม่เป็นไร)
+ *  - ถ้าหมดเวลาไปแล้ว (cancelled/expired) แต่ลูกค้าจ่ายมาแล้ว: พยายามกันสต๊อกกลับ ถ้าของไม่พอ → แจ้งผู้ขาย (ต้องคืนเงิน/ขายใหม่)
+ */
+export async function confirmPosSalePayment(saleId: string) {
+  return prisma.$transaction(async (tx) => {
+    const now = new Date();
+    const moved = await tx.posSale.updateMany({
+      where: { id: saleId, status: "pending" },
+      data: { status: "paid", paidAt: now, holdUntil: null },
+    });
+    if (moved.count === 0) {
+      const sale = await tx.posSale.findUnique({ where: { id: saleId }, select: { status: true, cancelReason: true } });
+      if (!sale) throw new PosSaleError("NOT_FOUND", "ไม่พบใบขาย");
+      if (sale.status === "paid") return;
+      if (sale.cancelReason !== "expired") {
+        throw new PosSaleError("CANCELLED", "ใบขายนี้ถูกยกเลิกแล้ว ไม่สามารถยืนยันรับเงินได้");
+      }
+      // หมดเวลาแล้วแต่ลูกค้าจ่ายมา → กันสต๊อกกลับ (guard จำนวนเหมือนตอนขาย)
+      const items = await tx.posSaleItem.findMany({ where: { saleId } });
+      for (const item of items) {
+        const where = item.barcode
+          ? { barcode: item.barcode, quantity: { gte: item.quantity } }
+          : { productId: item.productId ?? undefined, size: item.size, quantity: { gte: item.quantity } };
+        const r = await tx.merchProductStock.updateMany({ where, data: { quantity: { decrement: item.quantity } } });
+        if (r.count === 0) {
+          throw new PosSaleError(
+            "OUT_OF_STOCK",
+            `ใบขายนี้หมดเวลาแล้ว และสินค้า "${item.productName}${item.size ? ` (ไซส์ ${item.size})` : ""}" มีไม่พอที่จะกันคืน — โปรดตรวจสต๊อกและคืนเงินลูกค้าถ้าจำเป็น`,
+          );
+        }
+      }
+      await tx.posSale.update({
+        where: { id: saleId },
+        data: { status: "paid", paidAt: now, holdUntil: null, cancelledAt: null, cancelReason: null },
+      });
+    }
+  });
+}
+
+// ส่วนยกเลิก/คืนสต๊อก/ปล่อยใบหมดเวลา แยกไปไฟล์ posSalePending.ts (ไม่ใช้ crypto) เพราะ instrumentation.ts ต้อง import ได้
+export { cancelPendingPosSale, releaseExpiredPosSales } from "./posSalePending";

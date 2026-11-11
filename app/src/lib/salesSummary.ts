@@ -78,7 +78,7 @@ export async function getSalesSummary(): Promise<SalesSummary> {
       where: { order: { paymentStatus: active } },
       select: { productId: true, productName: true, size: true, quantity: true, unitPrice: true, order: { select: { paymentStatus: true } } },
     }),
-    prisma.posSaleItem.findMany({ select: { productId: true, productName: true, size: true, quantity: true, unitPrice: true } }),
+    prisma.posSaleItem.findMany({ where: { sale: { status: "paid" } }, select: { productId: true, productName: true, size: true, quantity: true, unitPrice: true } }),
     prisma.reservationPackageItem.findMany({
       where: { reservation: { paymentStatus: active } },
       select: { productId: true, productName: true, size: true, quantity: true, reservation: { select: { paymentStatus: true } } },

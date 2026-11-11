@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { releaseReservation } from "./releaseReservation";
+import { releaseExpiredPosSales } from "./posSalePending";
 
 /**
  * ปล่อย "ร่างที่หมดเวลา" ทั้งโต๊ะและของที่ระลึก — จุดเดียวที่ทำงานนี้ (นโยบายเวลาอยู่ที่ lib/holdPolicy.ts)
@@ -69,6 +70,10 @@ export async function releaseExpiredHolds(): Promise<{ reservations: number; mer
       console.error(`[releaseExpired] failed to release merch order ${o.orderCode}:`, err);
     }
   }
+
+  // ใบขายหน้างานแบบโอนเงินที่ไม่มีใครกดยืนยันรับเงิน → ยกเลิก + คืนสต๊อก
+  const posSales = await releaseExpiredPosSales();
+  if (posSales) console.log(`[releaseExpired] released ${posSales} POS pending sale(s)`);
 
   if (reservations || merchOrders) {
     console.log(`[releaseExpired] released ${reservations} reservation(s), ${merchOrders} merch order(s)`);

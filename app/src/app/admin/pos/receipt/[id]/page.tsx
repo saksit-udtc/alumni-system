@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import JsBarcode from "jsbarcode";
+import QrCode from "@/app/components/qr-code";
+import { generatePromptPayPayload } from "@/lib/promptpay";
 
 interface SaleItem {
   id: string;
@@ -19,6 +21,11 @@ interface Sale {
   buyerName: string | null;
   buyerPhone: string | null;
   createdAt: string;
+  // pending = โอนเงินรอผู้ขายยืนยันรับเงิน (ยังไม่ใช่ใบเสร็จ), paid = ชำระแล้ว, cancelled = ยกเลิก/หมดเวลา
+  status: "pending" | "paid" | "cancelled";
+  paidAt: string | null;
+  holdUntil: string | null;
+  cancelReason: string | null;
   items: SaleItem[];
   cashier: { username: string };
   // Legacy/unused going forward: an earlier iteration sold merch-only
@@ -38,20 +45,69 @@ const PAYMENT_LABEL: Record<string, string> = { cash: "เงินสด", tran
 export default function PosReceiptPage({ params }: { params: { id: string } }) {
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState("");
+  const [promptPayId, setPromptPayId] = useState("");
+  const [busy, setBusy] = useState(false);
+  // ต้องติ๊กยืนยันว่าตรวจเงินเข้าบัญชีแล้วก่อน จึงกดยืนยันรับเงิน/ออกใบเสร็จได้
+  const [paidChecked, setPaidChecked] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const barcodeRef = useRef<SVGSVGElement>(null);
 
-  useEffect(() => {
-    fetch(`/api/admin/pos/sales/${params.id}`)
+  function loadSale() {
+    return fetch(`/api/admin/pos/sales/${params.id}`)
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || "ไม่พบข้อมูลการขาย");
         setSale(data.sale);
       })
       .catch((e) => setError(e.message || "เกิดข้อผิดพลาด"));
-  }, [params.id]);
+  }
 
   useEffect(() => {
-    if (!sale || !barcodeRef.current) return;
+    loadSale();
+    fetch("/api/admin/pos/settings")
+      .then((r) => r.json())
+      .then((d) => setPromptPayId(d.promptPayId || ""))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
+
+  // ใบรอชำระ: นับถอยหลังเวลากันสต๊อก — หมดเวลาแล้วโหลดใหม่ (เซิร์ฟเวอร์จะยกเลิกและคืนสต๊อกให้)
+  useEffect(() => {
+    if (sale?.status !== "pending") return;
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [sale?.status]);
+  useEffect(() => {
+    if (sale?.status === "pending" && sale.holdUntil && nowMs >= new Date(sale.holdUntil).getTime()) {
+      loadSale();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nowMs]);
+
+  async function runAction(kind: "confirm" | "cancel") {
+    if (!sale) return;
+    if (kind === "cancel" && !window.confirm("ยกเลิกรายการนี้และคืนสินค้าเข้าสต๊อก ใช่หรือไม่?")) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/admin/pos/sales/${sale.id}/${kind}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionError(data.error || "ดำเนินการไม่สำเร็จ");
+        await loadSale();
+        return;
+      }
+      setSale(data.sale);
+    } catch {
+      setActionError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!sale || sale.status !== "paid" || !barcodeRef.current) return;
     try {
       JsBarcode(barcodeRef.current, sale.saleCode, {
         format: "CODE128",
@@ -70,6 +126,124 @@ export default function PosReceiptPage({ params }: { params: { id: string } }) {
   if (!sale) return <div className="text-sm text-stone-400 p-4">กำลังโหลด...</div>;
 
   const createdAt = new Date(sale.createdAt);
+
+  // ยังไม่ชำระ/ยกเลิก: ไม่แสดงใบเสร็จและไม่มีปุ่มพิมพ์ (ไม่มี .pos-receipt-print → สั่งพิมพ์แล้วได้หน้าว่าง)
+  if (sale.status !== "paid") {
+    const total = Number(sale.totalAmount);
+    const remainMs = sale.holdUntil ? new Date(sale.holdUntil).getTime() - nowMs : 0;
+    const mm = String(Math.max(0, Math.floor(remainMs / 60000))).padStart(2, "0");
+    const ss = String(Math.max(0, Math.floor((remainMs % 60000) / 1000))).padStart(2, "0");
+    let payload: string | null = null;
+    const isCash = sale.paymentMethod === "cash";
+    if (sale.status === "pending" && !isCash && promptPayId && total > 0) {
+      try {
+        payload = generatePromptPayPayload(promptPayId, total);
+      } catch {
+        payload = null;
+      }
+    }
+    const expired = sale.status === "cancelled" && sale.cancelReason === "expired";
+    return (
+      <div className="max-w-sm mx-auto space-y-3 print:hidden">
+        <div
+          className={`rounded-xl border p-4 ${
+            sale.status === "pending" ? "bg-amber-50 border-amber-300" : "bg-stone-100 border-stone-300"
+          }`}
+        >
+          <div className="font-display font-bold text-lg text-stone-800">
+            {sale.status === "pending" ? "รอชำระเงิน — ยังไม่ใช่ใบเสร็จ" : expired ? "รายการหมดเวลา (ยกเลิกแล้ว)" : "รายการถูกยกเลิก"}
+          </div>
+          <div className="text-sm text-stone-600 mt-1">
+            เลขที่ {sale.saleCode} · {sale.items.reduce((a, it) => a + it.quantity, 0)} ชิ้น · รวม{" "}
+            <b className="text-maroon-700">{total.toLocaleString()} บาท</b>
+          </div>
+          {sale.status === "pending" && (
+            <div className="text-sm text-amber-800 mt-1">
+              กันสินค้าไว้อีก <b className="font-mono">{mm}:{ss}</b> นาที — หลังจากนั้นระบบจะคืนสต๊อกอัตโนมัติ
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white border border-cream-200 rounded-xl p-3 text-sm space-y-0.5">
+          {sale.items.map((it) => (
+            <div key={it.id} className="flex justify-between gap-2">
+              <span className="truncate">
+                {it.productName}
+                {it.size ? ` (${it.size})` : ""} × {it.quantity}
+              </span>
+              <span className="shrink-0">{(it.quantity * Number(it.unitPrice)).toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+
+        {sale.status === "pending" && (
+          <>
+            {isCash && (
+              <div className="bg-white border border-cream-200 rounded-xl p-3 text-center">
+                <div className="text-xs text-stone-500">ชำระด้วยเงินสด — รับเงินจากลูกค้า</div>
+                <div className="text-2xl font-bold text-maroon-700 mt-1">{total.toLocaleString()} บาท</div>
+              </div>
+            )}
+            {payload && (
+              <div className="bg-white border border-cream-200 rounded-xl p-3 flex flex-col items-center text-center">
+                <QrCode value={payload} size={200} />
+                <div className="text-xs text-stone-500 mt-2">ให้ลูกค้าสแกนจ่าย {total.toLocaleString()} บาท</div>
+              </div>
+            )}
+            <div className="text-xs text-stone-600">
+              {isCash ? "รับเงินสด" : "ตรวจในแอปธนาคารว่าเงิน"} <b>{total.toLocaleString()} บาท</b> {isCash ? "ครบแล้ว" : "เข้าแล้วจริง"} จึงกดยืนยัน — ใบเสร็จจะพิมพ์ได้หลังจากนี้เท่านั้น
+            </div>
+          </>
+        )}
+
+        {expired && (
+          <div className="text-xs text-stone-600">
+            ถ้าลูกค้าเพิ่งโอนมาแล้วจริง กด "ลูกค้าจ่ายแล้ว" เพื่อกันสินค้ากลับและออกใบเสร็จ (ถ้าสินค้าไม่พอ ระบบจะแจ้ง)
+          </div>
+        )}
+
+        {(sale.status === "pending" || expired) && (
+          <label className="flex items-start gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm text-stone-800 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={paidChecked}
+              onChange={(e) => setPaidChecked(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
+            <span>
+              {sale.paymentMethod === "cash" ? "ยืนยันว่าได้รับเงินสดครบ" : "ยืนยันว่าตรวจสอบแล้ว เงินเข้าบัญชีครบ"} <b>{total.toLocaleString()} บาท</b> เรียบร้อย
+            </span>
+          </label>
+        )}
+
+        {actionError && <p className="text-red-600 text-sm">{actionError}</p>}
+
+        <div className="flex flex-col gap-2">
+          {(sale.status === "pending" || expired) && (
+            <button
+              onClick={() => runAction("confirm")}
+              disabled={busy || !paidChecked}
+              className="w-full bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-3 font-semibold disabled:opacity-50"
+            >
+              {busy ? "กำลังดำเนินการ..." : sale.status === "pending" ? "ยืนยันรับเงินแล้ว (ออกใบเสร็จ)" : "ลูกค้าจ่ายแล้ว — กันสินค้าและออกใบเสร็จ"}
+            </button>
+          )}
+          {sale.status === "pending" && (
+            <button
+              onClick={() => runAction("cancel")}
+              disabled={busy}
+              className="w-full bg-white border border-stone-300 rounded-lg py-2 text-sm text-stone-700 hover:bg-cream-50 disabled:opacity-50"
+            >
+              ยกเลิกรายการ (คืนสต๊อก)
+            </button>
+          )}
+          <Link href="/admin/pos" className="w-full text-center bg-white border border-stone-300 rounded-lg py-2 text-sm text-stone-700 hover:bg-cream-50">
+            กลับไปหน้าขาย
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

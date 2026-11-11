@@ -3,9 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import QrCode from "@/app/components/qr-code";
 import SizeChart from "@/app/components/size-chart";
-import { generatePromptPayPayload } from "@/lib/promptpay";
 
 interface StockRow {
   id: string;
@@ -234,20 +232,6 @@ export default function PosTerminalPage() {
 
   const total = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
 
-  // Only relevant when "โอนเงิน" is selected and there's an amount to
-  // charge — a fresh dynamic PromptPay QR pre-filled with the exact total,
-  // regenerated automatically as the cart changes. Payment is still
-  // confirmed manually by the cashier (see lib/promptpay.ts) — this just
-  // saves the customer from having to be told an account number.
-  const promptPayPayload = useMemo(() => {
-    if (paymentMethod !== "transfer" || !promptPayId || total <= 0) return null;
-    try {
-      return generatePromptPayPayload(promptPayId, total);
-    } catch {
-      return null;
-    }
-  }, [paymentMethod, promptPayId, total]);
-
   async function submitSale() {
     setSubmitError("");
     if (cart.length === 0) {
@@ -420,8 +404,20 @@ export default function PosTerminalPage() {
                         +
                       </button>
                       <span className="w-20 text-right font-semibold text-maroon-700">{(l.unitPrice * l.quantity).toLocaleString()}</span>
-                      <button onClick={() => removeLine(l.stockId)} className="text-red-600 hover:text-red-700 text-xs">
-                        ลบ
+                      <button
+                        type="button"
+                        onClick={() => removeLine(l.stockId)}
+                        aria-label={`ลบ ${l.productName} ออกจากตะกร้า`}
+                        title="ลบออกจากตะกร้า"
+                        className="flex items-center justify-center w-[33px] h-[33px] rounded-lg text-red-600 hover:text-white hover:bg-red-600 border border-red-200 hover:border-red-600 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -468,17 +464,10 @@ export default function PosTerminalPage() {
             </div>
 
             {paymentMethod === "transfer" && (
-              <div className="border border-cream-200 rounded-lg p-3 flex flex-col items-center text-center">
-                {promptPayPayload ? (
-                  <>
-                    <QrCode value={promptPayPayload} size={180} />
-                    <div className="text-xs text-stone-500 mt-2">ให้ลูกค้าสแกนจ่ายยอด {total.toLocaleString()} บาท แล้วตรวจสอบว่าเงินเข้าก่อนกดยืนยันการขาย</div>
-                  </>
-                ) : (
-                  <div className="text-xs text-stone-400">
-                    {promptPayId ? "เพิ่มสินค้าลงตะกร้าก่อนเพื่อสร้าง QR" : "ยังไม่ได้ตั้งค่าเลขพร้อมเพย์ — ตั้งค่าได้ที่หน้าจัดการสินค้า/สต๊อก"}
-                  </div>
-                )}
+              <div className="border border-cream-200 rounded-lg p-3 text-center text-xs text-stone-500">
+                {promptPayId
+                  ? "QR สำหรับชำระเงินจะแสดงในหน้ารายการรอชำระ หลังกดสร้างรายการด้านล่าง"
+                  : "ยังไม่ได้ตั้งค่าเลขพร้อมเพย์ — ตั้งค่าได้ที่หน้าจัดการสินค้า/สต๊อก (ถ้าไม่ตั้ง จะไม่มี QR ในหน้ารายการรอชำระ)"}
               </div>
             )}
 
@@ -494,7 +483,7 @@ export default function PosTerminalPage() {
               disabled={submitting || cart.length === 0}
               className="w-full bg-primary-600 hover:bg-primary-700 transition-colors text-white rounded-lg py-3 font-semibold disabled:opacity-50"
             >
-              {submitting ? "กำลังบันทึก..." : "ยืนยันการขาย + พิมพ์ใบเสร็จ"}
+              {submitting ? "กำลังบันทึก..." : "สร้างรายการรอชำระ (ยังไม่ออกใบเสร็จ)"}
             </button>
           </div>
         </div>
