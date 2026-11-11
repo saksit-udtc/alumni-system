@@ -41,8 +41,8 @@ function Num({ title, sub, value, unit, of, money, tone, compact, remaining, cap
             <div className={`flex items-baseline gap-1.5 ${inline ? "justify-between mt-2" : caption ? "mt-0.5" : compact ? "mt-1.5" : "mt-2 sm:mt-3"}`}>
               {inline && cap}
               <span className="flex items-baseline gap-1.5">
-                <span className={`${big ? "text-[clamp(2.75rem,4.5vw,4rem)]" : compact ? "text-[clamp(1.375rem,1.8vw,1.875rem)]" : "text-[clamp(1.875rem,2.6vw,2.75rem)]"} font-display font-bold tabular-nums leading-none ${tone.text}`}>{n(value)}</span>
-                {of !== undefined && <span className={`${big ? "text-[clamp(1.25rem,2vw,1.875rem)] font-semibold" : "text-xs"} text-slate-400 tabular-nums`}>/ {n(of)}</span>}
+                <span className={`${big ? "text-[clamp(2.75rem,4.5vw,4rem)]" : compact ? "text-[clamp(1.375rem,1.8vw,1.875rem)]" : "text-[clamp(1.875rem,2.6vw,2.75rem)]"} font-display font-bold tabular-nums leading-none ${caption ? "text-[#ef4423]" : tone.text}`}>{n(value)}</span>
+                {of !== undefined && <span className={`${big ? "text-[clamp(1.25rem,2vw,1.875rem)] font-semibold" : "text-xs"} text-[#fcd34d] tabular-nums`}>/ {n(of)}</span>}
                 <span className={`font-semibold text-slate-500 ${big ? "text-[clamp(1rem,1.5vw,1.375rem)]" : compact ? "text-xs" : "text-sm"}`}>{unit ?? ""}</span>
               </span>
             </div>
@@ -193,8 +193,8 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                     <div key={g.name} className="space-y-2">
                       <h3 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-base font-semibold text-slate-800">
                         <span>{g.name}</span>
-                        {!compact && isShirt(g.name) && (
-                          <span className={`rounded-full border px-3 py-0.5 text-sm font-semibold ${tone.pill}`}>
+                        {isShirt(g.name) && (
+                          <span className={`rounded-full border px-3 py-0.5 text-sm font-semibold border-[#ef4423]/40 bg-orange-50 text-[#ef4423]`}>
                             รวม <b className="text-base tabular-nums">{n(total)}</b> ชิ้น
                           </span>
                         )}
