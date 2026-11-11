@@ -33,14 +33,14 @@ function Num({ title, sub, value, unit, of, money, tone, compact, remaining, cap
       </div>
       {(() => {
         const inline = !!caption; // การ์ดโซน/ของที่ระลึก: caption ซ้าย · ตัวเลข/หน่วย ชิดขวา บรรทัดเดียวกัน
-        const cap = caption ? <span className={`font-medium text-slate-500 ${compact ? "text-xs" : "text-sm"}`}>{caption}</span> : null;
+        const cap = caption ? <span className={`shrink-0 whitespace-nowrap font-medium text-slate-500 ${compact ? "text-xs" : "text-sm"}`}>{caption}</span> : null;
         return (
           <>
             {!inline && cap && <div className={compact ? "mt-1.5" : "mt-2 sm:mt-3"}>{cap}</div>}
-            <div className={`flex items-baseline gap-1.5 ${inline ? "justify-between mt-2" : caption ? "mt-0.5" : compact ? "mt-1.5" : "mt-2 sm:mt-3"}`}>
+            <div className={`flex flex-nowrap items-baseline gap-1.5 ${inline ? "justify-between mt-2" : caption ? "mt-0.5" : compact ? "mt-1.5" : "mt-2 sm:mt-3"}`}>
               {inline && cap}
-              <span className="flex items-baseline gap-1.5">
-                <span className={`${big ? "text-[clamp(2.75rem,4.5vw,4rem)]" : compact ? "text-[clamp(1.375rem,1.8vw,1.875rem)]" : "text-[clamp(1.875rem,2.6vw,2.75rem)]"} font-display font-bold tabular-nums leading-none ${caption ? "text-[#ef4423]" : tone.text}`}>{n(value)}</span>
+              <span className="flex shrink-0 items-baseline gap-1 whitespace-nowrap">
+                <span className={`${big ? "text-[clamp(2.75rem,4.5vw,4rem)]" : compact ? "text-[clamp(1.25rem,1.5vw,1.625rem)]" : "text-[clamp(1.875rem,2.6vw,2.75rem)]"} font-display font-bold tabular-nums leading-none ${caption ? "text-[#ef4423]" : tone.text}`}>{n(value)}</span>
                 {of !== undefined && <span className={`${big ? "text-[clamp(1.25rem,2vw,1.875rem)] font-semibold" : "text-xs"} font-bold tabular-nums`}><span className="text-slate-700">/ </span><span className="text-emerald-600">{n(of)}</span></span>}
                 <span className={`font-semibold text-slate-700 ${big ? "text-[clamp(1rem,1.5vw,1.375rem)]" : compact ? "text-xs" : "text-sm"}`}>{unit ?? ""}</span>
               </span>
