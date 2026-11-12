@@ -32,6 +32,9 @@ export interface MerchRow {
   online: number; // สั่งออนไลน์ (รวมแพ็กเกจของที่ระลึกที่สั่งออนไลน์)
   pos: number; // ขายหน้างาน (ชำระแล้วทั้งหมด)
   withTable: number; // ของในแพ็กเกจจองโต๊ะ
+  onlineConfirmed?: number; // เฉพาะที่ยืนยันสลิปแล้ว: สั่งออนไลน์ (ไม่รวมแพ็กเกจโต๊ะ)
+  withTableConfirmed?: number; // เฉพาะที่ยืนยันแล้ว: ของในแพ็กเกจจองโต๊ะ
+  posRevenue?: number; // ยอดเงินจากการขายหน้างาน (POS) — ยอดออนไลน์ = revenueConfirmed − posRevenue
   revenueConfirmed: number; // ยอดเงินที่ยืนยันแล้ว (ไม่รวมของในแพ็กเกจจองโต๊ะ ซึ่งไม่มีราคาแยก)
   remaining?: number | null; // จำนวนคงเหลือในสต็อก (MerchProductStock.quantity — ถูกตัดตอนสั่งซื้อ/ขายแล้ว)
 }
@@ -111,7 +114,7 @@ export async function getSalesSummary(): Promise<SalesSummary> {
     const key = `${productId ?? name}|${sz ?? ""}`;
     let r = rows.get(key);
     if (!r) {
-      r = { productName: name, size: sz, confirmed: 0, awaiting: 0, pending: 0, total: 0, online: 0, pos: 0, withTable: 0, revenueConfirmed: 0, remaining: null, sort: p?.sortOrder ?? 9999 };
+      r = { productName: name, size: sz, confirmed: 0, awaiting: 0, pending: 0, total: 0, online: 0, pos: 0, withTable: 0, onlineConfirmed: 0, withTableConfirmed: 0, posRevenue: 0, revenueConfirmed: 0, remaining: null, sort: p?.sortOrder ?? 9999 };
       rows.set(key, r);
     }
     return r;
@@ -129,6 +132,7 @@ export async function getSalesSummary(): Promise<SalesSummary> {
     r[b] += it.quantity;
     r.total += it.quantity;
     r.online += it.quantity;
+    if (b === "confirmed") r.onlineConfirmed = (r.onlineConfirmed ?? 0) + it.quantity;
     if (b === "confirmed") r.revenueConfirmed += it.quantity * Number(it.unitPrice);
   }
   for (const it of posItems) {
@@ -136,6 +140,7 @@ export async function getSalesSummary(): Promise<SalesSummary> {
     r.confirmed += it.quantity;
     r.total += it.quantity;
     r.pos += it.quantity;
+    r.posRevenue = (r.posRevenue ?? 0) + it.quantity * Number(it.unitPrice);
     r.revenueConfirmed += it.quantity * Number(it.unitPrice);
   }
   for (const it of resvItems) {
@@ -145,6 +150,7 @@ export async function getSalesSummary(): Promise<SalesSummary> {
     r[b] += it.quantity;
     r.total += it.quantity;
     r.withTable += it.quantity;
+    if (b === "confirmed") r.withTableConfirmed = (r.withTableConfirmed ?? 0) + it.quantity;
   }
   const merch = [...rows.values()]
     .sort((a, b) => a.sort - b.sort || a.productName.localeCompare(b.productName, "th") || sizeRank(a.size) - sizeRank(b.size))

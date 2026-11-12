@@ -98,6 +98,8 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<"tables" | "merch">("tables");
+  // ของที่ระลึก: แถบย่อย "สั่งซื้อออนไลน์" / "ขายหน้าร้าน (POS)" — แสดงผลแบบเดียวกันทุกประการ
+  const [channel, setChannel] = useState<"online" | "pos">("online");
 
   function load() {
     setLoading(true);
@@ -176,6 +178,22 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
           <div className={`space-y-3 ${tab === "merch" ? "" : "hidden"} lg:block ${compact ? "" : "lg:rounded-3xl lg:border lg:border-slate-200/70 lg:bg-white/40 lg:p-5"}`}>
             <h2 className="text-lg font-semibold text-slate-800">ของที่ระลึก{!compact && " (จำนวนชิ้น)"}</h2>
             {groups.length === 0 && <p className="text-sm text-slate-500">ยังไม่มีการสั่งซื้อ</p>}
+            <div role="tablist" aria-label="ช่องทางขายของที่ระลึก" className="flex w-full gap-1 rounded-2xl bg-slate-100 p-1 sm:w-fit">
+              {([["online", "สั่งซื้อออนไลน์"], ["pos", "ขายหน้าร้านที่วิทยาลัย"]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={channel === key}
+                  onClick={() => setChannel(key)}
+                  className={`flex-1 rounded-xl px-5 py-2 text-sm font-semibold transition-all sm:flex-none ${
+                    channel === key ? "bg-white text-[#ef4423] shadow-sm ring-1 ring-[#ef4423]/30" : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="space-y-5">
               {(() => {
                 const indexed = groups.map((g, gi) => ({ g, gi }));
@@ -188,8 +206,11 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                 const renderGroup = ({ g, gi }: { g: (typeof groups)[number]; gi: number }) => {
                   const tone = PALETTE[gi % PALETTE.length];
                   const hasSize = g.rows.some((r) => r.size);
-                  const total = g.rows.reduce((a, r) => a + r.confirmed, 0);
-                  const money = g.rows.reduce((a, r) => a + r.revenueConfirmed, 0);
+                  // ออนไลน์ = ยอดที่ยืนยันแล้วทั้งหมด − ยอดขายหน้าร้าน (POS) (รวมของในแพ็กเกจจองโต๊ะ); หน้าร้าน = เฉพาะ POS
+                  const qtyOf = (r: MerchRow) => (channel === "pos" ? r.pos : r.confirmed - r.pos);
+                  const moneyOf = (r: MerchRow) => (channel === "pos" ? r.posRevenue ?? 0 : r.revenueConfirmed - (r.posRevenue ?? 0));
+                  const total = g.rows.reduce((a, r) => a + qtyOf(r), 0);
+                  const money = g.rows.reduce((a, r) => a + moneyOf(r), 0);
                   return (
                     <div key={g.name} className="space-y-2">
                       <h3 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-base font-semibold text-slate-800">
@@ -207,7 +228,7 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                       </h3>
                       <div className={`grid gap-2 ${compact ? "grid-cols-[repeat(auto-fill,minmax(min(100%,120px),1fr))]" : "grid-cols-[repeat(auto-fill,minmax(min(100%,150px),1fr))] sm:gap-3"}`}>
                         {g.rows.map((r) => (
-                          <Num key={`${g.name}|${r.size}`} title={hasSize ? `ไซซ์ ${r.size ?? "-"}` : "จำนวนที่ขาย"} value={r.confirmed} unit={isShirt(g.name) ? "ตัว" : "ชิ้น"} caption="สั่งซื้อแล้ว" of={r.remaining != null ? r.remaining + r.total : undefined} money={showMoney ? r.revenueConfirmed : undefined} tone={tone} compact={compact} />
+                          <Num key={`${g.name}|${r.size}`} title={hasSize ? `ไซซ์ ${r.size ?? "-"}` : "จำนวนที่ขาย"} value={qtyOf(r)} unit={isShirt(g.name) ? "ตัว" : "ชิ้น"} caption={channel === "pos" ? "ขายแล้ว" : "สั่งซื้อแล้ว"} of={r.remaining != null ? r.remaining + r.total : undefined} money={showMoney ? moneyOf(r) : undefined} tone={tone} compact={compact} />
                         ))}
                       </div>
                     </div>
