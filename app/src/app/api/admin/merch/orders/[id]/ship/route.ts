@@ -10,7 +10,7 @@ import { normalizeTrackingNumber, validateTrackingNumber, isKnownCarrier, type C
  * email the booker that the parcel has shipped.
  *
  * Body:
- *  - { trackingNumber: "TH15D7G568NM914E", carrier: "FLASH" } -> save number (carrier defaults to the order's current one), then email
+ *  - { trackingNumber: "TH12345C6ABC7D", carrier: "FLASH" } -> save number (carrier defaults to the order's current one), then email
  *  - { resendEmail: true }                -> re-send the email for the number already saved
  *
  * The number is saved BEFORE the email is attempted, and a mail failure never

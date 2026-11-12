@@ -16,7 +16,7 @@ export function isKnownCarrier(c: unknown): c is Carrier {
 
 // Thailand Post EMS numbers: 2 letters + 9 digits + "TH" (13 chars), e.g. EE123456789TH.
 const EMS_PATTERN = /^[A-Z]{2}\d{9}TH$/;
-// Flash Express (TH) numbers: "TH" + letters/digits (about 13-16 chars), e.g. TH15D7G568NM914E.
+// Flash Express (TH) numbers: "TH" + letters/digits (about 13-16 chars), e.g. TH20039C3GDR4D (14 chars).
 // Kept lenient on length: a wrong-length number is rejected, but we do not try to validate the check characters.
 const FLASH_PATTERN = /^TH[A-Z0-9]{8,16}$/;
 
@@ -33,13 +33,23 @@ export function isValidFlashNumber(normalized: string): boolean {
   return FLASH_PATTERN.test(normalized);
 }
 
+/**
+ * ดึงเลขพัสดุออกจากข้อความที่คัดลอกมา (เช่น "No.: TH20039C3GDR4D" จากแอป Flash)
+ * คืน null ถ้าไม่พบเลขในรูปแบบของขนส่งนั้น
+ */
+export function extractTrackingNumber(raw: string, carrier: Carrier): string | null {
+  const text = raw.toUpperCase();
+  const m = carrier === "FLASH" ? text.match(/TH[A-Z0-9]{8,16}/) : text.match(/[A-Z]{2}\d{9}TH/);
+  return m ? m[0] : null;
+}
+
 /** Returns an error message (Thai) when the number does not fit the carrier's format, otherwise null. */
 export function validateTrackingNumber(carrier: Carrier, normalized: string): string | null {
   if (!normalized) return "กรุณาระบุเลขพัสดุ";
   if (carrier === "FLASH") {
     return isValidFlashNumber(normalized)
       ? null
-      : "รูปแบบเลข Flash ไม่ถูกต้อง (ขึ้นต้นด้วย TH ตามด้วยตัวอักษร/ตัวเลข เช่น TH15D7G568NM914E)";
+      : "รูปแบบเลข Flash ไม่ถูกต้อง (ขึ้นต้นด้วย TH ตามด้วยตัวอักษร/ตัวเลข เช่น TH12345C6ABC7D)";
   }
   return isValidEmsNumber(normalized)
     ? null

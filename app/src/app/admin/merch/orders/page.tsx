@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminStatCard } from "@/app/components/admin-stat-card";
 import { UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
-import { trackingUrl, CARRIER_LABEL, type Carrier } from "@/lib/shipping";
+import { trackingUrl, CARRIER_LABEL, extractTrackingNumber, type Carrier } from "@/lib/shipping";
 import {
   AdminFilterBar,
   buildStatusOptions,
@@ -505,8 +505,13 @@ export default function AdminMerchOrdersPage() {
                       </select>
                       <input
                         value={trackDraft[o.id] ?? ""}
-                        onChange={(e) => setTrackDraft((d) => ({ ...d, [o.id]: e.target.value.toUpperCase() }))}
-                        placeholder={(carrierDraft[o.id] ?? "FLASH") === "FLASH" ? "TH15D7G568NM914E" : "EE123456789TH"}
+                        onChange={(e) =>
+                          setTrackDraft((d) => ({
+                            ...d,
+                            [o.id]: extractTrackingNumber(e.target.value, carrierDraft[o.id] ?? "FLASH") ?? e.target.value.toUpperCase(),
+                          }))
+                        }
+                        placeholder={(carrierDraft[o.id] ?? "FLASH") === "FLASH" ? "TH12345C6ABC7D" : "EE123456789TH"}
                         maxLength={24}
                         className="w-full font-mono text-xs border border-stone-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
                       />

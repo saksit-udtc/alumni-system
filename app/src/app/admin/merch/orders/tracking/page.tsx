@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   CARRIER_LABEL,
   normalizeTrackingNumber,
+  extractTrackingNumber,
   validateTrackingNumber,
   type Carrier,
 } from "@/lib/shipping";
@@ -14,6 +15,7 @@ type QOrder = {
   id: string;
   orderCode: string;
   bookerName: string;
+  bookerPhone: string;
   shippingAddress: string;
   packedAt: string | null;
   labelPrintedAt: string | null;
@@ -100,25 +102,46 @@ export default function BulkTrackingPage() {
   }
 
   function applyPaste() {
-    let filled = 0;
-    const missing: string[] = [];
-    const next = { ...drafts };
+    // แยกข้อความเป็น "ชุดข้อมูล" ต่อเลขพัสดุ 1 เลข: บรรทัดที่มีเลขพัสดุเริ่มชุดใหม่
+    // บรรทัดถัดไปที่ไม่มีเลข (ชื่อ/เบอร์/จังหวัด จากแอป Flash) ต่อท้ายชุดเดิม
+    const recs: { tracking: string; text: string }[] = [];
     for (const line of paste.split(/\r?\n/)) {
-      const parts = line.trim().split(/[\s,;\t]+/).filter(Boolean);
-      if (parts.length < 2) continue;
-      const o = byCode.get(parts[0].toUpperCase());
-      if (!o) {
-        missing.push(parts[0]);
-        continue;
+      const t = extractTrackingNumber(line, carrier);
+      if (t) recs.push({ tracking: t, text: line.toUpperCase().replace(t, " ") });
+      else if (recs.length) recs[recs.length - 1].text += " " + line.toUpperCase();
+    }
+    const digitsOf = (s: string) => s.replace(/\D/g, "");
+    const next = { ...drafts };
+    const taken = new Set<string>(); // ออเดอร์ที่ถูกจับคู่ไปแล้วในการวางครั้งนี้
+    const ambiguous: string[] = [];
+    const notFound: string[] = [];
+    let filled = 0;
+    for (const r of recs) {
+      let candidates: QOrder[] = [];
+      const tokens = r.text.split(/[^A-Z0-9]+/).filter(Boolean);
+      const byTokenCode = tokens.map((tk) => byCode.get(tk)).find(Boolean);
+      if (byTokenCode) candidates = [byTokenCode];
+      else {
+        const flat = digitsOf(r.text);
+        candidates = orders.filter((o) => {
+          const p = digitsOf(o.bookerPhone);
+          return p.length >= 9 && flat.includes(p) && !taken.has(o.id);
+        });
       }
-      next[o.id] = normalizeTrackingNumber(parts[1]);
-      filled++;
+      if (candidates.length === 1) {
+        next[candidates[0].id] = r.tracking;
+        taken.add(candidates[0].id);
+        filled++;
+      } else if (candidates.length > 1) ambiguous.push(`${r.tracking} (ตรง ${candidates.length} ออเดอร์: ${candidates.map((c) => c.orderCode).join(", ")})`);
+      else notFound.push(r.tracking);
     }
     setDrafts(next);
-    setPasteMsg(
-      `ใส่เลขให้ ${filled} รายการ` + (missing.length ? ` · ไม่พบรหัส: ${missing.slice(0, 8).join(", ")}${missing.length > 8 ? "..." : ""}` : "")
-    );
-    if (filled > 0) setPaste("");
+    const parts = [`ใส่เลขให้ ${filled} จาก ${recs.length} รายการ`];
+    if (ambiguous.length) parts.push(`กำกวม ไม่ได้ใส่ (ใช้รหัสคำสั่งซื้อแทน): ${ambiguous.join(" ; ")}`);
+    if (notFound.length) parts.push(`ไม่พบออเดอร์ที่รอส่งตรงกัน: ${notFound.join(", ")}`);
+    if (recs.length === 0) parts[0] = "ไม่พบเลขพัสดุในข้อความที่วาง (ตรวจว่าเลือกขนส่งถูกต้อง)";
+    setPasteMsg(parts.join(" · "));
+    if (recs.length > 0 && ambiguous.length === 0 && notFound.length === 0) setPaste("");
   }
 
   // ตรวจรูปแบบ/ซ้ำในหน้าก่อนส่ง
@@ -235,13 +258,13 @@ export default function BulkTrackingPage() {
           </form>
         </div>
         <details>
-          <summary className="cursor-pointer text-stone-600">วางหลายรายการ (รหัสคำสั่งซื้อ เว้นวรรค เลขพัสดุ — บรรทัดละ 1 รายการ)</summary>
+          <summary className="cursor-pointer text-stone-600">วางหลายรายการ (คัดลอกรายการจากแอป Flash มาวางได้ ระบบจับคู่ด้วยรหัสคำสั่งซื้อหรือเบอร์โทรผู้รับ)</summary>
           <div className="mt-2 space-y-2">
             <textarea
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
-              rows={4}
-              placeholder={"MO-XXXXXX TH15D7G568NM914E\nMO-YYYYYY TH15D7G568NM915F"}
+              rows={6}
+              placeholder={"6VQQV7JU TH12345C6ABC7D\n0812345678 TH12345C6ABC7E\n\nหรือวางทั้งบล็อกจากแอป Flash:\nNo.: TH12345C6ABC7F  Picked up\nชื่อผู้รับ\n0891234567\nอุดรธานี"}
               className="w-full border border-stone-300 rounded-lg px-3 py-2 font-mono text-xs"
             />
             <button
@@ -298,9 +321,14 @@ export default function BulkTrackingPage() {
                           inputs.current[o.id] = el;
                         }}
                         value={drafts[o.id] ?? ""}
-                        onChange={(e) => setDrafts((d) => ({ ...d, [o.id]: e.target.value.toUpperCase() }))}
+                        onChange={(e) =>
+                          setDrafts((d) => ({
+                            ...d,
+                            [o.id]: extractTrackingNumber(e.target.value, carrier) ?? e.target.value.toUpperCase(),
+                          }))
+                        }
                         onKeyDown={(e) => onEnterRow(e, idx)}
-                        placeholder={carrier === "FLASH" ? "TH15D7G568NM914E" : "EE123456789TH"}
+                        placeholder={carrier === "FLASH" ? "TH12345C6ABC7D" : "EE123456789TH"}
                         maxLength={24}
                         className={`font-mono text-sm border rounded-md px-2 py-1.5 w-64 focus:outline-none focus:ring-1 ${
                           issue ? "border-red-400 focus:ring-red-400" : "border-stone-300 focus:ring-primary-500"
