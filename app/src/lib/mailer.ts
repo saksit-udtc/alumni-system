@@ -3,7 +3,7 @@ import { Resend } from "resend";
 import { generateQrPngBuffer, checkinUrl } from "./qrcode";
 import { logEmail } from "./auditLog";
 import { supportReward } from "./supportConfig";
-import { trackingUrl } from "./shipping";
+import { trackingUrl, CARRIER_LABEL, type Carrier } from "./shipping";
 import { prisma } from "./prisma";
 import { getContactSettings } from "./settings";
 import { buildMerchProofPdf, buildReservationProofPdf } from "./paymentProof";
@@ -858,7 +858,7 @@ function buildMerchOrderShippedHtml(args: MerchOrderShippedEmailArgs) {
       <p>วิทยาลัยเทคนิคอุดรธานีได้นำส่งของที่ระลึกตามคำสั่งซื้อของท่านกับผู้ให้บริการขนส่งเรียบร้อยแล้ว เมื่อวันที่ ${shippedDate}</p>
       <ul>
         <li>รหัสการสั่งซื้อ: <strong>${escapeHtml(args.orderCode)}</strong></li>
-        <li>ขนส่ง: <strong>${escapeHtml(args.carrier)}</strong></li>
+        <li>ขนส่ง: <strong>${escapeHtml(CARRIER_LABEL[args.carrier as Carrier] ?? args.carrier)}</strong></li>
         <li>เลขพัสดุ: <strong style="font-size:18px; letter-spacing:1px;">${escapeHtml(args.trackingNumber)}</strong></li>
       </ul>
       <p style="margin:20px 0;">

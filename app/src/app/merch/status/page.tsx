@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "@/app/components/site-nav";
 import PageTitle from "@/app/components/page-title";
+import { CARRIER_LABEL, type Carrier } from "@/lib/shipping";
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   pending: { label: "รอชำระเงิน", color: "bg-amber-100 text-amber-700" },
@@ -140,7 +141,7 @@ function MerchStatusForm() {
                     <span className="text-xs px-2 py-1 rounded-full font-medium bg-green-100 text-green-700">จัดส่งแล้ว</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-stone-500">เลขพัสดุ ({o.carrier})</span>
+                    <span className="text-stone-500">เลขพัสดุ ({CARRIER_LABEL[o.carrier as Carrier] ?? o.carrier})</span>
                     <span className="font-mono font-semibold text-stone-800">{o.trackingNumber}</span>
                   </div>
                   {o.trackingUrl && (

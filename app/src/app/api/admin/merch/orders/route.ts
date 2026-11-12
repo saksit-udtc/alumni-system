@@ -34,6 +34,8 @@ export async function GET(req: NextRequest) {
         trackingNumber: o.trackingNumber,
         shippedAt: o.shippedAt,
         shipmentEmailSentAt: o.shipmentEmailSentAt,
+        labelPrintedAt: o.labelPrintedAt,
+        packedAt: o.packedAt,
         items: o.items.map((it) => ({
           productName: it.productName,
           size: it.size,

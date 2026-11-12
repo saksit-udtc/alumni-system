@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminStatCard } from "@/app/components/admin-stat-card";
 import { UrlQuerySync, matchesQuery } from "@/app/components/admin-list-search";
+import { trackingUrl, CARRIER_LABEL, type Carrier } from "@/lib/shipping";
 import {
   AdminFilterBar,
   buildStatusOptions,
@@ -72,6 +73,7 @@ export default function AdminMerchOrdersPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   // Shipment tracking (EMS) state
   const [trackDraft, setTrackDraft] = useState<Record<string, string>>({});
+  const [carrierDraft, setCarrierDraft] = useState<Record<string, Carrier>>({});
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [shipBusyId, setShipBusyId] = useState<string | null>(null);
   const [shipMsg, setShipMsg] = useState<{ id: string; ok: boolean; text: string } | null>(null);
@@ -156,7 +158,7 @@ export default function AdminMerchOrdersPage() {
       const res = await fetch(`/api/admin/merch/orders/${orderId}/ship`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackingNumber: trackDraft[orderId] || "" }),
+        body: JSON.stringify({ trackingNumber: trackDraft[orderId] || "", carrier: carrierDraft[orderId] ?? "FLASH" }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -240,7 +242,15 @@ export default function AdminMerchOrdersPage() {
               href="/admin/merch/orders/print"
               className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
             >
-              ปริ้นที่อยู่จัดส่ง
+              ปริ้นที่อยู่/แพ็คสินค้า
+            </Link>
+          )}
+          {role !== "FINANCE_STAFF" && (
+            <Link
+              href="/admin/merch/orders/tracking"
+              className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50 transition-colors"
+            >
+              กรอกเลขพัสดุเป็นชุด
             </Link>
           )}
           <a
@@ -416,13 +426,25 @@ export default function AdminMerchOrdersPage() {
                 {/* เจ้าหน้าที่การเงิน (FINANCE_STAFF) ตรวจ/อนุมัติสลิปเท่านั้น ไม่ยุ่งเรื่องจัดส่ง — ซ่อนบล็อกจัดส่ง (EMS) ไว้ */}
                 {role !== "FINANCE_STAFF" && (
                 <div className="min-w-0 space-y-2 text-sm md:col-span-2 xl:col-span-1">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">การจัดส่ง (EMS)</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                    การจัดส่ง{o.trackingNumber ? ` (${CARRIER_LABEL[o.carrier as Carrier] ?? o.carrier})` : ""}
+                  </div>
+                  {o.paymentStatus === "confirmed" && !o.trackingNumber && (o.labelPrintedAt || o.packedAt) && (
+                    <div className="flex flex-wrap gap-1.5 text-[11px]">
+                      {o.labelPrintedAt && (
+                        <span className="px-2 py-0.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200">ปริ้นที่อยู่แล้ว</span>
+                      )}
+                      {o.packedAt && (
+                        <span className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">แพ็คแล้ว</span>
+                      )}
+                    </div>
+                  )}
                   {o.paymentStatus !== "confirmed" ? (
                     <p className="text-xs text-stone-400">จะกรอกเลขพัสดุได้หลังยืนยันการชำระเงินแล้ว</p>
                   ) : o.trackingNumber && editingTrackId !== o.id ? (
                     <div className="space-y-1.5 text-xs">
                       <a
-                        href={`https://track.thailandpost.co.th/?trackNumber=${encodeURIComponent(o.trackingNumber)}`}
+                        href={trackingUrl(o.carrier, o.trackingNumber)}
                         target="_blank"
                         rel="noreferrer"
                         className="font-mono text-sm text-sky-700 hover:underline break-all"
@@ -453,6 +475,7 @@ export default function AdminMerchOrdersPage() {
                           onClick={() => {
                             setEditingTrackId(o.id);
                             setTrackDraft((d) => ({ ...d, [o.id]: o.trackingNumber }));
+                            setCarrierDraft((d) => ({ ...d, [o.id]: o.carrier === "EMS" ? "EMS" : "FLASH" }));
                             setShipMsg(null);
                           }}
                           className="px-2 py-1 rounded-md text-primary-700 hover:underline"
@@ -469,11 +492,22 @@ export default function AdminMerchOrdersPage() {
                       }}
                       className="space-y-1.5"
                     >
+                      <select
+                        value={carrierDraft[o.id] ?? "FLASH"}
+                        onChange={(e) => setCarrierDraft((d) => ({ ...d, [o.id]: e.target.value as Carrier }))}
+                        className="w-full text-xs border border-stone-300 rounded-md px-2 py-1.5 bg-white"
+                      >
+                        {(Object.keys(CARRIER_LABEL) as Carrier[]).map((c) => (
+                          <option key={c} value={c}>
+                            {CARRIER_LABEL[c]}
+                          </option>
+                        ))}
+                      </select>
                       <input
                         value={trackDraft[o.id] ?? ""}
                         onChange={(e) => setTrackDraft((d) => ({ ...d, [o.id]: e.target.value.toUpperCase() }))}
-                        placeholder="EE123456789TH"
-                        maxLength={20}
+                        placeholder={(carrierDraft[o.id] ?? "FLASH") === "FLASH" ? "TH15D7G568NM914E" : "EE123456789TH"}
+                        maxLength={24}
                         className="w-full font-mono text-xs border border-stone-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
                       />
                       <div className="flex flex-wrap gap-1.5">
