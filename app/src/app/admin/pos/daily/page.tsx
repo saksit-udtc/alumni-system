@@ -16,6 +16,11 @@ export default function PosDailySummaryPage() {
   const [data, setData] = useState<PosDailySummary | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+  // เจ้าหน้าที่การเงินเห็นเฉพาะหน้านี้ (ไม่มีสิทธิ์หน้าขาย/ประวัติการขาย) — ซ่อนลิงก์ที่จะเด้งกลับ
+  useEffect(() => {
+    fetch("/api/admin/me").then((r) => (r.ok ? r.json() : null)).then((d) => setRole(d?.role ?? null)).catch(() => {});
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -49,9 +54,10 @@ export default function PosDailySummaryPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-display font-semibold text-stone-800">สรุปยอดขายหน้างานรายวัน</h1>
+          <h1 className="text-2xl font-display font-semibold text-stone-800">สรุปยอดขายหน้าร้านรายวัน</h1>
           <p className="text-sm text-stone-500 mt-0.5">นับเฉพาะรายการที่ชำระแล้ว ตามวันที่รับเงิน (ไม่รวมรอชำระ/ยกเลิก)</p>
         </div>
+        {role !== "FINANCE_STAFF" && (
         <div className="flex gap-2">
           <Link href="/admin/pos/sales" className="bg-white border border-stone-300 shadow-sm rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-cream-50">
             ประวัติการขาย
@@ -60,6 +66,7 @@ export default function PosDailySummaryPage() {
             กลับหน้าขาย
           </Link>
         </div>
+        )}
       </div>
 
       <div className={`${card} flex flex-wrap items-end gap-3`}>

@@ -14,9 +14,9 @@ function styleHeader(row: ExcelJS.Row) {
   });
 }
 
-/** สรุปยอดขายหน้างานรายวัน: ?from=YYYY-MM-DD&to=YYYY-MM-DD (ค่าเริ่มต้น = 30 วันล่าสุด), &format=xlsx เพื่อ Export */
+/** สรุปยอดขายหน้าร้านรายวัน: ?from=YYYY-MM-DD&to=YYYY-MM-DD (ค่าเริ่มต้น = 30 วันล่าสุด), &format=xlsx เพื่อ Export */
 export async function GET(req: NextRequest) {
-  const { admin, response } = requireAdmin(req, ["MERCH_STAFF"]);
+  const { admin, response } = requireAdmin(req, ["MERCH_STAFF", "FINANCE_STAFF"]);
   if (!admin) return response;
 
   const sp = req.nextUrl.searchParams;
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   // ---- สรุปรายวัน ----
   const ws = wb.addWorksheet("สรุปรายวัน");
-  ws.addRow([`สรุปยอดขายหน้างาน (POS) รายวัน — ${period}`]).font = { bold: true, size: 13 };
+  ws.addRow([`สรุปยอดขายหน้าร้านรายวัน — ${period}`]).font = { bold: true, size: 13 };
   ws.addRow([`นับเฉพาะรายการที่ชำระแล้ว ตามวันที่รับเงิน · ข้อมูล ณ ${stamp}`]).font = { italic: true, color: { argb: "FF78716C" } };
   ws.addRow([]);
   styleHeader(ws.addRow(["วันที่", "จำนวนบิล", "จำนวนชิ้น", "เงินสด (บาท)", "บิลเงินสด", "โอนเงิน (บาท)", "บิลโอนเงิน", "ยอดรวม (บาท)"]));

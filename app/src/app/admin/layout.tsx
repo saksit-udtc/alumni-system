@@ -141,7 +141,9 @@ const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; r
   { href: "/admin/checkin", label: "เช็คอิน", icon: "checkin", roles: ["SUPER_ADMIN", "CHECKIN_STAFF"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
+  { href: "/admin/merch/pickup", label: "รับสินค้าที่วิทยาลัย", icon: "checkin", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },
   { href: "/admin/merch/summary", label: "สรุปยอดสินค้าและโต๊ะ", icon: "dashboard", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
+  { href: "/admin/pos/daily", label: "สรุปยอดขายหน้าร้านรายวัน", icon: "dashboard", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "การเงิน" },
   { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },
   { href: "/admin/pos", label: "ขายหน้างาน (POS)", icon: "barcode", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },
   { href: "/admin/packages", label: "จัดการแพ็กเกจ", icon: "gift", roles: ["SUPER_ADMIN", "MERCH_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
@@ -189,7 +191,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const ROLE_ALLOWED_PREFIXES: Record<string, string[]> = {
     CHECKIN_STAFF: ["/admin/checkin"],
     MERCH_STAFF: ["/admin/merch", "/admin/pos", "/admin/packages", "/admin/alumni"],
-    FINANCE_STAFF: ["/admin/reservations", "/admin/support-registrations", "/admin/merch/orders", "/admin/merch/summary"],
+    FINANCE_STAFF: ["/admin/reservations", "/admin/support-registrations", "/admin/merch/orders", "/admin/merch/summary", "/admin/pos/daily"],
     RESERVATION_STAFF: ["/admin/events", "/admin/table-locks", "/admin/merch/orders", "/admin/merch/summary", "/admin/packages", "/admin/pos/package"],
   };
   const ROLE_HOME: Record<string, string> = {

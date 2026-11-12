@@ -373,6 +373,9 @@ model MerchOrder {
   // ขั้นตอนหน้างานก่อนส่งมอบขนส่ง: ปริ้นที่อยู่แล้ว / แพ็คใส่ซองแล้ว (null = ยังไม่ทำ)
   labelPrintedAt      DateTime?
   packedAt            DateTime?
+  // ออเดอร์ "รับที่วิทยาลัย": เวลาที่ลูกค้ามารับสินค้าแล้ว + ชื่อเจ้าหน้าที่ที่กดยืนยัน (null = ยังไม่ได้รับ)
+  pickedUpAt          DateTime?
+  pickedUpBy          String?
   // เวลาสิ้นสุดการ "กันสินค้า" ตอนยังไม่แนบสลิป (paymentStatus = pending) — พ้นเวลา
   // ระบบ (lib/releaseExpired.ts) จะคืนสต็อกและตั้งเป็น expired; null = ไม่หมดเวลา
   // (แนบสลิปแล้ว / ออเดอร์เก่าก่อนมีคอลัมน์นี้)
