@@ -209,8 +209,10 @@ export default function AdminMerchOrdersPage() {
   const unpaidDraftCount = orders.filter((o) => o.paymentStatus === "pending").length;
   const confirmedOrders = orders.filter((o) => o.paymentStatus === "confirmed");
   const confirmedRevenue = confirmedOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
-  const toShipCount = confirmedOrders.filter((o) => !o.trackingNumber).length;
-  const shippedCount = confirmedOrders.filter((o) => o.trackingNumber).length;
+  // ออเดอร์รับที่วิทยาลัยไม่มีขั้นตอนจัดส่ง — ไม่นับรวมใน "รอจัดส่ง/จัดส่งแล้ว"
+  const shipOrders = confirmedOrders.filter((o) => !o.isPickup);
+  const toShipCount = shipOrders.filter((o) => !o.trackingNumber).length;
+  const shippedCount = shipOrders.filter((o) => o.trackingNumber).length;
   const filterRows: FilterableRow[] = orders.map((o) => ({
     status: o.paymentStatus,
     slip: slipCategory(!!o.latestSlipUrl, o.latestSlipEasyslipStatus),
@@ -219,8 +221,8 @@ export default function AdminMerchOrdersPage() {
   const visibleOrders = orders.filter((o, i) => {
     if (!matchesQuery(q, [o.orderCode, o.bookerName, o.bookerPhone, o.bookerEmail, o.trackingNumber])) return false;
     if (!matchesListFilters(filters, filterRows[i])) return false;
-    if (shipFilter === "toship") return o.paymentStatus === "confirmed" && !o.trackingNumber;
-    if (shipFilter === "shipped") return !!o.trackingNumber;
+    if (shipFilter === "toship") return o.paymentStatus === "confirmed" && !o.isPickup && !o.trackingNumber;
+    if (shipFilter === "shipped") return !o.isPickup && !!o.trackingNumber;
     return true;
   });
 
@@ -373,12 +375,14 @@ export default function AdminMerchOrdersPage() {
                           ⚠ ที่อยู่กรอกเอง (ไม่พบในรายการ) — กรุณาตรวจก่อนส่ง
                         </div>
                       )}
-                      <button
-                        onClick={() => startEditAddress(o.id, o.shippingAddress)}
-                        className="text-primary-700 hover:text-primary-800 hover:underline"
-                      >
-                        แก้ไขที่อยู่
-                      </button>
+                      {!o.isPickup && (
+                        <button
+                          onClick={() => startEditAddress(o.id, o.shippingAddress)}
+                          className="text-primary-700 hover:text-primary-800 hover:underline"
+                        >
+                          แก้ไขที่อยู่
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -427,7 +431,7 @@ export default function AdminMerchOrdersPage() {
                 {role !== "FINANCE_STAFF" && (
                 <div className="min-w-0 space-y-2 text-sm md:col-span-2 xl:col-span-1">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                    การจัดส่ง{o.trackingNumber ? ` (${CARRIER_LABEL[o.carrier as Carrier] ?? o.carrier})` : ""}
+                    {o.isPickup ? "การรับสินค้า" : `การจัดส่ง${o.trackingNumber ? ` (${CARRIER_LABEL[o.carrier as Carrier] ?? o.carrier})` : ""}`}
                   </div>
                   {o.paymentStatus === "confirmed" && !o.trackingNumber && (o.labelPrintedAt || o.packedAt) && (
                     <div className="flex flex-wrap gap-1.5 text-[11px]">
@@ -439,7 +443,26 @@ export default function AdminMerchOrdersPage() {
                       )}
                     </div>
                   )}
-                  {o.paymentStatus !== "confirmed" ? (
+                  {o.isPickup ? (
+                    <div className="space-y-1.5 text-xs">
+                      <span className="inline-block px-2 py-0.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 font-medium">
+                        รับที่วิทยาลัย (ไม่มีค่าจัดส่ง)
+                      </span>
+                      {o.paymentStatus !== "confirmed" ? (
+                        <p className="text-stone-400">ยังไม่ยืนยันการชำระเงิน</p>
+                      ) : o.pickedUpAt ? (
+                        <p className="text-emerald-700">
+                          ✓ ลูกค้ารับสินค้าแล้ว {new Date(o.pickedUpAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}
+                          {o.pickedUpBy ? ` · โดย ${o.pickedUpBy}` : ""}
+                        </p>
+                      ) : (
+                        <p className="text-amber-700">รอลูกค้ามารับสินค้า</p>
+                      )}
+                      <Link href="/admin/merch/pickup" className="inline-block text-primary-700 hover:underline">
+                        ไปหน้ารับสินค้าที่วิทยาลัย →
+                      </Link>
+                    </div>
+                  ) : o.paymentStatus !== "confirmed" ? (
                     <p className="text-xs text-stone-400">จะกรอกเลขพัสดุได้หลังยืนยันการชำระเงินแล้ว</p>
                   ) : o.trackingNumber && editingTrackId !== o.id ? (
                     <div className="space-y-1.5 text-xs">

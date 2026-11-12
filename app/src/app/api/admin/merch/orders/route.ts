@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/apiHelpers";
+import { MERCH_PICKUP_ADDRESS_TEXT } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,10 @@ export async function GET(req: NextRequest) {
         shipmentEmailSentAt: o.shipmentEmailSentAt,
         labelPrintedAt: o.labelPrintedAt,
         packedAt: o.packedAt,
+        // ออเดอร์ "รับที่วิทยาลัย" — ไม่มีขั้นตอนจัดส่ง/เลขพัสดุ (ใช้หน้า /admin/merch/pickup แทน)
+        isPickup: o.shippingAddress === MERCH_PICKUP_ADDRESS_TEXT,
+        pickedUpAt: o.pickedUpAt,
+        pickedUpBy: o.pickedUpBy,
         items: o.items.map((it) => ({
           productName: it.productName,
           size: it.size,

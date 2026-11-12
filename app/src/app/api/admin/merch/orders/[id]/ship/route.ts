@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, jsonError } from "@/lib/apiHelpers";
 import { logAdminAction } from "@/lib/auditLog";
 import { sendMerchOrderShippedEmail } from "@/lib/mailer";
+import { MERCH_PICKUP_ADDRESS_TEXT } from "@/lib/settings";
 import { normalizeTrackingNumber, validateTrackingNumber, isKnownCarrier, type Carrier } from "@/lib/shipping";
 
 /**
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     include: { items: true },
   });
   if (!order) return jsonError("ไม่พบการสั่งซื้อที่ระบุ", 404);
+  if (order.shippingAddress === MERCH_PICKUP_ADDRESS_TEXT) {
+    return jsonError("เป็นออเดอร์รับสินค้าที่วิทยาลัย ไม่ต้องบันทึกเลขพัสดุ (ยืนยันการรับที่หน้ารับสินค้าที่วิทยาลัย)", 400);
+  }
 
   if (order.paymentStatus !== "confirmed") {
     return jsonError("ส่งได้เฉพาะคำสั่งซื้อที่ยืนยันการชำระเงินแล้วเท่านั้น", 409);

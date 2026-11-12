@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/apiHelpers";
+import { MERCH_PICKUP_ADDRESS_TEXT } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +89,7 @@ export async function GET(req: NextRequest) {
         items: { select: { quantity: true } },
       },
     }),
-    prisma.merchOrder.count({ where: { paymentStatus: "confirmed", trackingNumber: null } }),
+    prisma.merchOrder.count({ where: { paymentStatus: "confirmed", trackingNumber: null, shippingAddress: { not: MERCH_PICKUP_ADDRESS_TEXT } } }),
     prisma.merchOrder.count({ where: { trackingNumber: { not: null } } }),
   ]);
 

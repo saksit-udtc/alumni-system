@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { AdminRole } from "@/lib/auth";
+import { MERCH_PICKUP_ADDRESS_TEXT } from "@/lib/settings";
 
 /**
  * "งานค้าง" ของเจ้าหน้าที่แต่ละบทบาท — ใช้กับกระดิ่งแจ้งเตือนบนแถบบนของหน้า admin
@@ -47,7 +48,7 @@ export async function getNotifications(role: AdminRole): Promise<NotificationIte
         })
       : 0,
     canMerchOrders ? prisma.merchOrder.count({ where: { paymentStatus: "awaiting_verify" } }) : 0,
-    canShip ? prisma.merchOrder.count({ where: { paymentStatus: "confirmed", trackingNumber: null } }) : 0,
+    canShip ? prisma.merchOrder.count({ where: { paymentStatus: "confirmed", trackingNumber: null, shippingAddress: { not: MERCH_PICKUP_ADDRESS_TEXT } } }) : 0,
     canSupport ? prisma.supportRegistration.count({ where: { paymentStatus: "awaiting_verify" } }) : 0,
     canStock
       ? prisma.merchProductStock.count({ where: { quantity: { lte: LOW_STOCK_THRESHOLD }, product: { active: true } } })
