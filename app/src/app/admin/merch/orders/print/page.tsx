@@ -15,6 +15,7 @@ type QOrder = {
   labelPrintedAt: string | null;
   packedAt: string | null;
   trackingNumber: string | null;
+  createdAt: string;
   items: QItem[];
 };
 type Sender = {
@@ -29,6 +30,38 @@ type Sender = {
 
 type Filter = "todo" | "printed" | "packed" | "all";
 type Mode = "labels" | "pick";
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+// วันที่ (เวลาท้องถิ่นของเบราว์เซอร์) รูปแบบ YYYY-MM-DD เทียบกับค่าจาก <input type="date">
+function dayKey(d: Date) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function dayAgo(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return dayKey(d);
+}
+function inRange(o: QOrder, from: string, to: string) {
+  if (!from && !to) return true;
+  const k = dayKey(new Date(o.createdAt));
+  if (from && k < from) return false;
+  if (to && k > to) return false;
+  return true;
+}
+function matchFilter(o: QOrder, f: Filter) {
+  if (f === "todo") return !o.labelPrintedAt;
+  if (f === "printed") return !!o.labelPrintedAt && !o.packedAt;
+  if (f === "packed") return !!o.packedAt;
+  return true;
+}
+function fmtOrderedAt(iso: string) {
+  return new Date(iso).toLocaleString("th-TH", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "todo", label: "ยังไม่ปริ้นที่อยู่" },
@@ -89,6 +122,8 @@ export default function PrintMerchShippingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("todo");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [mode, setMode] = useState<Mode>("labels");
   const [per, setPer] = useState<number>(8);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -124,26 +159,31 @@ export default function PrintMerchShippingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const visible = useMemo(() => {
-    return orders.filter((o) => {
-      if (filter === "todo") return !o.labelPrintedAt;
-      if (filter === "printed") return !!o.labelPrintedAt && !o.packedAt;
-      if (filter === "packed") return !!o.packedAt;
-      return true;
-    });
-  }, [orders, filter]);
+  // ออเดอร์ในช่วงวันที่สั่งซื้อที่เลือก (ไม่เลือก = ทั้งหมด)
+  const dated = useMemo(() => orders.filter((o) => inRange(o, dateFrom, dateTo)), [orders, dateFrom, dateTo]);
+
+  const visible = useMemo(() => dated.filter((o) => matchFilter(o, filter)), [dated, filter]);
 
   const counts = useMemo(
     () => ({
-      todo: orders.filter((o) => !o.labelPrintedAt).length,
-      printed: orders.filter((o) => o.labelPrintedAt && !o.packedAt).length,
-      packed: orders.filter((o) => o.packedAt).length,
-      all: orders.length,
+      todo: dated.filter((o) => matchFilter(o, "todo")).length,
+      printed: dated.filter((o) => matchFilter(o, "printed")).length,
+      packed: dated.filter((o) => matchFilter(o, "packed")).length,
+      all: dated.length,
     }),
-    [orders]
+    [dated]
   );
 
-  const chosen = useMemo(() => orders.filter((o) => selected.has(o.id)), [orders, selected]);
+  // พิมพ์/ทำเครื่องหมายเฉพาะที่อยู่ในช่วงวันที่ — ออเดอร์นอกช่วงที่เคยติ๊กไว้จะไม่ถูกพิมพ์
+  const chosen = useMemo(() => dated.filter((o) => selected.has(o.id)), [dated, selected]);
+
+  function applyDateRange(from: string, to: string) {
+    setDateFrom(from);
+    setDateTo(to);
+    // เปลี่ยนช่วงวันที่ → เลือกอัตโนมัติทุกรายการในช่วงที่ตรงหมวดปัจจุบัน
+    setSelected(new Set(orders.filter((o) => inRange(o, from, to) && matchFilter(o, filter)).map((o) => o.id)));
+  }
+  const hasDate = !!(dateFrom || dateTo);
   const allVisibleSelected = visible.length > 0 && visible.every((o) => selected.has(o.id));
 
   function toggle(id: string) {
@@ -256,13 +296,61 @@ export default function PrintMerchShippingPage() {
           ))}
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-stone-500">วันที่สั่งซื้อ</span>
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(e) => applyDateRange(e.target.value, dateTo)}
+            className="border border-stone-300 rounded-lg px-2 py-1.5 bg-white"
+            aria-label="สั่งซื้อตั้งแต่วันที่"
+          />
+          <span className="text-stone-400">ถึง</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => applyDateRange(dateFrom, e.target.value)}
+            className="border border-stone-300 rounded-lg px-2 py-1.5 bg-white"
+            aria-label="สั่งซื้อถึงวันที่"
+          />
+          {[
+            { label: "วันนี้", from: dayAgo(0), to: dayAgo(0) },
+            { label: "เมื่อวาน", from: dayAgo(1), to: dayAgo(1) },
+            { label: "7 วันล่าสุด", from: dayAgo(6), to: dayAgo(0) },
+          ].map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => applyDateRange(p.from, p.to)}
+              className={`px-2.5 py-1.5 rounded-lg border transition-colors ${
+                dateFrom === p.from && dateTo === p.to
+                  ? "bg-primary-700 text-white border-primary-700"
+                  : "bg-white text-stone-600 border-stone-300 hover:bg-cream-50"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+          {hasDate && (
+            <button
+              type="button"
+              onClick={() => applyDateRange("", "")}
+              className="px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-800 underline"
+            >
+              ล้างวันที่
+            </button>
+          )}
+        </div>
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         {loading ? (
           <p className="text-sm text-stone-400">กำลังโหลด...</p>
         ) : visible.length === 0 ? (
           <div className="bg-white rounded-xl border border-dashed border-cream-200 p-8 text-center text-stone-400 text-sm">
-            ไม่มีรายการในหมวดนี้
+            {hasDate ? "ไม่มีรายการในช่วงวันที่นี้" : "ไม่มีรายการในหมวดนี้"}
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-cream-200 overflow-hidden">
@@ -271,7 +359,7 @@ export default function PrintMerchShippingPage() {
                 <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} />
                 เลือกทั้งหมดในหมวดนี้
               </label>
-              <span className="text-stone-400">เลือกแล้ว {chosen.length} จาก {orders.length}</span>
+              <span className="text-stone-400">เลือกแล้ว {chosen.length} จาก {dated.length}</span>
             </div>
             <ul className="divide-y divide-cream-100 max-h-[360px] overflow-y-auto">
               {visible.map((o) => (
@@ -281,6 +369,7 @@ export default function PrintMerchShippingPage() {
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="font-mono font-semibold text-stone-800">{o.orderCode}</span>
                       <span className="text-stone-700">{o.bookerName}</span>
+                      <span className="text-[11px] text-stone-400">สั่ง {fmtOrderedAt(o.createdAt)}</span>
                       {o.labelPrintedAt && (
                         <span className="text-[11px] px-2 py-0.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200">
                           ปริ้นแล้ว
