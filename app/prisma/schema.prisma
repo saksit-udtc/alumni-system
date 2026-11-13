@@ -41,6 +41,7 @@ model AdminUser {
   auditLogs         AuditLog[]
   posSales          PosSale[] @relation("PosCashier")
   posPackageSales   Reservation[] @relation("PosPackageCashier")
+  merchWithdrawals  MerchWithdrawal[] @relation("WithdrawalCreator")
 }
 
 // Two kinds of entries, told apart by actorType:
@@ -645,4 +646,44 @@ model SupportRegistration {
 
   @@index([type, paymentStatus])
   @@index([createdAt])
+}
+
+// ใบเบิกของที่ระลึก (ไม่คิดเงิน) — ผู้บริหารเบิกไปใช้งาน เช่น สัมมนาผู้มีอุปการคุณ
+// ตัดสต๊อกทันที แยกจาก PosSale/MerchOrder เพื่อไม่ปนเข้ายอดรายรับ (Ledger/สรุปยอดเงิน)
+// unitPrice เก็บราคาตอนเบิกไว้เพื่อรู้มูลค่าของที่เบิกเท่านั้น ไม่ใช่รายรับ
+enum MerchWithdrawalStatus {
+  active
+  cancelled
+}
+
+model MerchWithdrawal {
+  id                String                @id @default(cuid())
+  code              String                @unique
+  requesterName     String
+  requesterPosition String?
+  purpose           String
+  approverName      String
+  note              String?
+  status            MerchWithdrawalStatus @default(active)
+  createdById       String
+  createdBy         AdminUser             @relation("WithdrawalCreator", fields: [createdById], references: [id])
+  createdAt         DateTime              @default(now())
+  cancelledAt       DateTime?
+  cancelReason      String?
+  items             MerchWithdrawalItem[]
+
+  @@index([createdAt])
+}
+
+model MerchWithdrawalItem {
+  id           String          @id @default(cuid())
+  withdrawalId String
+  withdrawal   MerchWithdrawal @relation(fields: [withdrawalId], references: [id], onDelete: Cascade)
+  productId    String?
+  productName  String
+  size         String?
+  quantity     Int
+  unitPrice    Decimal         @db.Decimal(10, 2)
+
+  @@index([withdrawalId])
 }

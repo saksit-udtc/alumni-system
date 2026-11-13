@@ -31,6 +31,7 @@ export interface MerchRow {
   total: number;
   online: number; // สั่งออนไลน์ (รวมแพ็กเกจของที่ระลึกที่สั่งออนไลน์)
   pos: number; // ขายหน้างาน (ชำระแล้วทั้งหมด)
+  withdrawn: number; // เบิกไปใช้ (ใบเบิกไม่คิดเงิน) — นับรวมใน confirmed/total แต่ไม่มียอดเงิน
   withTable: number; // ของในแพ็กเกจจองโต๊ะ
   onlineConfirmed?: number; // เฉพาะที่ยืนยันสลิปแล้ว: สั่งออนไลน์ (ไม่รวมแพ็กเกจโต๊ะ)
   withTableConfirmed?: number; // เฉพาะที่ยืนยันแล้ว: ของในแพ็กเกจจองโต๊ะ
@@ -76,12 +77,13 @@ const zero = (): Record<Bucket, number> => ({ confirmed: 0, awaiting: 0, pending
 export async function getSalesSummary(): Promise<SalesSummary> {
   const active = { in: ["confirmed", "awaiting_verify", "pending"] as any };
 
-  const [orderItems, posItems, resvItems, products, stocks, events, shipAgg] = await Promise.all([
+  const [orderItems, posItems, withdrawItems, resvItems, products, stocks, events, shipAgg] = await Promise.all([
     prisma.merchOrderItem.findMany({
       where: { order: { paymentStatus: active } },
       select: { productId: true, productName: true, size: true, quantity: true, unitPrice: true, order: { select: { paymentStatus: true } } },
     }),
     prisma.posSaleItem.findMany({ where: { sale: { status: "paid" } }, select: { productId: true, productName: true, size: true, quantity: true, unitPrice: true } }),
+    prisma.merchWithdrawalItem.findMany({ where: { withdrawal: { status: "active" } }, select: { productId: true, productName: true, size: true, quantity: true } }),
     prisma.reservationPackageItem.findMany({
       where: { reservation: { paymentStatus: active } },
       select: { productId: true, productName: true, size: true, quantity: true, reservation: { select: { paymentStatus: true } } },
@@ -114,7 +116,7 @@ export async function getSalesSummary(): Promise<SalesSummary> {
     const key = `${productId ?? name}|${sz ?? ""}`;
     let r = rows.get(key);
     if (!r) {
-      r = { productName: name, size: sz, confirmed: 0, awaiting: 0, pending: 0, total: 0, online: 0, pos: 0, withTable: 0, onlineConfirmed: 0, withTableConfirmed: 0, posRevenue: 0, revenueConfirmed: 0, remaining: null, sort: p?.sortOrder ?? 9999 };
+      r = { productName: name, size: sz, confirmed: 0, awaiting: 0, pending: 0, total: 0, online: 0, pos: 0, withdrawn: 0, withTable: 0, onlineConfirmed: 0, withTableConfirmed: 0, posRevenue: 0, revenueConfirmed: 0, remaining: null, sort: p?.sortOrder ?? 9999 };
       rows.set(key, r);
     }
     return r;
@@ -143,6 +145,13 @@ export async function getSalesSummary(): Promise<SalesSummary> {
     r.posRevenue = (r.posRevenue ?? 0) + it.quantity * Number(it.unitPrice);
     r.revenueConfirmed += it.quantity * Number(it.unitPrice);
   }
+  // ใบเบิก (ไม่คิดเงิน): นับเป็น "ขายแล้ว" ในจำนวน แต่ไม่เพิ่ม revenue/posRevenue
+  for (const it of withdrawItems) {
+    const r = row(it.productId, it.productName, it.size);
+    r.confirmed += it.quantity;
+    r.total += it.quantity;
+    r.withdrawn += it.quantity;
+  }
   for (const it of resvItems) {
     const b = BUCKET_OF[it.reservation.paymentStatus];
     if (!b) continue;
@@ -157,10 +166,10 @@ export async function getSalesSummary(): Promise<SalesSummary> {
     .map(({ sort, ...r }) => r);
   const merchTotals = merch.reduce(
     (t, r) => {
-      for (const k of ["confirmed", "awaiting", "pending", "total", "online", "pos", "withTable", "revenueConfirmed"] as const) t[k] += r[k];
+      for (const k of ["confirmed", "awaiting", "pending", "total", "online", "pos", "withdrawn", "withTable", "revenueConfirmed"] as const) t[k] += r[k];
       return t;
     },
-    { confirmed: 0, awaiting: 0, pending: 0, total: 0, online: 0, pos: 0, withTable: 0, revenueConfirmed: 0 }
+    { confirmed: 0, awaiting: 0, pending: 0, total: 0, online: 0, pos: 0, withdrawn: 0, withTable: 0, revenueConfirmed: 0 }
   );
 
   // ---------- โต๊ะ ----------

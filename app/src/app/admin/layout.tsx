@@ -142,6 +142,7 @@ const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; r
   { href: "/admin/alumni", label: "ทำเนียบศิษย์เก่า", icon: "users", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "งานเลี้ยงและการจอง" },
   { href: "/admin/merch/orders", label: "คำสั่งซื้อของที่ระลึก", icon: "bag", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
   { href: "/admin/merch/pickup", label: "รับสินค้าที่วิทยาลัย", icon: "checkin", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },
+  { href: "/admin/merch/withdrawals", label: "เบิกของที่ระลึก (ไม่คิดเงิน)", icon: "gift", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },
   { href: "/admin/merch/summary", label: "สรุปยอดสินค้าและโต๊ะ", icon: "dashboard", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
   { href: "/admin/pos/daily", label: "สรุปยอดขายหน้าร้านรายวัน", icon: "dashboard", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "การเงิน" },
   { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },

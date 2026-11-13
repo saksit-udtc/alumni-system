@@ -199,18 +199,19 @@ export default function SalesSummaryPage() {
                     <th className={`${TH} text-right border-l border-white/40`}>รวม</th>
                     <th className={`${TH} text-right border-l border-white/40`}>ออนไลน์</th>
                     <th className={`${TH} text-right`}>หน้างาน</th>
+                    <th className={`${TH} text-right`}>เบิก</th>
                     <th className={`${TH} text-right`}>แพ็กเกจโต๊ะ</th>
                     <th className={`${TH} text-right border-l border-white/40`}>ยอดเงินยืนยัน</th>
                   </tr>
                 </thead>
                 <tbody>
                   {groups.length === 0 && (
-                    <tr><td colSpan={10} className="px-3 py-6 text-center text-sm text-stone-500">ยังไม่มีการสั่งซื้อ</td></tr>
+                    <tr><td colSpan={11} className="px-3 py-6 text-center text-sm text-stone-500">ยังไม่มีการสั่งซื้อ</td></tr>
                   )}
                   {groups.map((g) => {
                     const sub = g.rows.reduce(
-                      (a, r) => ({ c: a.c + r.confirmed, w: a.w + r.awaiting, p: a.p + r.pending, t: a.t + r.total, o: a.o + r.online, s: a.s + r.pos, k: a.k + r.withTable, m: a.m + r.revenueConfirmed }),
-                      { c: 0, w: 0, p: 0, t: 0, o: 0, s: 0, k: 0, m: 0 }
+                      (a, r) => ({ c: a.c + r.confirmed, w: a.w + r.awaiting, p: a.p + r.pending, t: a.t + r.total, o: a.o + r.online, s: a.s + r.pos, d: a.d + (r.withdrawn ?? 0), k: a.k + r.withTable, m: a.m + r.revenueConfirmed }),
+                      { c: 0, w: 0, p: 0, t: 0, o: 0, s: 0, d: 0, k: 0, m: 0 }
                     );
                     return [
                       ...g.rows.map((r, i) => (
@@ -223,6 +224,7 @@ export default function SalesSummaryPage() {
                           <td className={`${TD} font-semibold text-stone-800 border-l border-violet-200`}>{n(r.total)}</td>
                           <td className={`${TD} border-l border-violet-200 ${r.online ? "text-stone-600" : "text-stone-300"}`}>{n(r.online)}</td>
                           <Cell v={r.pos} tone="text-stone-600" />
+                          <Cell v={r.withdrawn ?? 0} tone="text-stone-600" />
                           <Cell v={r.withTable} tone="text-stone-600" />
                           <td className={`${TD} border-l border-violet-200 ${r.revenueConfirmed ? "text-stone-700" : "text-stone-300"}`}>{n(r.revenueConfirmed)}</td>
                         </tr>
@@ -236,6 +238,7 @@ export default function SalesSummaryPage() {
                           <td className={`${TD} text-xs font-semibold border-l border-violet-200`}>{n(sub.t)}</td>
                           <td className={`${TD} text-xs border-l border-violet-200`}>{n(sub.o)}</td>
                           <td className={`${TD} text-xs`}>{n(sub.s)}</td>
+                          <td className={`${TD} text-xs`}>{n(sub.d)}</td>
                           <td className={`${TD} text-xs`}>{n(sub.k)}</td>
                           <td className={`${TD} text-xs border-l border-violet-200`}>{n(sub.m)}</td>
                         </tr>
@@ -253,6 +256,7 @@ export default function SalesSummaryPage() {
                       <td className={`${TD} border-l border-violet-200`}>{n(t.total)}</td>
                       <td className={`${TD} border-l border-violet-200`}>{n(t.online)}</td>
                       <td className={TD}>{n(t.pos)}</td>
+                      <td className={TD}>{n(t.withdrawn ?? 0)}</td>
                       <td className={TD}>{n(t.withTable)}</td>
                       <td className={`${TD} border-l border-violet-200`}>{n(t.revenueConfirmed)}</td>
                     </tr>

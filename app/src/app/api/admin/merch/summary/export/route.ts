@@ -24,16 +24,16 @@ export async function GET(req: NextRequest) {
   // ---- ของที่ระลึก ----
   const ws = wb.addWorksheet("สรุปของที่ระลึก");
   ws.addRow([`สรุปจำนวนสินค้าที่ระลึกที่ถูกสั่ง — ข้อมูล ณ ${stamp}`]).font = { bold: true, size: 13 };
-  ws.addRow(["ไม่นับรายการที่ถูกปฏิเสธหรือหมดเวลา · ขายหน้างาน (POS) นับเป็นยืนยันแล้ว"]).font = { italic: true, color: { argb: "FF78716C" } };
+  ws.addRow(["ไม่นับรายการที่ถูกปฏิเสธหรือหมดเวลา · ขายหน้างาน (POS) และใบเบิกไม่คิดเงิน นับเป็นยืนยันแล้ว"]).font = { italic: true, color: { argb: "FF78716C" } };
   ws.addRow([]);
-  styleHeader(ws.addRow(["สินค้า", "ไซซ์", "ยืนยันแล้ว", "รอตรวจสลิป", "รอชำระ", "รวม", "สั่งออนไลน์", "ขายหน้างาน", "แพ็กเกจจองโต๊ะ", "ยอดเงินยืนยันแล้ว (บาท)"]));
+  styleHeader(ws.addRow(["สินค้า", "ไซซ์", "ยืนยันแล้ว", "รอตรวจสลิป", "รอชำระ", "รวม", "สั่งออนไลน์", "ขายหน้างาน", "เบิกไปใช้", "แพ็กเกจจองโต๊ะ", "ยอดเงินยืนยันแล้ว (บาท)"]));
   for (const r of s.merch) {
-    ws.addRow([r.productName, r.size ?? "-", r.confirmed, r.awaiting, r.pending, r.total, r.online, r.pos, r.withTable, r.revenueConfirmed]);
+    ws.addRow([r.productName, r.size ?? "-", r.confirmed, r.awaiting, r.pending, r.total, r.online, r.pos, r.withdrawn, r.withTable, r.revenueConfirmed]);
   }
   const t = s.merchTotals;
-  ws.addRow(["รวมทั้งหมด", "", t.confirmed, t.awaiting, t.pending, t.total, t.online, t.pos, t.withTable, t.revenueConfirmed]).font = { bold: true };
-  ws.columns = [{ width: 32 }, { width: 8 }, { width: 11 }, { width: 12 }, { width: 10 }, { width: 9 }, { width: 12 }, { width: 12 }, { width: 14 }, { width: 20 }];
-  ws.getColumn(10).numFmt = "#,##0";
+  ws.addRow(["รวมทั้งหมด", "", t.confirmed, t.awaiting, t.pending, t.total, t.online, t.pos, t.withdrawn, t.withTable, t.revenueConfirmed]).font = { bold: true };
+  ws.columns = [{ width: 32 }, { width: 8 }, { width: 11 }, { width: 12 }, { width: 10 }, { width: 9 }, { width: 12 }, { width: 12 }, { width: 10 }, { width: 14 }, { width: 20 }];
+  ws.getColumn(11).numFmt = "#,##0";
 
   // ---- โต๊ะ ----
   const wt = wb.addWorksheet("สรุปการจองโต๊ะ");

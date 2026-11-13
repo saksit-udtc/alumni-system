@@ -206,8 +206,8 @@ export default function SalesSummaryView({ apiUrl, exportUrl, title = "สรุ
                 const renderGroup = ({ g, gi }: { g: (typeof groups)[number]; gi: number }) => {
                   const tone = PALETTE[gi % PALETTE.length];
                   const hasSize = g.rows.some((r) => r.size);
-                  // ออนไลน์ = ยอดที่ยืนยันแล้วทั้งหมด − ยอดขายหน้าร้าน (POS) (รวมของในแพ็กเกจจองโต๊ะ); หน้าร้าน = เฉพาะ POS
-                  const qtyOf = (r: MerchRow) => (channel === "pos" ? r.pos : r.confirmed - r.pos);
+                  // ออนไลน์ = ยอดที่ยืนยันแล้วทั้งหมด − ยอดขายหน้าร้าน (POS) − ใบเบิก (รวมของในแพ็กเกจจองโต๊ะ); หน้าร้าน = เฉพาะ POS
+                  const qtyOf = (r: MerchRow) => (channel === "pos" ? r.pos + (r.withdrawn ?? 0) : r.confirmed - r.pos - (r.withdrawn ?? 0)); // เบิกไปใช้ (ใบเบิกไม่คิดเงิน) นับรวมในฝั่งหน้าร้านที่วิทยาลัย
                   const moneyOf = (r: MerchRow) => (channel === "pos" ? r.posRevenue ?? 0 : r.revenueConfirmed - (r.posRevenue ?? 0));
                   const total = g.rows.reduce((a, r) => a + qtyOf(r), 0);
                   const money = g.rows.reduce((a, r) => a + moneyOf(r), 0);
