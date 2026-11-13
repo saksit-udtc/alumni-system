@@ -85,6 +85,8 @@ export default function AdminMerchOrdersPage() {
   // (SUPER_ADMIN, FINANCE_STAFF, RESERVATION_STAFF)
   const [role, setRole] = useState<string | null>(null);
   const canApproveReject = role !== "MERCH_STAFF";
+  // เปลี่ยนออเดอร์จัดส่ง → รับที่วิทยาลัย: เฉพาะ SUPER_ADMIN (API ตรวจสิทธิ์ซ้ำฝั่งเซิร์ฟเวอร์)
+  const canToPickup = role === "SUPER_ADMIN";
 
   function load() {
     fetch("/api/admin/merch/orders")
@@ -173,6 +175,28 @@ export default function AdminMerchOrdersPage() {
           ? "บันทึกเลขพัสดุและส่งอีเมลแจ้งผู้สั่งแล้ว"
           : "บันทึกเลขพัสดุแล้ว แต่ส่งอีเมลไม่สำเร็จ — กด \"ส่งอีเมลอีกครั้ง\"",
       });
+      load();
+    } finally {
+      setShipBusyId(null);
+    }
+  }
+
+  async function toPickup(o: any) {
+    const ok = window.confirm(
+      `เปลี่ยนออเดอร์ ${o.orderCode} (${o.bookerName}) เป็น "รับที่วิทยาลัย"?\n\n` +
+        `• ที่อยู่จัดส่งเดิมจะถูกแทนที่ (เก็บไว้ใน Audit Log)\n` +
+        `• ยอดเงินคงเดิม ไม่มีการคืนค่าจัดส่ง`
+    );
+    if (!ok) return;
+    setShipBusyId(o.id);
+    setShipMsg(null);
+    try {
+      const res = await fetch(`/api/admin/merch/orders/${o.id}/to-pickup`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setShipMsg({ id: o.id, ok: false, text: data.error || "เปลี่ยนเป็นรับที่วิทยาลัยไม่สำเร็จ" });
+        return;
+      }
       load();
     } finally {
       setShipBusyId(null);
@@ -546,6 +570,17 @@ export default function AdminMerchOrdersPage() {
                         >
                           บันทึกและส่งอีเมล
                         </button>
+                        {editingTrackId !== o.id && !o.trackingNumber && canToPickup && (
+                          <button
+                            type="button"
+                            onClick={() => toPickup(o)}
+                            disabled={shipBusyId === o.id}
+                            title="ลูกค้าเปลี่ยนใจมารับเองที่วิทยาลัย — เปลี่ยนเป็นรับที่วิทยาลัย (ไม่คืนค่าส่ง)"
+                            className="text-xs px-2 py-1.5 rounded-lg bg-white text-stone-600 border border-stone-300 hover:bg-cream-50 transition-colors disabled:opacity-50"
+                          >
+                            เปลี่ยนเป็นรับที่วิทยาลัย
+                          </button>
+                        )}
                         {editingTrackId === o.id && (
                           <button
                             type="button"
