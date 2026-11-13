@@ -10,9 +10,10 @@ export async function GET() {
   const zeroB = { confirmed: 0, awaiting: 0, pending: 0 };
   return NextResponse.json({
     ...d,
-    merch: d.merch.map((r) => ({ ...r, revenueConfirmed: 0 })),
+    // ใบเบิก (ไม่คิดเงิน) นับรวมเป็น "ขายหน้าร้าน" และไม่เปิดเผยตัวเลขเบิกแยก — เห็นแยกได้เฉพาะหน้า admin
+    merch: d.merch.map((r) => ({ ...r, pos: r.pos + r.withdrawn, withdrawn: 0, revenueConfirmed: 0 })),
     shippingConfirmed: 0,
-    merchTotals: { ...d.merchTotals, revenueConfirmed: 0 },
+    merchTotals: { ...d.merchTotals, pos: d.merchTotals.pos + d.merchTotals.withdrawn, withdrawn: 0, revenueConfirmed: 0 },
     events: d.events.map((e) => ({ ...e, revenue: zeroB })),
   });
 }
