@@ -94,6 +94,8 @@ export async function GET(req: NextRequest) {
     canMerch
       ? prisma.merchOrder.findMany({
           where: {
+            // คำสั่งซื้อหมดเวลา เห็นเฉพาะ SUPER_ADMIN
+            ...(isSuper ? {} : { paymentStatus: { not: "expired" as const } }),
             OR: [
               { orderCode: { contains: q, mode: "insensitive" } },
               { bookerName: { contains: q, mode: "insensitive" } },

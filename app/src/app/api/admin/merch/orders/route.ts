@@ -6,10 +6,12 @@ import { MERCH_PICKUP_ADDRESS_TEXT } from "@/lib/settings";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const { response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"]);
+  const { admin, response } = requireAdmin(req, ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"]);
   if (response) return response;
 
+  // คำสั่งซื้อ "หมดเวลา" (expired) ให้เห็นเฉพาะ SUPER_ADMIN — บทบาทอื่นไม่เห็นในรายการ
   const orders = await prisma.merchOrder.findMany({
+    where: admin!.role === "SUPER_ADMIN" ? undefined : { paymentStatus: { not: "expired" } },
     include: {
       items: true,
       slips: { orderBy: { uploadedAt: "desc" }, take: 1 },

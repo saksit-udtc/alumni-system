@@ -85,7 +85,9 @@ export async function GET(req: NextRequest) {
   // เจ้าหน้าที่การเงินไม่ต้องเห็นอีเมล/ที่อยู่ ผลตรวจสลิปอัตโนมัติ และข้อมูลการจัดส่ง — บทบาทอื่นเห็นครบ
   const isFinance = admin?.role === "FINANCE_STAFF";
 
+  // คำสั่งซื้อ "หมดเวลา" ให้เห็นเฉพาะ SUPER_ADMIN
   const orders = await prisma.merchOrder.findMany({
+    where: admin?.role === "SUPER_ADMIN" ? undefined : { paymentStatus: { not: "expired" } },
     include: { items: true, slips: { orderBy: { uploadedAt: "desc" }, take: 1 } },
     orderBy: { createdAt: "desc" },
   });
