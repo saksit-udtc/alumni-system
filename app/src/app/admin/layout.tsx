@@ -8,6 +8,13 @@ import AdminUserMenu from "@/app/components/admin-user-menu";
 import { NotificationBell, useAdminNotifications } from "@/app/components/admin-notification-bell";
 
 const ICONS: Record<string, JSX.Element> = {
+  coin: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2 0 0 1 2.5-1.5c1.5 0 2.5 1 2.5 2s-1 1.5-2.5 2-2.5 1-2.5 2 1 2 2.5 2a2.5 2 0 0 0 2.5-1.5" />
+      <path d="M12 6.5v11" />
+    </>
+  ),
   dashboard: (
     <>
       <rect x="3" y="3" width="8" height="8" rx="1.5" />
@@ -146,6 +153,7 @@ const NAV_ITEMS: { href: string; label: string; icon: string; exact?: boolean; r
   { href: "/admin/merch/summary", label: "สรุปยอดสินค้าและโต๊ะ", icon: "dashboard", roles: ["SUPER_ADMIN", "MERCH_STAFF", "FINANCE_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
   { href: "/admin/merch/online-daily", label: "สรุปยอดขายออนไลน์รายวัน", icon: "dashboard", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "การเงิน" },
   { href: "/admin/pos/daily", label: "สรุปยอดขายหน้าร้านรายวัน", icon: "dashboard", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "การเงิน" },
+  { href: "/admin/ledger", label: "สมุดบัญชีรายวัน", icon: "coin", roles: ["SUPER_ADMIN", "FINANCE_STAFF"], section: "การเงิน" },
   { href: "/admin/merch/products", label: "จัดการสินค้า/สต๊อก", icon: "box", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },
   { href: "/admin/pos", label: "ขายหน้างาน (POS)", icon: "barcode", roles: ["SUPER_ADMIN", "MERCH_STAFF"], section: "ของที่ระลึก" },
   { href: "/admin/packages", label: "จัดการแพ็กเกจ", icon: "gift", roles: ["SUPER_ADMIN", "MERCH_STAFF", "RESERVATION_STAFF"], section: "ของที่ระลึก" },
@@ -193,7 +201,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const ROLE_ALLOWED_PREFIXES: Record<string, string[]> = {
     CHECKIN_STAFF: ["/admin/checkin"],
     MERCH_STAFF: ["/admin/merch", "/admin/pos", "/admin/packages", "/admin/alumni"],
-    FINANCE_STAFF: ["/admin/reservations", "/admin/support-registrations", "/admin/merch/orders", "/admin/merch/summary", "/admin/merch/online-daily", "/admin/pos/daily"],
+    FINANCE_STAFF: ["/admin/reservations", "/admin/support-registrations", "/admin/merch/orders", "/admin/merch/summary", "/admin/merch/online-daily", "/admin/ledger", "/admin/pos/daily"],
     RESERVATION_STAFF: ["/admin/events", "/admin/table-locks", "/admin/merch/orders", "/admin/merch/summary", "/admin/packages", "/admin/pos/package"],
   };
   const ROLE_HOME: Record<string, string> = {
