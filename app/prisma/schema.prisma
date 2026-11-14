@@ -397,6 +397,7 @@ model MerchOrder {
   @@index([bookerPhone])
   @@index([paymentStatus])
   @@index([packageId])
+  @@index([paymentStatus, reservedUntil])
 }
 
 model MerchOrderItem {
@@ -646,6 +647,61 @@ model SupportRegistration {
 
   @@index([type, paymentStatus])
   @@index([createdAt])
+}
+
+// --- สมุดบัญชีรายวัน (Ledger) ---
+// ส่วนเสริมแบบ "แยกตาราง" ไม่มี FK ไปยังตารางเดิมเลย (adminId เก็บเป็นข้อความธรรมดา)
+// รายรับจากระบบ (โต๊ะ/ของที่ระลึก/POS/ผู้สนับสนุน) ไม่ถูกเก็บซ้ำที่นี่ — คำนวณสดจากออเดอร์ที่ยืนยันแล้ว
+// (lib/ledger.ts) ตารางนี้เก็บเฉพาะรายการที่คนกรอกเอง (รายจ่าย / เงินสดรับอื่นๆ) และสแนปช็อตตอนปิดยอด
+enum LedgerEntryType {
+  income
+  expense
+}
+
+enum LedgerMethod {
+  cash
+  transfer
+}
+
+model LedgerEntry {
+  id            String          @id @default(cuid())
+  // วันที่ตามปฏิทินไทย (Asia/Bangkok) ที่รายการนี้เกิดขึ้น
+  entryDate     DateTime        @db.Date
+  type          LedgerEntryType
+  method        LedgerMethod    @default(cash)
+  category      String
+  // หมวดงาน: event (งานเลี้ยง/จองโต๊ะ) | merch (ของที่ระลึก) | shipping (ค่าจัดส่ง) | support (เงินสนับสนุน) | general (ทั่วไป)
+  stream        String          @default("general")
+  amount        Decimal         @db.Decimal(12, 2)
+  description   String?
+  receiptNo     String?
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime        @default(now())
+  // ไม่ลบรายการจริง — ยกเลิก (void) แล้วเก็บเหตุผลไว้เพื่อให้ตรวจสอบย้อนหลังได้
+  voidedAt      DateTime?
+  voidedByName  String?
+  voidReason    String?
+
+  @@index([entryDate])
+}
+
+model DailyClosing {
+  id            String   @id @default(cuid())
+  closingDate   DateTime @unique @db.Date
+  autoIncome    Decimal  @db.Decimal(12, 2)
+  manualIncome  Decimal  @db.Decimal(12, 2)
+  expense       Decimal  @db.Decimal(12, 2)
+  net           Decimal  @db.Decimal(12, 2)
+  // เงินสดที่ "ควรมี" ในลิ้นชัก (POS เงินสด + เงินสดรับอื่นๆ − รายจ่ายเงินสด) และที่นับได้จริง (ถ้ากรอก)
+  expectedCash  Decimal  @db.Decimal(12, 2)
+  countedCash   Decimal? @db.Decimal(12, 2)
+  // รายละเอียดรายรับอัตโนมัติแยกตามแหล่ง ณ ตอนปิดยอด
+  snapshot      Json
+  note          String?
+  closedById    String?
+  closedByName  String?
+  closedAt      DateTime @default(now())
 }
 
 // ใบเบิกของที่ระลึก (ไม่คิดเงิน) — ผู้บริหารเบิกไปใช้งาน เช่น สัมมนาผู้มีอุปการคุณ
